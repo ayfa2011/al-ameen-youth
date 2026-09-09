@@ -1,0 +1,38 @@
+<!-- Event Reporting & Photo Upload Section -->
+<section id="event-report" class="event-report-section">
+  <div class="container">
+    <div class="section-card">
+      <h2 class="section-title">📸 ಕಾರ್ಯಕ್ರಮ ವರದಿ & ಫೋಟೋ ಸಲ್ಲಿಕೆ</h2>
+      <p class="section-desc">ಸಂಸ್ಥೆಯ ಚಟುವಟಿಕೆಗಳ ವಿವರ ಹಾಗೂ ಫೋಟೋಗಳನ್ನು ಇಲ್ಲಿ ಅಪ್ಲೋಡ್ ಮಾಡಿ:</p>
+
+      <form id="eventReportForm" onsubmit="handleEventSubmit(event)">
+        <!-- Program Title -->
+        <div class="form-group">
+          <label class="form-label">ಕಾರ್ಯಕ್ರಮದ ಹೆಸರು</label>
+          <input type="text" id="eventTitle" class="form-input" placeholder="ಉದಾ: ರಕ್ತದಾನ ಶಿಬಿರ 2026" required>
+        </div>
+
+        <!-- Event Date -->
+        <div class="form-group">
+          <label class="form-label">ದಿನಾಂಕ</label>
+          <input type="date" id="eventDate" class="form-input" required>
+        </div>
+
+        <!-- Description -->
+        <div class="form-group">
+          <label class="form-label">ಸಂಕ್ಷಿಪ್ತ ವಿವರಣೆ</label>
+          <textarea id="eventDesc" class="form-input" rows="3" placeholder="ಕಾರ್ಯಕ್ರಮದ ವಿವರ ಬರೆಯಿರಿ..."></textarea>
+        </div>
+
+        <!-- Photo Upload -->
+        <div class="form-group">
+          <label class="form-label">ಫೋಟೋಗಳು (Multiple Upload)</label>
+          <input type="file" id="eventPhotos" class="form-input" accept="image/*" multiple required>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" class="btn-submit">📤 ವರದಿ ಸಬ್ಮಿಟ್ ಮಾಡಿ</button>
+      </form>
+    </div>
+  </div>
+</section>

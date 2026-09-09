@@ -1,0 +1,21 @@
+<div class="section-header">
+  <button class="btn-back" onclick="showDashboard()"><i class="fa-solid fa-arrow-left"></i> back</button>
+  <h2>Mark Attendance</h2>
+</div>
+
+<div class="form-group">
+  <label>Program Name / ಕಾರ್ಯಕ್ರಮದ ಹೆಸರು:</label>
+  <input type="text" id="progName" placeholder="e.g. Monthly Meeting, Meelad" class="form-input">
+</div>
+
+<div class="form-group">
+  <label>Date / ದಿನಾಂಕ:</label>
+  <input type="date" id="progDate" class="form-input">
+</div>
+
+<h3>Select Present Members:</h3>
+<div id="attendanceList" class="attendance-list">
+  <!-- Checkboxes generated dynamically -->
+</div>
+
+<button class="btn-submit" onclick="submitAttendance()">Save Attendance</button>

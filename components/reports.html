@@ -1,0 +1,27 @@
+<!-- Activity Reports Section -->
+<section id="reports" class="reports-section">
+  <div class="container">
+    <div class="section-card">
+      <h2 class="section-title">📊 ಚಟುವಟಿಕೆಗಳ ವರದಿಗಳು (Activity Reports)</h2>
+      <p class="section-desc">ವರ್ಷಾವಾರು ವರದಿಗಳನ್ನು ನೋಡಿ ಅಥವಾ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ:</p>
+      
+      <!-- Year Buttons -->
+      <div class="year-buttons-grid">
+        <button onclick="openPdfReport('2022')" class="btn-year">2022 ವರದಿ PDF</button>
+        <button onclick="openPdfReport('2023')" class="btn-year">2023 ವರದಿ PDF</button>
+        <button onclick="openPdfReport('2024')" class="btn-year">2024 ವರದಿ PDF</button>
+        <button onclick="openPdfReport('2025')" class="btn-year">2025 ವರದಿ PDF</button>
+        <button onclick="openPdfReport('2026')" class="btn-year">2026 ವರದಿ PDF</button>
+      </div>
+
+      <!-- PDF Viewer Box (When clicked, PDF opens here) -->
+      <div id="pdfViewerContainer" class="pdf-viewer-box" style="display: none;">
+        <div class="pdf-header">
+          <h4 id="pdfTitle">ವರದಿ ಪ್ರಿವ್ಯೂ</h4>
+          <button onclick="closePdfReport()" class="btn-close-pdf">✕ ಮುಚ್ಚಿ (Close)</button>
+        </div>
+        <iframe id="pdfIframe" src="" width="100%" height="500px" style="border:none;"></iframe>
+      </div>
+    </div>
+  </div>
+</section>

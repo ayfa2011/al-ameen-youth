@@ -1,0 +1,40 @@
+<!-- Finance Report Section -->
+<section id="finance" class="finance-section">
+  <div class="container">
+    <div class="section-card">
+      <h2 class="section-title">💰 ಆರ್ಥಿಕ ವರದಿ (Finance Report 2022-2026)</h2>
+      <p class="section-desc">ಸಂಸ್ಥೆಯ ವರ್ಷಾವಾರು ಆದಾಯ ಮತ್ತು ವೆಚ್ಚದ ವಿವರಗಳು:</p>
+
+      <!-- Year Selector Tabs -->
+      <div class="finance-tabs">
+        <button class="tab-btn active" onclick="showFinanceYear('2026')">2026</button>
+        <button class="tab-btn" onclick="showFinanceYear('2025')">2025</button>
+        <button class="tab-btn" onclick="showFinanceYear('2024')">2024</button>
+        <button class="tab-btn" onclick="showFinanceYear('2023')">2023</button>
+        <button class="tab-btn" onclick="showFinanceYear('2022')">2022</button>
+      </div>
+
+      <!-- Finance Summary Cards -->
+      <div class="finance-summary-grid">
+        <div class="fin-card fin-income">
+          <span class="fin-label">ಒಟ್ಟು ಆದಾಯ (Income)</span>
+          <h3 id="totalIncome">₹ 0.00</h3>
+        </div>
+        <div class="fin-card fin-expense">
+          <span class="fin-label">ಒಟ್ಟು ವೆಚ್ಚ (Expense)</span>
+          <h3 id="totalExpense">₹ 0.00</h3>
+        </div>
+        <div class="fin-card fin-balance">
+          <span class="fin-label">ಉಳಿಕೆ (Balance)</span>
+          <h3 id="totalBalance">₹ 0.00</h3>
+        </div>
+      </div>
+
+      <!-- Detailed Finance Link / Button -->
+      <div class="finance-action">
+        <button class="btn-finance-pdf" onclick="downloadFinancePDF()">📄 ಆರ್ಥಿಕ ವರದಿ PDF ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ</button>
+      </div>
+
+    </div>
+  </div>
+</section>

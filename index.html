@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="kn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Al-Ameen Youth Federation</title>
+
+  <link rel="stylesheet" href="css/style.css">
+
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+
+  <!-- =========================================================
+       PIN LOCK SCREEN
+  ========================================================== -->
+  <div id="pinScreen" class="pin-screen">
+
+    <div class="pin-box">
+
+      <h2>ಅಲ್‌ ಅಮೀನ್ ಯೂತ್ ಫೆಡರೇಶನ್</h2>
+
+      <p>ಆಂತರಿಕ ಲಾಗಿನ್ PIN ನಮೂದಿಸಿ</p>
+
+      <input
+        type="password"
+        id="pinInput"
+        maxlength="4"
+        placeholder="••••"
+        class="pin-input"
+      >
+
+      <button
+        type="button"
+        id="loginBtn"
+        onclick="checkPin()"
+        class="btn-pin"
+      >
+        Login
+      </button>
+
+      <p id="pinError" class="pin-error"></p>
+
+    </div>
+
+  </div>
+
+
+  <!-- =========================================================
+       MAIN APPLICATION
+  ========================================================== -->
+
+  <div id="appContainer" class="app-container hidden">
+
+
+    <!-- =======================================================
+         HEADER
+    ======================================================== -->
+
+    <header class="app-header">
+
+      <div class="logo-title">
+
+        <div>
+
+          <h1 class="main-title">
+            ಅಲ್‌ ಅಮೀನ್ ಯೂತ್ ಫೆಡರೇಶನ್
+          </h1>
+
+          <p class="sub-title">
+            ARAMBOOR, SULLIA, D.K - 574314
+          </p>
+
+        </div>
+
+      </div>
+
+    </header>
+
+
+    <!-- =======================================================
+         BANNER
+    ======================================================== -->
+
+    <div class="banner-container">
+
+      <div class="banner-box">
+
+        <span>
+          Group Banner Photo Here
+        </span>
+
+      </div>
+
+    </div>
+
+
+    <!-- =======================================================
+         DASHBOARD
+    ======================================================== -->
+
+    <div id="dashboardView" class="view-section">
+
+      <div class="buttons-grid">
+
+
+        <!-- OFFICE BEARERS -->
+
+        <div
+          class="grid-card"
+          onclick="openOfficeBearers()"
+        >
+
+          <i class="fa-solid fa-user-tie card-icon"></i>
+
+          <span>
+            Office Bearers
+          </span>
+
+        </div>
+
+
+        <!-- MEMBERS PROFILE -->
+
+        <div
+          class="grid-card"
+          onclick="openMembersProfile()"
+        >
+
+          <i class="fa-solid fa-users card-icon"></i>
+
+          <span>
+            Members Profile
+          </span>
+
+        </div>
+
+
+        <!-- ACTIVITY REPORTS -->
+
+        <div
+          class="grid-card"
+          onclick="openActivityReports()"
+        >
+
+          <i class="fa-solid fa-chart-line card-icon"></i>
+
+          <span>
+            Activity Reports
+          </span>
+
+        </div>
+
+
+        <!-- MONTHLY CONTRIBUTION -->
+
+        <div
+          class="grid-card"
+          onclick="showComingSoon('Monthly Contribution')"
+        >
+
+          <i class="fa-solid fa-hand-holding-dollar card-icon"></i>
+
+          <span>
+            Monthly Contribution
+          </span>
+
+        </div>
+
+
+        <!-- BLOOD DONORS -->
+
+        <div
+          class="grid-card"
+          onclick="openBloodDonors()"
+        >
+
+          <i class="fa-solid fa-droplet card-icon red-icon"></i>
+
+          <span>
+            Blood Donors
+          </span>
+
+        </div>
+
+
+        <!-- DONORS & SPONSORS -->
+
+        <div
+          class="grid-card"
+          onclick="showComingSoon('Donors & Sponsors')"
+        >
+
+          <i class="fa-solid fa-heart-circle-check card-icon"></i>
+
+          <span>
+            Donors & Sponsors
+          </span>
+
+        </div>
+
+
+        <!-- FINANCE REPORTS -->
+
+        <div
+          class="grid-card"
+          onclick="showComingSoon('Finance Reports')"
+        >
+
+          <i class="fa-solid fa-file-invoice-dollar card-icon"></i>
+
+          <span>
+            Finance Reports
+          </span>
+
+        </div>
+
+
+        <!-- ASSET & INVENTORY -->
+
+        <div
+          class="grid-card"
+          onclick="showComingSoon('Asset & Inventory')"
+        >
+
+          <i class="fa-solid fa-boxes-stacked card-icon"></i>
+
+          <span>
+            Asset & Inventory
+          </span>
+
+        </div>
+
+
+        <!-- ATTENDANCE -->
+
+        <div
+          class="grid-card"
+          onclick="openAttendance()"
+        >
+
+          <i class="fa-solid fa-clipboard-user card-icon"></i>
+
+          <span>
+            Attendance
+          </span>
+
+        </div>
+
+
+        <!-- SUBMIT PROGRAM REPORT -->
+
+        <div
+          class="grid-card"
+          onclick="showComingSoon('Submit Program Report')"
+        >
+
+          <i class="fa-solid fa-pen-to-square card-icon"></i>
+
+          <span>
+            Submit Program Report
+          </span>
+
+        </div>
+
+
+        <!-- UPLOAD PHOTOS -->
+
+        <div
+          class="grid-card"
+          onclick="showComingSoon('Upload Photos to Drive')"
+        >
+
+          <i class="fa-solid fa-cloud-arrow-up card-icon"></i>
+
+          <span>
+            Upload Photos to Drive
+          </span>
+
+        </div>
+
+
+        <!-- BADR MASJID -->
+
+        <div
+          class="grid-card"
+          onclick="showComingSoon('Badr Masjid')"
+        >
+
+          <i class="fa-solid fa-mosque card-icon"></i>
+
+          <span>
+            Badr Masjid
+          </span>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- =======================================================
+         ACTIVITY REPORTS
+    ======================================================== -->
+
+    <div
+      id="activityReportsView"
+      class="view-section hidden"
+    >
+
+      <div class="section-header">
+
+        <button
+          class="btn-back"
+          onclick="showDashboard()"
+        >
+
+          <i class="fa-solid fa-arrow-left"></i>
+
+          Back
+
+        </button>
+
+        <h2>
+          Activity Reports
+        </h2>
+
+      </div>
+
+
+      <div class="activity-report-intro">
+
+        <div class="activity-report-icon">
+
+          <i class="fa-solid fa-chart-line"></i>
+
+        </div>
+
+        <div>
+
+          <h3>
+            Year-wise Activity Reports
+          </h3>
+
+          <p>
+            View the annual activities and reports of
+            Al-Ameen Youth Federation.
+          </p>
+
+        </div>
+
+      </div>
+
+
+      <div class="activity-reports-grid">
+
+
+        <!-- 2026 -->
+
+        <div class="activity-report-card">
+
+          <div class="report-year">
+            2026
+          </div>
+
+          <div class="report-info">
+
+            <h3>
+              2026 Activities
+            </h3>
+
+            <p>
+              Annual Activity Report
+            </p>
+
+          </div>
+
+          <a
+            href="https://drive.google.com/file/d/1GCqHZ0jn4reak5N1UeacQM_DfO3GxYHG/view?usp=sharing"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="report-btn"
+          >
+
+            <i class="fa-solid fa-file-pdf"></i>
+
+            View PDF
+
+          </a>
+
+        </div>
+
+
+        <!-- 2025 -->
+
+        <div class="activity-report-card">
+
+          <div class="report-year">
+            2025
+          </div>
+
+          <div class="report-info">
+
+            <h3>
+              2025 Activities
+            </h3>
+
+            <p>
+              Annual Activity Report
+            </p>
+
+          </div>
+
+          <a
+            href="https://drive.google.com/file/d/1BZxv3bAIq3cslrF52VcGP2brENB3qYfV/view?usp=drivesdk"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="report-btn"
+          >
+
+            <i class="fa-solid fa-file-pdf"></i>
+
+            View PDF
+
+          </a>
+
+        </div>
+
+
+        <!-- 2024 -->
+
+        <div class="activity-report-card">
+
+          <div class="report-year">
+            2024
+          </div>
+
+          <div class="report-info">
+
+            <h3>
+              2024 Activities
+            </h3>
+
+            <p>
+              Annual Activity Report
+            </p>
+
+          </div>
+
+          <a
+            href="https://drive.google.com/file/d/19TMLmC9v6l-u8rZyF1K-BbBoztbhf17t/view?usp=drivesdk"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="report-btn"
+          >
+
+            <i class="fa-solid fa-file-pdf"></i>
+
+            View PDF
+
+          </a>
+
+        </div>
+
+
+        <!-- 2022 -->
+
+        <div class="activity-report-card">
+
+          <div class="report-year">
+            2022
+          </div>
+
+          <div class="report-info">
+
+            <h3>
+              2022 Activities
+            </h3>
+
+            <p>
+              Annual Activity Report
+            </p>
+
+          </div>
+
+          <a
+            href="https://drive.google.com/file/d/1hv9yTa5sab-VUDUyOaN0qEW_DnMBqVmb/view?usp=drivesdk"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="report-btn"
+          >
+
+            <i class="fa-solid fa-file-pdf"></i>
+
+            View PDF
+
+          </a>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- =======================================================
+         ATTENDANCE
+    ======================================================== -->
+
+    <div
+      id="attendanceView"
+      class="view-section hidden"
+    >
+
+      <div class="section-header">
+
+        <button
+          class="btn-back"
+          onclick="showDashboard()"
+        >
+
+          <i class="fa-solid fa-arrow-left"></i>
+
+          Back
+
+        </button>
+
+        <h2>
+          Attendance Section
+        </h2>
+
+      </div>
+
+
+      <!-- Attendance Tabs -->
+
+      <div class="attendance-tabs">
+
+        <button
+          id="tabMarkBtn"
+          onclick="switchAttTab('mark')"
+          class="attendance-tab active"
+        >
+
+          📝 Mark Attendance
+
+        </button>
+
+
+        <button
+          id="tabReportBtn"
+          onclick="switchAttTab('report')"
+          class="attendance-tab"
+        >
+
+          📊 Attendance Report
+
+        </button>
+
+      </div>
+
+
+      <!-- MARK ATTENDANCE -->
+
+      <div id="tabMarkContent">
+
+        <div class="form-group">
+
+          <label>
+            Program Name / ಕಾರ್ಯಕ್ರಮದ ಹೆಸರು:
+          </label>
+
+          <input
+            type="text"
+            id="progName"
+            placeholder="e.g. Monthly Meeting, Meelad"
+          >
+
+        </div>
+
+
+        <div class="form-group">
+
+          <label>
+            Date / ದಿನಾಂಕ:
+          </label>
+
+          <input
+            type="date"
+            id="progDate"
+          >
+
+        </div>
+
+
+        <h3 class="attendance-heading">
+          Select Present Members:
+        </h3>
+
+
+        <div
+          id="attendanceList"
+          class="attendance-list"
+        >
+
+          <!-- Generated dynamically -->
+
+        </div>
+
+
+        <button
+          onclick="submitAttendance()"
+          class="save-attendance-btn"
+        >
+
+          Save Attendance
+
+        </button>
+
+      </div>
+
+
+      <!-- ATTENDANCE REPORT -->
+
+      <div
+        id="tabReportContent"
+        class="hidden"
+      >
+
+        <div class="table-scroll">
+
+          <table class="attendance-report-table">
+
+            <thead>
+
+              <tr>
+
+                <th>
+                  Sl No
+                </th>
+
+                <th>
+                  Karyakrama
+                </th>
+
+                <th>
+                  Participated Members
+                </th>
+
+              </tr>
+
+            </thead>
+
+            <tbody id="reportsTableBody">
+
+              <!-- Reports loaded dynamically -->
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- =======================================================
+         MEMBERS PROFILE
+    ======================================================== -->
+
+    <div
+      id="membersView"
+      class="view-section hidden"
+    >
+
+      <div class="section-header">
+
+        <button
+          class="btn-back"
+          onclick="showDashboard()"
+        >
+
+          <i class="fa-solid fa-arrow-left"></i>
+
+          Back
+
+        </button>
+
+        <h2>
+          Members Profile
+        </h2>
+
+      </div>
+
+
+      <div
+        id="membersContainer"
+        class="members-container"
+      >
+
+        <!-- Members loaded dynamically -->
+
+      </div>
+
+    </div>
+
+
+    <!-- =======================================================
+         BLOOD DONORS
+    ======================================================== -->
+
+    <div
+      id="bloodDonorsView"
+      class="view-section hidden"
+    >
+
+      <div class="section-header">
+
+        <button
+          class="btn-back"
+          onclick="showDashboard()"
+        >
+
+          <i class="fa-solid fa-arrow-left"></i>
+
+          Back
+
+        </button>
+
+        <h2>
+          Blood Donors
+        </h2>
+
+      </div>
+
+
+      <div class="blood-donor-toolbar">
+
+
+        <div class="blood-donor-summary">
+
+          <i class="fa-solid fa-droplet"></i>
+
+          <div>
+
+            <strong id="bloodDonorCount">
+              0
+            </strong>
+
+            <span>
+              Members with blood details
+            </span>
+
+          </div>
+
+        </div>
+
+
+        <input
+          id="bloodDonorSearch"
+          class="blood-search-input"
+          type="search"
+          placeholder="Search member name or blood group..."
+        >
+
+      </div>
+
+
+      <div
+        id="bloodDonorsContainer"
+        class="blood-donors-container"
+      >
+
+        <p class="loading-message">
+          Blood Donors loading...
+        </p>
+
+      </div>
+
+    </div>
+
+
+    <!-- =======================================================
+         OFFICE BEARERS YEAR SELECTION
+    ======================================================== -->
+
+    <div
+      id="yearSelectView"
+      class="view-section hidden"
+    >
+
+      <div class="section-header">
+
+        <button
+          class="btn-back"
+          onclick="showDashboard()"
+        >
+
+          <i class="fa-solid fa-arrow-left"></i>
+
+          Back
+
+        </button>
+
+        <h2>
+          Office Bearers
+        </h2>
+
+      </div>
+
+
+      <p class="select-instruction">
+        Choose the year of office bearers
+      </p>
+
+
+      <div class="year-list">
+
+        <button
+          class="year-btn"
+          onclick="loadBearers('2027')"
+        >
+          2027
+        </button>
+
+        <button
+          class="year-btn"
+          onclick="loadBearers('2026')"
+        >
+          2026
+        </button>
+
+        <button
+          class="year-btn"
+          onclick="loadBearers('2025')"
+        >
+          2025
+        </button>
+
+        <button
+          class="year-btn"
+          onclick="loadBearers('2024')"
+        >
+          2024
+        </button>
+
+        <button
+          class="year-btn"
+          onclick="loadBearers('2023')"
+        >
+          2023
+        </button>
+
+        <button
+          class="year-btn"
+          onclick="loadBearers('2022')"
+        >
+          2022
+        </button>
+
+      </div>
+
+    </div>
+
+
+    <!-- =======================================================
+         OFFICE BEARERS TABLE
+    ======================================================== -->
+
+    <div
+      id="bearersTableView"
+      class="view-section hidden"
+    >
+
+      <div class="section-header">
+
+        <button
+          class="btn-back"
+          onclick="openOfficeBearers()"
+        >
+
+          <i class="fa-solid fa-arrow-left"></i>
+
+          Back
+
+        </button>
+
+        <h2>
+          Office Bearers -
+          <span id="selectedYearTitle">
+            2027
+          </span>
+        </h2>
+
+      </div>
+
+
+      <div
+        id="printArea"
+        class="table-container"
+      >
+
+        <table class="data-table">
+
+          <thead>
+
+            <tr>
+
+              <th>
+                Serial No
+              </th>
+
+              <th>
+                Designation
+              </th>
+
+              <th>
+                Name
+              </th>
+
+            </tr>
+
+          </thead>
+
+          <tbody id="bearersTableBody">
+
+          </tbody>
+
+        </table>
+
+      </div>
+
+
+      <div class="action-buttons">
+
+        <button
+          class="btn-action print"
+          onclick="window.print()"
+        >
+
+          <i class="fa-solid fa-print"></i>
+
+          Print
+
+        </button>
+
+
+        <button
+          class="btn-action download"
+          onclick="downloadPDF()"
+        >
+
+          <i class="fa-solid fa-file-pdf"></i>
+
+          Download PDF
+
+        </button>
+
+      </div>
+
+    </div>
+
+
+    <!-- =======================================================
+         FOOTER
+    ======================================================== -->
+
+    <footer class="app-footer">
+
+      <p>
+        Badar Masjid Building, Main Road,
+        Aramboor, Sullia, D.K - 574314
+      </p>
+
+      <p>
+        ayfaramboor@gmail.com |
+        al ameen aramboor
+      </p>
+
+    </footer>
+
+
+  </div>
+
+
+  <!-- =========================================================
+       JAVASCRIPT
+  ========================================================== -->
+
+  <script src="js/script.js"></script>
+  <script src="js/members.js"></script>
+  <script src="js/attendance.js"></script>
+
+</body>
+</html>

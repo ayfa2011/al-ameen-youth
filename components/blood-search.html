@@ -1,0 +1,30 @@
+<!-- Emergency Blood Search Section -->
+<section id="blood-search" class="blood-search-section">
+  <div class="container">
+    <div class="search-card">
+      <h2 class="search-title">🩸 ತುರ್ತು ರಕ್ತದಾನಿಗಳ ಹುಡುಕಾಟ (Emergency Blood Search)</h2>
+      <p class="search-desc">ನಿಮಗೆ ಅಗತ್ಯವಿರುವ ರಕ್ತದ ಗುಂಪನ್ನು (Blood Group) ಆಯ್ಕೆ ಮಾಡಿ ರಕ್ತದಾನಿಗಳನ್ನು ಹುಡುಕಿ:</p>
+      
+      <!-- Blood Group Dropdown & Search -->
+      <div class="search-box">
+        <select id="bloodGroupSelect" class="form-select">
+          <option value="">-- ರಕ್ತದ ಗುಂಪು ಆಯ್ಕೆ ಮಾಡಿ --</option>
+          <option value="A+">A+</option>
+          <option value="A-">A-</option>
+          <option value="B+">B+</option>
+          <option value="B-">B-</option>
+          <option value="O+">O+</option>
+          <option value="O-">O-</option>
+          <option value="AB+">AB+</option>
+          <option value="AB-">AB-</option>
+        </select>
+        <button onclick="searchBloodDonors()" class="btn-search">ಹುಡುಕಿ (Search)</button>
+      </div>
+
+      <!-- Results Display Area -->
+      <div id="donorResults" class="donor-results-grid">
+        <!-- Google Sheet ನಿಂದ ಬರುವ ರಕ್ತದಾನಿಗಳ ವಿವರ ಇಲ್ಲೇ ಡೈನಾಮಿಕ್ ಆಗಿ ಕಾಣಿಸುತ್ತದೆ -->
+      </div>
+    </div>
+  </div>
+</section>
