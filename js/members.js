@@ -48,25 +48,80 @@ async function fetchMembersFromSheet(force = false) {
 
 function memberCardHTML(m) {
   const phone = String(m.mobile || "").replace(/[^0-9+]/g, "");
-  const whatsapp = phone.replace(/^\+/, "");
+  const whatsapp = normalizePhoneForLinks(m.mobile);
+  const attendanceCount = Number(m.attendanceCount || 0);
 
   return `
     <div class="member-card">
       <div class="member-info">
         <h3>${escapeHTML(m.name)}</h3>
-        <p><strong>ID:</strong> ${escapeHTML(m.id)}</p>
-        <p><strong>Designation:</strong> ${escapeHTML(m.designation)}</p>
-        ${m.education ? `<p><strong>Education:</strong> ${escapeHTML(m.education)}</p>` : ""}
-        ${m.fatherName ? `<p><strong>Father:</strong> ${escapeHTML(m.fatherName)}</p>` : ""}
-        ${m.location ? `<p><strong>Location:</strong> ${escapeHTML(m.location)}</p>` : ""}
-        ${m.bloodGroup ? `<p><strong>Blood:</strong> <span class="badge blood-badge">${escapeHTML(m.bloodGroup)}</span></p>` : ""}
-        ${m.contribution !== "" ? `<p><strong>Monthly Contribution:</strong> ₹${escapeHTML(m.contribution)}</p>` : ""}
+
+        <div class="member-info-details">
+          <p><strong>ID:</strong> ${escapeHTML(m.id || "-")}</p>
+          <p><strong>Designation:</strong> ${escapeHTML(m.designation || "Member")}</p>
+          ${m.education ? `<p><strong>Education:</strong> ${escapeHTML(m.education)}</p>` : ""}
+          ${m.fatherName ? `<p><strong>Father:</strong> ${escapeHTML(m.fatherName)}</p>` : ""}
+          ${m.location ? `<p><strong>Location:</strong> ${escapeHTML(m.location)}</p>` : ""}
+          ${m.bloodGroup ? `<p><strong>Blood:</strong> <span class="badge blood-badge">${escapeHTML(m.bloodGroup)}</span></p>` : ""}
+          ${m.contribution !== "" ? `<p><strong>Contribution:</strong> ₹${escapeHTML(m.contribution)}</p>` : ""}
+          <p class="member-attendance"><strong>Attendance:</strong> ${attendanceCount} ${attendanceCount === 1 ? "Program" : "Programs"}</p>
+        </div>
       </div>
+
       <div class="card-actions">
-        ${phone ? `<a class="btn-call" href="tel:${escapeHTML(phone)}">📞 Call</a>` : ""}
-        ${whatsapp ? `<a class="btn-wa" href="https://wa.me/${escapeHTML(whatsapp)}" target="_blank" rel="noopener">WhatsApp</a>` : ""}
+        ${phone ? `<a class="btn-call" href="tel:${escapeHTML(phone)}" aria-label="Call ${escapeHTML(m.name)}" title="Call"></a>` : ""}
+        ${whatsapp ? `<a class="btn-wa" href="https://wa.me/${escapeHTML(whatsapp)}" target="_blank" rel="noopener" aria-label="WhatsApp ${escapeHTML(m.name)}" title="WhatsApp"></a>` : ""}
       </div>
     </div>`;
+}
+
+let attendanceCountsByName = {};
+
+function normalizeMemberNameForAttendance(value) {
+  return String(value ?? "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+async function loadMemberAttendanceCounts() {
+  attendanceCountsByName = {};
+
+  if (typeof hasApiUrl === "function" && !hasApiUrl()) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${SCRIPT_URL}?action=getReports`, { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const reports = await response.json();
+    if (!Array.isArray(reports)) return;
+
+    reports.forEach(report => {
+      const rawMembers = String(report.membersList ?? "").trim();
+      if (!rawMembers) return;
+
+      /*
+        Attendance reports store the selected member names in membersList.
+        The normal format is comma separated; newline/semicolon are also
+        accepted so older sheets continue to work.
+      */
+      const names = rawMembers
+        .split(/[,;\n|]+/)
+        .map(name => name.trim())
+        .filter(Boolean);
+
+      names.forEach(name => {
+        const key = normalizeMemberNameForAttendance(name);
+        if (!key) return;
+        attendanceCountsByName[key] =
+          (attendanceCountsByName[key] || 0) + 1;
+      });
+    });
+  } catch (error) {
+    console.warn("Attendance counts could not be loaded:", error);
+  }
 }
 
 async function renderMemberCards() {
@@ -77,6 +132,13 @@ async function renderMemberCards() {
 
   try {
     await fetchMembersFromSheet();
+    await loadMemberAttendanceCounts();
+
+    fullMembersList.forEach(member => {
+      const key = normalizeMemberNameForAttendance(member.name);
+      member.attendanceCount = attendanceCountsByName[key] || 0;
+    });
+
     container.innerHTML = fullMembersList.length
       ? fullMembersList.map(memberCardHTML).join("")
       : `<p class="empty-message">Members data ಸಿಗಲಿಲ್ಲ.</p>`;

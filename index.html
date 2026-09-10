@@ -1,28 +1,732 @@
 <!DOCTYPE html>
 <html lang="kn">
+
 <head>
+
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
   <title>Al-Ameen Youth Federation</title>
 
-  <link rel="stylesheet" href="css/style.css">
 
-  <link rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- MAIN CSS -->
+
+  <link
+    rel="stylesheet"
+    href="css/style.css"
+  >
+
+
+  <!-- FONT AWESOME -->
+
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+  >
+
+
+  <!-- =========================================================
+       POSTER GENERATOR STYLES
+  ========================================================== -->
+
+  <style>
+
+    /* =========================================================
+       POSTER GENERATOR PAGE
+    ========================================================== */
+
+    .poster-generator-wrapper {
+
+      width: 100%;
+
+      display: grid;
+
+      grid-template-columns:
+        330px
+        minmax(400px, 1fr);
+
+      gap: 25px;
+
+      align-items: start;
+
+    }
+
+
+    /* =========================================================
+       FORM CARD
+    ========================================================== */
+
+    .poster-form-card {
+
+      background: #ffffff;
+
+      border: 1px solid #e3e8ed;
+
+      border-radius: 16px;
+
+      padding: 20px;
+
+      box-shadow:
+        0 5px 20px rgba(0, 0, 0, 0.05);
+
+      position: sticky;
+
+      top: 20px;
+
+    }
+
+
+    .poster-form-title {
+
+      margin: 0 0 5px 0;
+
+      color: #174f91;
+
+      font-size: 19px;
+
+      font-weight: 800;
+
+    }
+
+
+    .poster-form-subtitle {
+
+      margin: 0 0 20px 0;
+
+      color: #777;
+
+      font-size: 12px;
+
+      line-height: 1.5;
+
+    }
+
+
+    .poster-field {
+
+      margin-bottom: 15px;
+
+    }
+
+
+    .poster-field label {
+
+      display: block;
+
+      margin-bottom: 6px;
+
+      color: #333;
+
+      font-size: 12px;
+
+      font-weight: 700;
+
+    }
+
+
+    .poster-field input {
+
+      width: 100%;
+
+      height: 43px;
+
+      padding: 0 12px;
+
+      border: 1px solid #d7e0e8;
+
+      border-radius: 8px;
+
+      outline: none;
+
+      background: #f9fbfd;
+
+      color: #222;
+
+      font-size: 13px;
+
+      transition: 0.2s;
+
+    }
+
+
+    .poster-field input:focus {
+
+      border-color: #1976b9;
+
+      background: #ffffff;
+
+      box-shadow:
+        0 0 0 3px rgba(25, 118, 185, 0.08);
+
+    }
+
+
+    .poster-photo-input {
+
+      padding: 8px !important;
+
+      height: auto !important;
+
+      cursor: pointer;
+
+    }
+
+
+    .generate-poster-button {
+
+      width: 100%;
+
+      min-height: 46px;
+
+      border: 0;
+
+      border-radius: 9px;
+
+      background: #174f91;
+
+      color: #ffffff;
+
+      font-size: 13px;
+
+      font-weight: 700;
+
+      cursor: pointer;
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      gap: 8px;
+
+      transition: 0.2s;
+
+      margin-top: 5px;
+
+    }
+
+
+    .generate-poster-button:hover {
+
+      background: #0f3e73;
+
+      transform: translateY(-1px);
+
+    }
+
+
+    .poster-clear-button {
+
+      width: 100%;
+
+      min-height: 40px;
+
+      margin-top: 9px;
+
+      border: 1px solid #d8e1e9;
+
+      border-radius: 8px;
+
+      background: #ffffff;
+
+      color: #555;
+
+      font-size: 12px;
+
+      font-weight: 600;
+
+      cursor: pointer;
+
+    }
+
+
+    .poster-clear-button:hover {
+
+      background: #f5f7f9;
+
+    }
+
+
+    /* =========================================================
+       PREVIEW CARD
+    ========================================================== */
+
+    .poster-preview-card {
+
+      background: #ffffff;
+
+      border: 1px solid #e3e8ed;
+
+      border-radius: 16px;
+
+      padding: 20px;
+
+      box-shadow:
+        0 5px 20px rgba(0, 0, 0, 0.05);
+
+    }
+
+
+    .poster-preview-title {
+
+      margin: 0 0 16px 0;
+
+      color: #174f91;
+
+      font-size: 19px;
+
+      font-weight: 800;
+
+    }
+
+
+    .poster-preview-area {
+
+      width: 100%;
+
+      display: flex;
+
+      justify-content: center;
+
+      align-items: flex-start;
+
+      overflow: auto;
+
+      padding: 5px;
+
+    }
+
+
+    /* =========================================================
+       ACTUAL POSTER
+
+       IMPORTANT:
+       The original approved image is the background.
+       We do NOT recreate the design with HTML.
+    ========================================================== */
+
+    .blood-poster-canvas {
+
+      width: 100%;
+
+      max-width: 768px;
+
+      aspect-ratio: 1024 / 1536;
+
+      position: relative;
+
+      overflow: hidden;
+
+      background: #ffffff;
+
+      flex-shrink: 0;
+
+    }
+
+
+    /* ORIGINAL APPROVED DESIGN */
+
+    .blood-poster-template {
+
+      position: absolute;
+
+      inset: 0;
+
+      width: 100%;
+
+      height: 100%;
+
+      object-fit: fill;
+
+      display: block;
+
+      z-index: 1;
+
+    }
+
+
+    /* =========================================================
+       DONOR PHOTO OVERLAY
+
+       The photo replaces the placeholder area in the
+       original approved design.
+    ========================================================== */
+
+    .blood-poster-donor-photo {
+
+      position: absolute;
+
+      z-index: 5;
+
+      left: 3.3%;
+
+      top: 15.45%;
+
+      width: 56.0%;
+
+      height: 39.45%;
+
+      object-fit: cover;
+
+      object-position: center;
+
+      border-radius: 19px;
+
+      display: none;
+
+    }
+
+
+    /* White border around photo */
+
+    .blood-poster-photo-frame {
+
+      position: absolute;
+
+      z-index: 4;
+
+      left: 2.8%;
+
+      top: 15.0%;
+
+      width: 57.0%;
+
+      height: 40.35%;
+
+      border-radius: 22px;
+
+      border: 5px solid rgba(255, 255, 255, 0.98);
+
+      box-shadow:
+        0 4px 12px rgba(0, 0, 0, 0.10);
+
+      pointer-events: none;
+
+    }
+
+
+    /* =========================================================
+       INFORMATION VALUES
+
+       Labels are already part of the original image.
+       Only values are dynamically placed here.
+    ========================================================== */
+
+    .poster-value {
+
+      position: absolute;
+
+      z-index: 10;
+
+      left: 45.0%;
+
+      width: 50.0%;
+
+      height: 3.55%;
+
+      display: flex;
+
+      align-items: center;
+
+      color: #174f91;
+
+      font-family:
+        "Noto Sans Kannada",
+        "Noto Sans",
+        Arial,
+        sans-serif;
+
+      font-size: clamp(12px, 1.65vw, 23px);
+
+      font-weight: 800;
+
+      line-height: 1.1;
+
+      white-space: nowrap;
+
+      overflow: hidden;
+
+      text-overflow: ellipsis;
+
+      padding-left: 8px;
+
+    }
+
+
+    /* Donor name */
+
+    #posterValueDonor {
+
+      top: 58.35%;
+
+    }
+
+
+    /* Blood group */
+
+    #posterValueBlood {
+
+      top: 64.55%;
+
+    }
+
+
+    /* Donation place */
+
+    #posterValuePlace {
+
+      top: 70.80%;
+
+    }
+
+
+    /* Patient */
+
+    #posterValuePatient {
+
+      top: 77.05%;
+
+    }
+
+
+    /* Date */
+
+    #posterValueDate {
+
+      top: 83.25%;
+
+    }
+
+
+    /* =========================================================
+       DOWNLOAD BUTTON
+    ========================================================== */
+
+    .download-poster-button {
+
+      width: 100%;
+
+      max-width: 768px;
+
+      min-height: 48px;
+
+      margin: 18px auto 0;
+
+      border: 0;
+
+      border-radius: 9px;
+
+      background: #079a93;
+
+      color: #ffffff;
+
+      font-size: 14px;
+
+      font-weight: 800;
+
+      cursor: pointer;
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      gap: 9px;
+
+      transition: 0.2s;
+
+    }
+
+
+    .download-poster-button:hover {
+
+      background: #057d77;
+
+      transform: translateY(-1px);
+
+    }
+
+
+    /* =========================================================
+       BACK BUTTON
+    ========================================================== */
+
+    .poster-back-button {
+
+      display: inline-flex;
+
+      align-items: center;
+
+      gap: 7px;
+
+      padding: 9px 14px;
+
+      margin-bottom: 15px;
+
+      border: 1px solid #d8e0e7;
+
+      border-radius: 8px;
+
+      background: #ffffff;
+
+      color: #174f91;
+
+      font-size: 12px;
+
+      font-weight: 700;
+
+      cursor: pointer;
+
+    }
+
+
+    .poster-back-button:hover {
+
+      background: #f4f8fb;
+
+    }
+
+
+    /* =========================================================
+       BLOOD DONOR TOOLBAR BUTTON
+    ========================================================== */
+
+    .generate-poster-toolbar-button {
+
+      display: inline-flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      gap: 7px;
+
+      min-height: 42px;
+
+      padding: 0 15px;
+
+      border: 0;
+
+      border-radius: 8px;
+
+      background: #d90429;
+
+      color: #ffffff;
+
+      font-size: 12px;
+
+      font-weight: 800;
+
+      cursor: pointer;
+
+      white-space: nowrap;
+
+      transition: 0.2s;
+
+    }
+
+
+    .generate-poster-toolbar-button:hover {
+
+      background: #b90322;
+
+    }
+
+
+    /* =========================================================
+       RESPONSIVE
+    ========================================================== */
+
+    @media (max-width: 900px) {
+
+      .poster-generator-wrapper {
+
+        grid-template-columns: 1fr;
+
+      }
+
+
+      .poster-form-card {
+
+        position: static;
+
+      }
+
+    }
+
+
+    @media (max-width: 600px) {
+
+      .poster-preview-card {
+
+        padding: 10px;
+
+      }
+
+
+      .poster-form-card {
+
+        padding: 15px;
+
+      }
+
+
+      .poster-value {
+
+        font-size: 10px;
+
+      }
+
+
+      .blood-poster-donor-photo {
+
+        border-radius: 13px;
+
+      }
+
+
+      .blood-poster-photo-frame {
+
+        border-radius: 16px;
+
+        border-width: 3px;
+
+      }
+
+    }
+
+  </style>
+
 </head>
 
+
 <body>
+
 
   <!-- =========================================================
        PIN LOCK SCREEN
   ========================================================== -->
-  <div id="pinScreen" class="pin-screen">
+
+  <div
+    id="pinScreen"
+    class="pin-screen"
+  >
 
     <div class="pin-box">
 
-      <h2>ಅಲ್‌ ಅಮೀನ್ ಯೂತ್ ಫೆಡರೇಶನ್</h2>
+      <h2>
+        ಅಲ್‌ ಅಮೀನ್ ಯೂತ್ ಫೆಡರೇಶನ್
+      </h2>
 
-      <p>ಆಂತರಿಕ ಲಾಗಿನ್ PIN ನಮೂದಿಸಿ</p>
+      <p>
+        ಆಂತರಿಕ ಲಾಗಿನ್ PIN ನಮೂದಿಸಿ
+      </p>
 
       <input
         type="password"
@@ -41,18 +745,25 @@
         Login
       </button>
 
-      <p id="pinError" class="pin-error"></p>
+      <p
+        id="pinError"
+        class="pin-error"
+      ></p>
 
     </div>
 
   </div>
 
 
+
   <!-- =========================================================
        MAIN APPLICATION
   ========================================================== -->
 
-  <div id="appContainer" class="app-container hidden">
+  <div
+    id="appContainer"
+    class="app-container hidden"
+  >
 
 
     <!-- =======================================================
@@ -63,21 +774,28 @@
 
       <div class="logo-title">
 
-        <div>
+        <div class="header-logo-wrap">
+          <img
+            src="assets/images/round-logo.png"
+            alt="Al-Ameen Youth Federation Logo"
+            class="header-logo"
+          >
+        </div>
 
+        <div class="header-title-wrap">
           <h1 class="main-title">
-            ಅಲ್‌ ಅಮೀನ್ ಯೂತ್ ಫೆಡರೇಶನ್
+            ಅಲ್ ಅಮೀನ್ ಯೂತ್ ಫೆಡರೇಶನ್
           </h1>
 
           <p class="sub-title">
             ARAMBOOR, SULLIA, D.K - 574314
           </p>
-
         </div>
 
       </div>
 
     </header>
+
 
 
     <!-- =======================================================
@@ -88,8 +806,15 @@
 
       <div class="banner-box">
 
-        <span>
-          Group Banner Photo Here
+        <img
+          src="assets/images/group-photo.png"
+          alt="Al-Ameen Youth Federation Group"
+          class="group-banner-image"
+          onerror="this.style.display='none'; this.parentElement.classList.add('banner-image-missing');"
+        >
+
+        <span class="banner-fallback-text">
+          Group Photo
         </span>
 
       </div>
@@ -97,11 +822,15 @@
     </div>
 
 
+
     <!-- =======================================================
          DASHBOARD
     ======================================================== -->
 
-    <div id="dashboardView" class="view-section">
+    <div
+      id="dashboardView"
+      class="view-section"
+    >
 
       <div class="buttons-grid">
 
@@ -122,6 +851,7 @@
         </div>
 
 
+
         <!-- MEMBERS PROFILE -->
 
         <div
@@ -136,6 +866,7 @@
           </span>
 
         </div>
+
 
 
         <!-- ACTIVITY REPORTS -->
@@ -154,6 +885,7 @@
         </div>
 
 
+
         <!-- MONTHLY CONTRIBUTION -->
 
         <div
@@ -168,6 +900,7 @@
           </span>
 
         </div>
+
 
 
         <!-- BLOOD DONORS -->
@@ -186,6 +919,7 @@
         </div>
 
 
+
         <!-- DONORS & SPONSORS -->
 
         <div
@@ -200,6 +934,7 @@
           </span>
 
         </div>
+
 
 
         <!-- FINANCE REPORTS -->
@@ -218,6 +953,7 @@
         </div>
 
 
+
         <!-- ASSET & INVENTORY -->
 
         <div
@@ -232,6 +968,7 @@
           </span>
 
         </div>
+
 
 
         <!-- ATTENDANCE -->
@@ -250,6 +987,7 @@
         </div>
 
 
+
         <!-- SUBMIT PROGRAM REPORT -->
 
         <div
@@ -264,6 +1002,7 @@
           </span>
 
         </div>
+
 
 
         <!-- UPLOAD PHOTOS -->
@@ -282,6 +1021,7 @@
         </div>
 
 
+
         <!-- BADR MASJID -->
 
         <div
@@ -297,9 +1037,11 @@
 
         </div>
 
+
       </div>
 
     </div>
+
 
 
     <!-- =======================================================
@@ -394,6 +1136,7 @@
         </div>
 
 
+
         <!-- 2025 -->
 
         <div class="activity-report-card">
@@ -428,6 +1171,7 @@
           </a>
 
         </div>
+
 
 
         <!-- 2024 -->
@@ -466,6 +1210,7 @@
         </div>
 
 
+
         <!-- 2022 -->
 
         <div class="activity-report-card">
@@ -501,9 +1246,11 @@
 
         </div>
 
+
       </div>
 
     </div>
+
 
 
     <!-- =======================================================
@@ -535,8 +1282,6 @@
       </div>
 
 
-      <!-- Attendance Tabs -->
-
       <div class="attendance-tabs">
 
         <button
@@ -544,9 +1289,7 @@
           onclick="switchAttTab('mark')"
           class="attendance-tab active"
         >
-
           📝 Mark Attendance
-
         </button>
 
 
@@ -555,15 +1298,11 @@
           onclick="switchAttTab('report')"
           class="attendance-tab"
         >
-
           📊 Attendance Report
-
         </button>
 
       </div>
 
-
-      <!-- MARK ATTENDANCE -->
 
       <div id="tabMarkContent">
 
@@ -604,26 +1343,18 @@
         <div
           id="attendanceList"
           class="attendance-list"
-        >
-
-          <!-- Generated dynamically -->
-
-        </div>
+        ></div>
 
 
         <button
           onclick="submitAttendance()"
           class="save-attendance-btn"
         >
-
           Save Attendance
-
         </button>
 
       </div>
 
-
-      <!-- ATTENDANCE REPORT -->
 
       <div
         id="tabReportContent"
@@ -654,11 +1385,7 @@
 
             </thead>
 
-            <tbody id="reportsTableBody">
-
-              <!-- Reports loaded dynamically -->
-
-            </tbody>
+            <tbody id="reportsTableBody"></tbody>
 
           </table>
 
@@ -667,6 +1394,7 @@
       </div>
 
     </div>
+
 
 
     <!-- =======================================================
@@ -701,13 +1429,10 @@
       <div
         id="membersContainer"
         class="members-container"
-      >
-
-        <!-- Members loaded dynamically -->
-
-      </div>
+      ></div>
 
     </div>
+
 
 
     <!-- =======================================================
@@ -768,6 +1493,24 @@
           placeholder="Search member name or blood group..."
         >
 
+
+        <!-- =====================================================
+             NEW BUTTON
+        ====================================================== -->
+
+        <button
+          type="button"
+          class="generate-poster-toolbar-button"
+          onclick="openPosterGenerator()"
+        >
+
+          <i class="fa-solid fa-image"></i>
+
+          Generate Poster Design
+
+        </button>
+
+
       </div>
 
 
@@ -783,6 +1526,340 @@
       </div>
 
     </div>
+
+
+
+    <!-- =======================================================
+         BLOOD DONATION POSTER GENERATOR
+    ======================================================== -->
+
+    <div
+      id="posterGeneratorView"
+      class="view-section hidden"
+    >
+
+
+      <!-- BACK -->
+
+      <button
+        type="button"
+        class="poster-back-button"
+        onclick="openBloodDonors()"
+      >
+
+        <i class="fa-solid fa-arrow-left"></i>
+
+        Back to Blood Donors
+
+      </button>
+
+
+      <div class="poster-generator-wrapper">
+
+
+        <!-- ===================================================
+             FORM
+        ==================================================== -->
+
+        <div class="poster-form-card">
+
+          <h2 class="poster-form-title">
+
+            <i
+              class="fa-solid fa-droplet"
+              style="color:#d90429;"
+            ></i>
+
+            Generate Poster
+
+          </h2>
+
+
+          <p class="poster-form-subtitle">
+
+            ರಕ್ತದಾನಿಯ ಮಾಹಿತಿಯನ್ನು ನಮೂದಿಸಿ.
+            ನಿಮ್ಮ approved design ಮೇಲೆಯೇ photo ಮತ್ತು
+            ಮಾಹಿತಿ ಕಾಣಿಸುತ್ತದೆ.
+
+          </p>
+
+
+          <!-- DONOR NAME -->
+
+          <div class="poster-field">
+
+            <label for="posterDonorName">
+
+              ರಕ್ತದಾನಿಯ ಹೆಸರು
+
+            </label>
+
+            <input
+              type="text"
+              id="posterDonorName"
+              placeholder="ಉದಾ: Kabeer"
+            >
+
+          </div>
+
+
+          <!-- BLOOD GROUP -->
+
+          <div class="poster-field">
+
+            <label for="posterBloodGroup">
+
+              ರಕ್ತದ ಗುಂಪು
+
+            </label>
+
+            <input
+              type="text"
+              id="posterBloodGroup"
+              placeholder="ಉದಾ: O+"
+            >
+
+          </div>
+
+
+          <!-- DONATION PLACE -->
+
+          <div class="poster-field">
+
+            <label for="posterDonationPlace">
+
+              ರಕ್ತ ನೀಡಿದ ಸ್ಥಳ
+
+            </label>
+
+            <input
+              type="text"
+              id="posterDonationPlace"
+              placeholder="ಉದಾ: KVG Hospital"
+            >
+
+          </div>
+
+
+          <!-- PATIENT -->
+
+          <div class="poster-field">
+
+            <label for="posterPatientName">
+
+              ರೋಗಿಯ ಹೆಸರು
+
+            </label>
+
+            <input
+              type="text"
+              id="posterPatientName"
+              placeholder="ಉದಾ: Hameed Santyar"
+            >
+
+          </div>
+
+
+          <!-- DATE -->
+
+          <div class="poster-field">
+
+            <label for="posterDate">
+
+              ದಿನಾಂಕ
+
+            </label>
+
+            <input
+              type="date"
+              id="posterDate"
+            >
+
+          </div>
+
+
+          <!-- PHOTO -->
+
+          <div class="poster-field">
+
+            <label for="posterDonorPhoto">
+
+              ರಕ್ತದಾನಿಯ ಫೋಟೋ
+
+            </label>
+
+            <input
+              type="file"
+              id="posterDonorPhoto"
+              class="poster-photo-input"
+              accept="image/jpeg,image/png,image/webp"
+            >
+
+          </div>
+
+
+          <!-- GENERATE -->
+
+          <button
+            type="button"
+            class="generate-poster-button"
+            onclick="generateBloodDonationPoster()"
+          >
+
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+
+            Generate Poster
+
+          </button>
+
+
+          <!-- CLEAR -->
+
+          <button
+            type="button"
+            class="poster-clear-button"
+            onclick="clearPosterForm()"
+          >
+
+            Clear
+
+          </button>
+
+
+        </div>
+
+
+
+        <!-- ===================================================
+             PREVIEW
+        ==================================================== -->
+
+        <div class="poster-preview-card">
+
+          <h2 class="poster-preview-title">
+
+            Poster Preview
+
+          </h2>
+
+
+          <div class="poster-preview-area">
+
+
+            <!-- =================================================
+                 ACTUAL POSTER CANVAS
+
+                 YOUR ORIGINAL IMAGE IS USED HERE.
+            ================================================== -->
+
+            <div
+              id="bloodPosterCanvas"
+              class="blood-poster-canvas"
+            >
+
+
+              <!-- APPROVED DESIGN -->
+
+              <img
+                id="bloodPosterTemplate"
+                class="blood-poster-template"
+                src="assets/images/blood-donation-template.png"
+                alt="Blood Donation Poster Template"
+              >
+
+
+              <!-- PHOTO FRAME -->
+
+              <div
+                class="blood-poster-photo-frame"
+              ></div>
+
+
+              <!-- DONOR PHOTO -->
+
+              <img
+                id="bloodPosterDonorPhoto"
+                class="blood-poster-donor-photo"
+                src=""
+                alt="Donor Photo"
+              >
+
+
+              <!-- =================================================
+                   DYNAMIC VALUES
+
+                   Labels remain in the original image.
+                   These are ONLY the values.
+              ================================================== -->
+
+
+              <!-- DONOR -->
+
+              <div
+                id="posterValueDonor"
+                class="poster-value"
+              ></div>
+
+
+              <!-- BLOOD GROUP -->
+
+              <div
+                id="posterValueBlood"
+                class="poster-value"
+              ></div>
+
+
+              <!-- PLACE -->
+
+              <div
+                id="posterValuePlace"
+                class="poster-value"
+              ></div>
+
+
+              <!-- PATIENT -->
+
+              <div
+                id="posterValuePatient"
+                class="poster-value"
+              ></div>
+
+
+              <!-- DATE -->
+
+              <div
+                id="posterValueDate"
+                class="poster-value"
+              ></div>
+
+
+            </div>
+
+          </div>
+
+
+          <!-- DOWNLOAD -->
+
+          <button
+            type="button"
+            id="downloadPosterButton"
+            class="download-poster-button"
+            onclick="downloadBloodDonationPoster()"
+          >
+
+            <i class="fa-solid fa-download"></i>
+
+            Download Poster
+
+          </button>
+
+
+        </div>
+
+      </div>
+
+    </div>
+
 
 
     <!-- =======================================================
@@ -868,6 +1945,7 @@
     </div>
 
 
+
     <!-- =======================================================
          OFFICE BEARERS TABLE
     ======================================================== -->
@@ -891,10 +1969,13 @@
         </button>
 
         <h2>
+
           Office Bearers -
+
           <span id="selectedYearTitle">
             2027
           </span>
+
         </h2>
 
       </div>
@@ -927,9 +2008,9 @@
 
           </thead>
 
-          <tbody id="bearersTableBody">
-
-          </tbody>
+          <tbody
+            id="bearersTableBody"
+          ></tbody>
 
         </table>
 
@@ -966,6 +2047,7 @@
     </div>
 
 
+
     <!-- =======================================================
          FOOTER
     ======================================================== -->
@@ -988,13 +2070,785 @@
   </div>
 
 
+
   <!-- =========================================================
-       JAVASCRIPT
+       HTML2CANVAS
+       Used only to download the final poster as PNG.
+  ========================================================== -->
+
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"
+  ></script>
+
+
+
+  <!-- =========================================================
+       EXISTING WEBSITE JAVASCRIPT
   ========================================================== -->
 
   <script src="js/script.js"></script>
+
   <script src="js/members.js"></script>
+
   <script src="js/attendance.js"></script>
 
+
+
+  <!-- =========================================================
+       BLOOD DONATION POSTER JAVASCRIPT
+  ========================================================== -->
+
+  <script>
+
+
+    // ========================================================
+    // HIDE ALL VIEWS
+    //
+    // We redefine this here so the new Poster Generator
+    // is included with the existing website navigation.
+    // ========================================================
+
+    function hideAllViews() {
+
+      const views = [
+
+        "dashboardView",
+
+        "activityReportsView",
+
+        "yearSelectView",
+
+        "bearersTableView",
+
+        "attendanceView",
+
+        "membersView",
+
+        "bloodDonorsView",
+
+        "posterGeneratorView"
+
+      ];
+
+
+      views.forEach(function(id) {
+
+        const element =
+          document.getElementById(id);
+
+        if (element) {
+
+          element.classList.add("hidden");
+
+        }
+
+      });
+
+    }
+
+
+
+    // ========================================================
+    // OPEN POSTER GENERATOR
+    // ========================================================
+
+    function openPosterGenerator() {
+
+      hideAllViews();
+
+
+      const posterView =
+        document.getElementById(
+          "posterGeneratorView"
+        );
+
+
+      if (posterView) {
+
+        posterView.classList.remove("hidden");
+
+      }
+
+
+      // Automatically set today's date
+
+      const dateInput =
+        document.getElementById(
+          "posterDate"
+        );
+
+
+      if (
+        dateInput &&
+        !dateInput.value
+      ) {
+
+        const today =
+          new Date();
+
+
+        const year =
+          today.getFullYear();
+
+
+        const month =
+          String(
+            today.getMonth() + 1
+          ).padStart(2, "0");
+
+
+        const day =
+          String(
+            today.getDate()
+          ).padStart(2, "0");
+
+
+        dateInput.value =
+          `${year}-${month}-${day}`;
+
+      }
+
+
+      window.scrollTo({
+
+        top: 0,
+
+        behavior: "smooth"
+
+      });
+
+    }
+
+
+
+    // ========================================================
+    // SAFE TEXT
+    // ========================================================
+
+    function posterSafeText(value) {
+
+      return String(
+        value || ""
+      )
+        .replace(
+          /&/g,
+          "&amp;"
+        )
+        .replace(
+          /</g,
+          "&lt;"
+        )
+        .replace(
+          />/g,
+          "&gt;"
+        )
+        .replace(
+          /"/g,
+          "&quot;"
+        )
+        .replace(
+          /'/g,
+          "&#039;"
+        );
+
+    }
+
+
+
+    // ========================================================
+    // FORMAT DATE
+    // ========================================================
+
+    function formatPosterDate(dateValue) {
+
+      if (!dateValue) {
+
+        return "";
+
+      }
+
+
+      const parts =
+        dateValue.split("-");
+
+
+      if (
+        parts.length !== 3
+      ) {
+
+        return dateValue;
+
+      }
+
+
+      return (
+        parts[2] +
+        "-" +
+        parts[1] +
+        "-" +
+        parts[0]
+      );
+
+    }
+
+
+
+    // ========================================================
+    // GENERATE POSTER
+    // ========================================================
+
+    function generateBloodDonationPoster() {
+
+
+      const donorName =
+        document
+          .getElementById(
+            "posterDonorName"
+          )
+          .value
+          .trim();
+
+
+      const bloodGroup =
+        document
+          .getElementById(
+            "posterBloodGroup"
+          )
+          .value
+          .trim();
+
+
+      const donationPlace =
+        document
+          .getElementById(
+            "posterDonationPlace"
+          )
+          .value
+          .trim();
+
+
+      const patientName =
+        document
+          .getElementById(
+            "posterPatientName"
+          )
+          .value
+          .trim();
+
+
+      const date =
+        document
+          .getElementById(
+            "posterDate"
+          )
+          .value;
+
+
+      const photoInput =
+        document.getElementById(
+          "posterDonorPhoto"
+        );
+
+
+      // ======================================================
+      // VALIDATION
+      // ======================================================
+
+      if (!donorName) {
+
+        alert(
+          "ದಯವಿಟ್ಟು ರಕ್ತದಾನಿಯ ಹೆಸರನ್ನು ನಮೂದಿಸಿ."
+        );
+
+        return;
+
+      }
+
+
+      if (!bloodGroup) {
+
+        alert(
+          "ದಯವಿಟ್ಟು ರಕ್ತದ ಗುಂಪನ್ನು ನಮೂದಿಸಿ."
+        );
+
+        return;
+
+      }
+
+
+      if (!donationPlace) {
+
+        alert(
+          "ದಯವಿಟ್ಟು ರಕ್ತ ನೀಡಿದ ಸ್ಥಳವನ್ನು ನಮೂದಿಸಿ."
+        );
+
+        return;
+
+      }
+
+
+      if (!patientName) {
+
+        alert(
+          "ದಯವಿಟ್ಟು ರೋಗಿಯ ಹೆಸರನ್ನು ನಮೂದಿಸಿ."
+        );
+
+        return;
+
+      }
+
+
+      if (!date) {
+
+        alert(
+          "ದಯವಿಟ್ಟು ದಿನಾಂಕವನ್ನು ಆಯ್ಕೆ ಮಾಡಿ."
+        );
+
+        return;
+
+      }
+
+
+      if (
+        !photoInput.files ||
+        !photoInput.files[0]
+      ) {
+
+        alert(
+          "ದಯವಿಟ್ಟು ರಕ್ತದಾನಿಯ ಫೋಟೋ upload ಮಾಡಿ."
+        );
+
+        return;
+
+      }
+
+
+
+      // ======================================================
+      // PUT TEXT ON ORIGINAL DESIGN
+      // ======================================================
+
+      document.getElementById(
+        "posterValueDonor"
+      ).textContent =
+        donorName;
+
+
+      document.getElementById(
+        "posterValueBlood"
+      ).textContent =
+        bloodGroup;
+
+
+      document.getElementById(
+        "posterValuePlace"
+      ).textContent =
+        donationPlace;
+
+
+      document.getElementById(
+        "posterValuePatient"
+      ).textContent =
+        patientName;
+
+
+      document.getElementById(
+        "posterValueDate"
+      ).textContent =
+        formatPosterDate(date);
+
+
+
+      // ======================================================
+      // PHOTO
+      // ======================================================
+
+      const file =
+        photoInput.files[0];
+
+
+      const reader =
+        new FileReader();
+
+
+      reader.onload =
+        function(event) {
+
+
+          const donorPhoto =
+            document.getElementById(
+              "bloodPosterDonorPhoto"
+            );
+
+
+          donorPhoto.src =
+            event.target.result;
+
+
+          donorPhoto.style.display =
+            "block";
+
+
+          // Scroll to preview
+
+          document
+            .getElementById(
+              "bloodPosterCanvas"
+            )
+            .scrollIntoView({
+
+              behavior: "smooth",
+
+              block: "center"
+
+            });
+
+        };
+
+
+      reader.readAsDataURL(file);
+
+    }
+
+
+
+    // ========================================================
+    // CLEAR FORM
+    // ========================================================
+
+    function clearPosterForm() {
+
+
+      document.getElementById(
+        "posterDonorName"
+      ).value = "";
+
+
+      document.getElementById(
+        "posterBloodGroup"
+      ).value = "";
+
+
+      document.getElementById(
+        "posterDonationPlace"
+      ).value = "";
+
+
+      document.getElementById(
+        "posterPatientName"
+      ).value = "";
+
+
+      document.getElementById(
+        "posterDate"
+      ).value = "";
+
+
+      document.getElementById(
+        "posterDonorPhoto"
+      ).value = "";
+
+
+      document.getElementById(
+        "posterValueDonor"
+      ).textContent = "";
+
+
+      document.getElementById(
+        "posterValueBlood"
+      ).textContent = "";
+
+
+      document.getElementById(
+        "posterValuePlace"
+      ).textContent = "";
+
+
+      document.getElementById(
+        "posterValuePatient"
+      ).textContent = "";
+
+
+      document.getElementById(
+        "posterValueDate"
+      ).textContent = "";
+
+
+      const donorPhoto =
+        document.getElementById(
+          "bloodPosterDonorPhoto"
+        );
+
+
+      donorPhoto.src = "";
+
+      donorPhoto.style.display =
+        "none";
+
+    }
+
+
+
+    // ========================================================
+    // DOWNLOAD POSTER
+    // ========================================================
+
+    async function downloadBloodDonationPoster() {
+
+
+      const canvas =
+        document.getElementById(
+          "bloodPosterCanvas"
+        );
+
+
+      if (!canvas) {
+
+        alert(
+          "Poster canvas ಸಿಗಲಿಲ್ಲ."
+        );
+
+        return;
+
+      }
+
+
+      const donorName =
+        document
+          .getElementById(
+            "posterDonorName"
+          )
+          .value
+          .trim();
+
+
+      if (!donorName) {
+
+        alert(
+          "ಮೊದಲು Poster Generate ಮಾಡಿ."
+        );
+
+        return;
+
+      }
+
+
+      // Make sure html2canvas exists
+
+      if (
+        typeof html2canvas ===
+        "undefined"
+      ) {
+
+        alert(
+          "Poster download library load ಆಗಿಲ್ಲ."
+        );
+
+        return;
+
+      }
+
+
+      const button =
+        document.getElementById(
+          "downloadPosterButton"
+        );
+
+
+      const oldText =
+        button.innerHTML;
+
+
+      button.innerHTML =
+
+        '<i class="fa-solid fa-spinner fa-spin"></i> Preparing...';
+
+
+      button.disabled = true;
+
+
+      try {
+
+
+        // ====================================================
+        // CREATE HIGH QUALITY IMAGE
+        // ====================================================
+
+        const renderedCanvas =
+          await html2canvas(
+            canvas,
+            {
+
+              scale: 3,
+
+              useCORS: true,
+
+              allowTaint: false,
+
+              backgroundColor:
+                "#ffffff",
+
+              imageTimeout: 15000,
+
+              logging: false
+
+            }
+          );
+
+
+        // ====================================================
+        // DOWNLOAD
+        // ====================================================
+
+        const link =
+          document.createElement(
+            "a"
+          );
+
+
+        const safeName =
+          donorName
+            .replace(
+              /[^a-zA-Z0-9\u0C80-\u0CFF\s_-]/g,
+              ""
+            )
+            .trim()
+            .replace(
+              /\s+/g,
+              "_"
+            );
+
+
+        link.download =
+          "Blood_Donation_" +
+          (safeName || "Poster") +
+          ".png";
+
+
+        link.href =
+          renderedCanvas.toDataURL(
+            "image/png"
+          );
+
+
+        document.body.appendChild(
+          link
+        );
+
+
+        link.click();
+
+
+        document.body.removeChild(
+          link
+        );
+
+
+      }
+
+      catch(error) {
+
+        console.error(
+          "Poster download error:",
+          error
+        );
+
+
+        alert(
+          "Poster download ಮಾಡುವಾಗ ಸಮಸ್ಯೆ ಉಂಟಾಗಿದೆ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ."
+        );
+
+      }
+
+
+      finally {
+
+        button.innerHTML =
+          oldText;
+
+        button.disabled = false;
+
+      }
+
+    }
+
+
+
+    // ========================================================
+    // PREVIEW PHOTO IMMEDIATELY AFTER SELECTING
+    // ========================================================
+
+    document
+      .getElementById(
+        "posterDonorPhoto"
+      )
+      .addEventListener(
+        "change",
+        function() {
+
+
+          const file =
+            this.files &&
+            this.files[0];
+
+
+          if (!file) {
+
+            return;
+
+          }
+
+
+          if (
+            !file.type.startsWith(
+              "image/"
+            )
+          ) {
+
+            alert(
+              "ದಯವಿಟ್ಟು image file ಮಾತ್ರ ಆಯ್ಕೆ ಮಾಡಿ."
+            );
+
+            this.value = "";
+
+            return;
+
+          }
+
+
+          const reader =
+            new FileReader();
+
+
+          reader.onload =
+            function(event) {
+
+
+              const image =
+                document.getElementById(
+                  "bloodPosterDonorPhoto"
+                );
+
+
+              image.src =
+                event.target.result;
+
+
+              image.style.display =
+                "block";
+
+            };
+
+
+          reader.readAsDataURL(file);
+
+        }
+      );
+
+
+  </script>
+
+
 </body>
+
 </html>

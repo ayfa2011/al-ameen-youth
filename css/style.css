@@ -1049,3 +1049,435 @@ input {
   }
 
 }
+
+/* ============================================================
+   2026 UI UPDATE - RESPONSIVE / PROFESSIONAL
+   ============================================================ */
+
+html, body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  font-size: 14px;
+}
+
+/* Header: logo left, organization name right */
+.app-header {
+  padding: 14px 18px;
+  background: #ffffff;
+}
+
+.logo-title {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 14px;
+  text-align: left;
+}
+
+.header-logo-wrap {
+  flex: 0 0 auto;
+  width: 76px;
+  height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-logo {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  display: block;
+}
+
+.header-title-wrap {
+  min-width: 0;
+  flex: 1;
+}
+
+.main-title {
+  margin: 0;
+  font-size: clamp(20px, 2.5vw, 29px);
+  line-height: 1.2;
+  color: #1b4332;
+  font-weight: 700;
+}
+
+.sub-title {
+  margin: 5px 0 0;
+  font-size: 13px;
+  color: #777;
+  letter-spacing: 0.25px;
+}
+
+/* Group banner */
+.banner-container {
+  padding: 12px 15px 5px;
+}
+
+.banner-box {
+  min-height: 150px;
+  position: relative;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #e2e8e5;
+  overflow: hidden;
+}
+
+.group-banner-image {
+  width: 100%;
+  height: 170px;
+  display: block;
+  object-fit: cover;
+  object-position: center;
+}
+
+.banner-fallback-text {
+  display: none;
+  position: absolute;
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+  color: #777;
+  font-size: 14px;
+}
+
+.banner-image-missing .banner-fallback-text {
+  display: flex;
+}
+
+/* Dashboard: always 3 per row, including mobile */
+.buttons-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.grid-card {
+  min-width: 0;
+  min-height: 102px;
+  padding: 14px 8px;
+}
+
+.card-icon {
+  font-size: 27px;
+}
+
+.grid-card span {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+/* Larger general typography */
+.section-header h2 {
+  font-size: 21px;
+}
+
+.select-instruction,
+.activity-report-intro p,
+.report-info p {
+  font-size: 13px;
+}
+
+.data-table th {
+  font-size: 13px;
+}
+
+.data-table td {
+  font-size: 13px;
+}
+
+/* Office bearers - fit mobile without horizontal scrolling */
+.table-container {
+  overflow-x: hidden;
+}
+
+.data-table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.data-table th,
+.data-table td {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.data-table th:first-child,
+.data-table td:first-child {
+  width: 18%;
+}
+
+.data-table th:nth-child(2),
+.data-table td:nth-child(2) {
+  width: 38%;
+}
+
+.data-table th:nth-child(3),
+.data-table td:nth-child(3) {
+  width: 44%;
+}
+
+/* Members: compact two-column details */
+.members-container {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.member-card {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 13px;
+  border-radius: 12px;
+}
+
+.member-info {
+  min-width: 0;
+}
+
+.member-info h3 {
+  margin: 0 0 8px;
+  color: #1b4332;
+  font-size: 17px;
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+.member-info-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 12px;
+}
+
+.member-info p {
+  margin: 0;
+  color: #555;
+  font-size: 13px;
+  line-height: 1.45;
+  min-width: 0;
+}
+
+.member-info p strong {
+  color: #333;
+  font-weight: 600;
+}
+
+.card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.card-actions a {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  font-size: 0;
+  font-weight: 600;
+}
+
+.card-actions a i {
+  font-size: 15px;
+}
+
+.card-actions .btn-call {
+  background: #eaf3ff;
+  color: #1769aa;
+  border: 1px solid #cfe2f7;
+}
+
+.card-actions .btn-wa {
+  background: #eaf9f0;
+  color: #168a4a;
+  border: 1px solid #cbead7;
+}
+
+/* Add icon-only fallback for existing emoji/text buttons */
+.card-actions .btn-call::before {
+  content: "\\f095";
+  font-family: "Font Awesome 6 Free";
+  font-weight: 900;
+  font-size: 14px;
+}
+
+.card-actions .btn-wa::before {
+  content: "\\f232";
+  font-family: "Font Awesome 6 Brands";
+  font-weight: 400;
+  font-size: 15px;
+}
+
+/* Blood donor cards */
+.blood-donor-info h3 {
+  font-size: 16px;
+}
+
+.blood-donor-info p {
+  font-size: 12px;
+}
+
+.blood-donor-actions a,
+.blood-donor-actions .btn-disabled {
+  font-size: 12px;
+}
+
+/* Attendance */
+.attendance-heading {
+  font-size: 16px;
+}
+
+.attendance-item {
+  font-size: 14px;
+}
+
+.form-group label {
+  font-size: 13px;
+}
+
+.form-group input {
+  font-size: 14px;
+}
+
+/* Prevent any component from forcing page width */
+.view-section,
+.section-header,
+.activity-report-intro,
+.activity-reports-grid,
+.blood-donor-toolbar,
+.blood-donors-container,
+.attendance-tabs,
+.table-scroll {
+  max-width: 100%;
+}
+
+@media (max-width: 700px) {
+  .buttons-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .grid-card {
+    min-height: 92px;
+    padding: 10px 5px;
+    border-radius: 11px;
+    gap: 6px;
+  }
+
+  .card-icon {
+    font-size: 23px;
+  }
+
+  .grid-card span {
+    font-size: 12px;
+  }
+
+  .members-container {
+    grid-template-columns: 1fr;
+  }
+
+  .member-card {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .member-info-details {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 9px 7px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 420px) {
+  .app-header {
+    padding: 12px 11px;
+  }
+
+  .logo-title {
+    gap: 10px;
+  }
+
+  .header-logo-wrap {
+    width: 58px;
+    height: 58px;
+  }
+
+  .header-logo {
+    width: 55px;
+    height: 55px;
+  }
+
+  .main-title {
+    font-size: 18px;
+  }
+
+  .sub-title {
+    font-size: 10px;
+  }
+
+  .view-section {
+    padding: 14px 9px 20px;
+  }
+
+  .buttons-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .grid-card {
+    min-height: 84px;
+    padding: 8px 3px;
+  }
+
+  .card-icon {
+    font-size: 21px;
+  }
+
+  .grid-card span {
+    font-size: 11px;
+  }
+
+  .member-info h3 {
+    font-size: 16px;
+  }
+
+  .member-info p {
+    font-size: 12px;
+  }
+
+  .member-info-details {
+    gap: 4px 8px;
+  }
+
+  .group-banner-image {
+    height: 135px;
+  }
+
+  .banner-box {
+    min-height: 135px;
+  }
+
+  .data-table th,
+  .data-table td {
+    font-size: 11px;
+    padding: 8px 5px;
+  }
+}

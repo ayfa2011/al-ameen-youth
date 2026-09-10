@@ -787,3 +787,432 @@ document.addEventListener(
 
   }
 );
+// ============================================================
+// BLOOD DONATION POSTER GENERATOR
+// ============================================================
+
+function openPosterGenerator() {
+
+  hideAllViews();
+
+  const view = document.getElementById("posterGeneratorView");
+
+  if (view) {
+    view.classList.remove("hidden");
+  }
+
+  // Set today's date automatically
+  const dateInput = document.getElementById("posterDate");
+
+  if (dateInput && !dateInput.value) {
+
+    const today = new Date();
+
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const dd = String(today.getDate()).padStart(2, "0");
+
+    dateInput.value = `${yyyy}-${mm}-${dd}`;
+  }
+}
+
+
+// ============================================================
+// GENERATE POSTER
+// ============================================================
+
+function generateBloodPoster() {
+
+  const donorName =
+    document.getElementById("posterDonorName").value.trim();
+
+  const bloodGroup =
+    document.getElementById("posterBloodGroup").value.trim();
+
+  const donationPlace =
+    document.getElementById("posterDonationPlace").value.trim();
+
+  const patientName =
+    document.getElementById("posterPatientName").value.trim();
+
+  const date =
+    document.getElementById("posterDate").value;
+
+  const photoInput =
+    document.getElementById("posterDonorPhoto");
+
+
+  if (!donorName) {
+    alert("ದಯವಿಟ್ಟು ರಕ್ತದಾನಿಯ ಹೆಸರನ್ನು ನಮೂದಿಸಿ.");
+    return;
+  }
+
+  if (!bloodGroup) {
+    alert("ದಯವಿಟ್ಟು ರಕ್ತದ ಗುಂಪನ್ನು ನಮೂದಿಸಿ.");
+    return;
+  }
+
+  if (!donationPlace) {
+    alert("ದಯವಿಟ್ಟು ರಕ್ತ ನೀಡಿದ ಸ್ಥಳವನ್ನು ನಮೂದಿಸಿ.");
+    return;
+  }
+
+  if (!patientName) {
+    alert("ದಯವಿಟ್ಟು ರೋಗಿಯ ಹೆಸರನ್ನು ನಮೂದಿಸಿ.");
+    return;
+  }
+
+
+  let formattedDate = "";
+
+  if (date) {
+
+    const parts = date.split("-");
+
+    formattedDate =
+      `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+
+
+  const preview =
+    document.getElementById("posterPreview");
+
+
+  preview.innerHTML = `
+
+    <div
+      id="bloodPoster"
+      class="blood-poster"
+    >
+
+      <!-- HEADER -->
+
+      <div class="poster-header">
+
+        <div class="poster-brand">
+
+          <div class="poster-logo-circle">
+            <i class="fa-solid fa-heart"></i>
+          </div>
+
+          <div>
+
+            <div class="poster-brand-title">
+              AL AMEEN
+            </div>
+
+            <div class="poster-brand-subtitle">
+              Youth Federation
+            </div>
+
+          </div>
+
+        </div>
+
+        <div class="poster-anniversary">
+          15
+          <small>2011–2026</small>
+        </div>
+
+      </div>
+
+
+      <!-- MAIN -->
+
+      <div class="poster-main">
+
+
+        <!-- PHOTO -->
+
+        <div class="poster-photo-area">
+
+          ${
+            photoInput.files && photoInput.files[0]
+            ?
+            `<img id="posterDonorImage" alt="Donor Photo">`
+            :
+            `
+            <div class="photo-placeholder">
+
+              <i class="fa-solid fa-user"></i>
+
+              <span>
+                DONOR PHOTO
+              </span>
+
+            </div>
+            `
+          }
+
+        </div>
+
+
+        <!-- MESSAGE -->
+
+        <div class="poster-message-area">
+
+          <div class="blood-icon">
+            <i class="fa-solid fa-droplet"></i>
+          </div>
+
+          <h1>
+            ರಕ್ತದಾನ<br>
+            <span>ಜೀವದಾನ</span>
+          </h1>
+
+          <div class="poster-line"></div>
+
+
+          <p class="thank-you-text">
+
+            <span>${escapeHTML(donationPlace)}</span>
+            ಆಸ್ಪತ್ರೆಯಲ್ಲಿ ಚಿಕಿತ್ಸೆ ಪಡೆಯುತ್ತಿದ್ದ
+
+            <span>${escapeHTML(patientName)}</span>
+            ಎಂಬ ರೋಗಿಗೆ
+
+            <span>${escapeHTML(bloodGroup)}</span>
+            ರಕ್ತದ ಅಗತ್ಯವಿದ್ದ ಸಂದರ್ಭದಲ್ಲಿ,
+
+            ಮಾನವೀಯತೆಯಿಂದ ರಕ್ತದಾನ ಮಾಡಿದ
+
+            <span>${escapeHTML(donorName)}</span>
+            ರವರಿಗೆ
+
+            <strong>
+              ಹೃದಯಪೂರ್ವಕ ಧನ್ಯವಾದಗಳು ಮತ್ತು ಕೃತಜ್ಞತೆಗಳು!
+            </strong>
+
+          </p>
+
+        </div>
+
+      </div>
+
+
+      <!-- INFORMATION -->
+
+      <div class="poster-information">
+
+
+        <div class="poster-info-box">
+
+          <i class="fa-solid fa-user"></i>
+
+          <div>
+
+            <small>
+              ರಕ್ತದಾನಿಯ ಹೆಸರು
+            </small>
+
+            <strong>
+              ${escapeHTML(donorName)}
+            </strong>
+
+          </div>
+
+        </div>
+
+
+        <div class="poster-info-box">
+
+          <i class="fa-solid fa-droplet"></i>
+
+          <div>
+
+            <small>
+              ರಕ್ತದ ಗುಂಪು
+            </small>
+
+            <strong>
+              ${escapeHTML(bloodGroup)}
+            </strong>
+
+          </div>
+
+        </div>
+
+
+        <div class="poster-info-box">
+
+          <i class="fa-solid fa-location-dot"></i>
+
+          <div>
+
+            <small>
+              ರಕ್ತ ನೀಡಿದ ಸ್ಥಳ
+            </small>
+
+            <strong>
+              ${escapeHTML(donationPlace)}
+            </strong>
+
+          </div>
+
+        </div>
+
+
+        <div class="poster-info-box">
+
+          <i class="fa-solid fa-bed"></i>
+
+          <div>
+
+            <small>
+              ರೋಗಿಯ ಹೆಸರು
+            </small>
+
+            <strong>
+              ${escapeHTML(patientName)}
+            </strong>
+
+          </div>
+
+        </div>
+
+
+        <div class="poster-info-box">
+
+          <i class="fa-solid fa-calendar"></i>
+
+          <div>
+
+            <small>
+              ದಿನಾಂಕ
+            </small>
+
+            <strong>
+              ${escapeHTML(formattedDate || "-")}
+            </strong>
+
+          </div>
+
+        </div>
+
+
+      </div>
+
+
+      <!-- FOOTER -->
+
+      <div class="poster-footer">
+
+        <div class="footer-heart">
+          <i class="fa-solid fa-heart"></i>
+        </div>
+
+        <div>
+
+          <strong>
+            ಅಲ್ ಅಮೀನ್ ಯೂತ್ ಫೆಡರೇಶನ್
+          </strong>
+
+          <span>
+            ಅರಂಬೂರು, ಸುಳ್ಯ, ದ.ಕ.
+          </span>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <button
+      type="button"
+      class="download-poster-btn"
+      onclick="downloadBloodPoster()"
+    >
+
+      <i class="fa-solid fa-download"></i>
+
+      Download Poster
+
+    </button>
+
+  `;
+
+
+  // Add uploaded photo
+
+  if (photoInput.files && photoInput.files[0]) {
+
+    const reader = new FileReader();
+
+    reader.onload = function(event) {
+
+      const image =
+        document.getElementById("posterDonorImage");
+
+      if (image) {
+        image.src = event.target.result;
+      }
+
+    };
+
+    reader.readAsDataURL(photoInput.files[0]);
+  }
+
+}
+
+
+// ============================================================
+// DOWNLOAD POSTER
+// ============================================================
+
+async function downloadBloodPoster() {
+
+  const poster =
+    document.getElementById("bloodPoster");
+
+  if (!poster) {
+    alert("ಮೊದಲು Poster Generate ಮಾಡಿ.");
+    return;
+  }
+
+
+  if (typeof html2canvas === "undefined") {
+
+    alert(
+      "Poster download library load ಆಗಿಲ್ಲ. Internet connection ಪರಿಶೀಲಿಸಿ."
+    );
+
+    return;
+  }
+
+
+  const canvas =
+    await html2canvas(poster, {
+
+      scale: 2,
+
+      useCORS: true,
+
+      backgroundColor: "#ffffff"
+
+    });
+
+
+  const link =
+    document.createElement("a");
+
+
+  const donorName =
+    document
+      .getElementById("posterDonorName")
+      .value
+      .trim()
+      .replace(/\s+/g, "_");
+
+
+  link.download =
+    `Blood_Donation_${donorName || "Poster"}.png`;
+
+
+  link.href =
+    canvas.toDataURL("image/png");
+
+
+  link.click();
+
+}
