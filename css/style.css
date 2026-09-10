@@ -919,17 +919,32 @@ input {
 ============================================================ */
 
 @media (max-width: 420px) {
-
   .app-header {
-    padding: 18px 14px;
+    padding: 8px 11px;
+  }
+
+  .logo-title {
+    gap: 10px;
+  }
+
+  .header-logo-wrap {
+    width: 62px;
+    height: 62px;
+  }
+
+  .header-logo {
+    width: 60px;
+    height: 60px;
   }
 
   .main-title {
-    font-size: 19px;
+    font-size: 20px;
+    line-height: 1.08;
+    letter-spacing: -0.2px;
   }
 
-  .sub-title {
-    font-size: 9px;
+  .main-title span {
+    white-space: nowrap;
   }
 
   .view-section {
@@ -1064,10 +1079,11 @@ body {
   font-size: 14px;
 }
 
-/* Header: logo left, organization name right */
+/* Header — reference style */
 .app-header {
-  padding: 14px 18px;
+  padding: 10px 18px;
   background: #ffffff;
+  border-bottom: 1px solid #e7ebe9;
 }
 
 .logo-title {
@@ -1075,22 +1091,22 @@ body {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 14px;
+  gap: 16px;
   text-align: left;
 }
 
 .header-logo-wrap {
   flex: 0 0 auto;
-  width: 76px;
-  height: 76px;
+  width: 78px;
+  height: 78px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .header-logo {
-  width: 72px;
-  height: 72px;
+  width: 76px;
+  height: 76px;
   object-fit: contain;
   display: block;
 }
@@ -1098,31 +1114,43 @@ body {
 .header-title-wrap {
   min-width: 0;
   flex: 1;
+  display: flex;
+  align-items: center;
 }
 
 .main-title {
   margin: 0;
-  font-size: clamp(20px, 2.5vw, 29px);
-  line-height: 1.2;
-  color: #1b4332;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0;
+  font-family: "Noto Sans Kannada", "Noto Sans", "Tunga", sans-serif;
+  font-size: clamp(23px, 3vw, 34px);
+  line-height: 1.08;
+  letter-spacing: -0.4px;
+  color: #0057a6;
   font-weight: 700;
 }
 
-.sub-title {
-  margin: 5px 0 0;
-  font-size: 13px;
-  color: #777;
-  letter-spacing: 0.25px;
+.main-title span {
+  display: block;
+  white-space: nowrap;
 }
 
-/* Group banner */
+.sub-title {
+  display: none;
+}
+
+/* Group banner — complete image, no cropping */
 .banner-container {
   padding: 12px 15px 5px;
 }
 
 .banner-box {
-  min-height: 150px;
   position: relative;
+  width: 100%;
+  min-height: 0;
+  aspect-ratio: 1600 / 686;
   border-radius: 14px;
   background: #ffffff;
   border: 1px solid #e2e8e5;
@@ -1131,10 +1159,11 @@ body {
 
 .group-banner-image {
   width: 100%;
-  height: 170px;
+  height: 100%;
   display: block;
-  object-fit: cover;
+  object-fit: contain;
   object-position: center;
+  background: #ffffff;
 }
 
 .banner-fallback-text {
@@ -1467,147 +1496,10 @@ body {
     gap: 4px 8px;
   }
 
-  .group-banner-image {
-    height: 135px;
-  }
-
-  .banner-box {
-    min-height: 135px;
-  }
 
   .data-table th,
   .data-table td {
     font-size: 11px;
     padding: 8px 5px;
-  }
-}
-
-
-/* ============================================================
-   FINAL HEADER + GROUP BANNER FIX
-   ============================================================ */
-
-.app-header {
-  padding: 12px 18px 10px;
-}
-
-.logo-title {
-  align-items: center;
-}
-
-.header-title-wrap {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.main-title {
-  margin: 0;
-  color: #1b4332;
-  font-family: "Noto Sans Kannada", "Tunga", sans-serif;
-  font-weight: 600;
-  line-height: 1.05;
-  letter-spacing: 0;
-  font-size: clamp(23px, 3vw, 34px);
-}
-
-.main-title-line {
-  display: block;
-  white-space: nowrap;
-}
-
-.main-title-subline {
-  margin-top: 2px;
-}
-
-.sub-title {
-  margin: 7px 0 0;
-  font-size: clamp(10px, 1.2vw, 13px);
-  color: #777;
-  letter-spacing: .25px;
-}
-
-/* Never crop the group photo. Keep its full aspect ratio.
-   Recommended source image ratio: 1600 x 686 (2.332:1). */
-.banner-container {
-  padding: 12px 15px 5px;
-}
-
-.banner-box {
-  min-height: 0;
-  height: auto;
-  aspect-ratio: 1600 / 686;
-  background: #fff;
-  overflow: hidden;
-}
-
-.group-banner-image {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: contain;
-  object-position: center center;
-}
-
-@media (max-width: 700px) {
-  .app-header {
-    padding: 10px 10px 9px;
-  }
-
-  .logo-title {
-    gap: 9px;
-  }
-
-  .header-logo-wrap {
-    width: 61px;
-    height: 61px;
-  }
-
-  .header-logo {
-    width: 58px;
-    height: 58px;
-  }
-
-  .main-title {
-    font-size: clamp(20px, 6vw, 27px);
-    line-height: 1.03;
-  }
-
-  .sub-title {
-    margin-top: 5px;
-    font-size: 9px;
-  }
-
-  .banner-container {
-    padding: 10px 10px 5px;
-  }
-
-  .banner-box {
-    aspect-ratio: 1600 / 686;
-  }
-
-  .group-banner-image {
-    height: 100%;
-    object-fit: contain;
-  }
-}
-
-@media (max-width: 380px) {
-  .header-logo-wrap {
-    width: 55px;
-    height: 55px;
-  }
-
-  .header-logo {
-    width: 52px;
-    height: 52px;
-  }
-
-  .main-title {
-    font-size: 18px;
-  }
-
-  .sub-title {
-    font-size: 8px;
   }
 }
