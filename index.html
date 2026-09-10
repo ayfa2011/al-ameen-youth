@@ -703,6 +703,55 @@
 
   </style>
 
+<style>
+
+    /* =========================================================
+       FINANCE REPORT
+    ========================================================== */
+    .finance-section{width:100%;}
+    .finance-section .section-card{background:#fff;border:1px solid #e3e8ed;border-radius:16px;padding:22px;box-shadow:0 5px 20px rgba(0,0,0,.05);}
+    .finance-section .section-title{margin:0 0 6px;color:#174f91;font-size:21px;font-weight:700;}
+    .finance-section .section-desc{margin:0 0 18px;color:#66717d;font-size:13px;line-height:1.6;}
+    .finance-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;}
+    .finance-tabs .tab-btn{border:1px solid #d7e0e8;background:#fff;color:#174f91;border-radius:9px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;transition:.2s;}
+    .finance-tabs .tab-btn:hover{background:#f3f7fb;}
+    .finance-tabs .tab-btn.active{background:#174f91;color:#fff;border-color:#174f91;}
+    .finance-summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;}
+    .fin-card{border-radius:12px;padding:16px;border:1px solid #e4e9ee;background:#fafcfe;}
+    .fin-label{display:block;color:#697582;font-size:12px;margin-bottom:7px;}
+    .fin-card h3{margin:0;color:#17324d;font-size:20px;font-weight:700;}
+    .finance-details{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+    .finance-panel{border:1px solid #e2e8ee;border-radius:12px;overflow:hidden;background:#fff;}
+    .finance-panel h3{margin:0;padding:13px 15px;background:#f5f8fb;color:#174f91;font-size:15px;font-weight:700;}
+    .finance-table-wrap{width:100%;overflow-x:auto;}
+    .finance-table{width:100%;border-collapse:collapse;min-width:360px;}
+    .finance-table th,.finance-table td{padding:9px 12px;border-bottom:1px solid #edf0f3;font-size:12px;line-height:1.5;vertical-align:top;}
+    .finance-table th{text-align:left;background:#fbfcfd;color:#66717d;font-weight:600;}
+    .finance-table td.amount,.finance-table th.amount{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;}
+    .finance-table tr.total-row td{font-weight:700;background:#f7fafc;color:#17324d;}
+    .finance-note{padding:12px 14px;color:#777;font-size:12px;line-height:1.5;background:#fafafa;border-top:1px solid #edf0f3;}
+    .finance-action{display:flex;justify-content:center;margin-top:18px;}
+    .btn-finance-pdf{border:0;border-radius:9px;background:#174f91;color:#fff;padding:11px 18px;font-size:13px;font-weight:600;cursor:pointer;transition:.2s;}
+    .btn-finance-pdf:hover{background:#0f3e73;transform:translateY(-1px);}
+    .finance-loading,.finance-empty{padding:20px;text-align:center;color:#777;font-size:13px;}
+    .finance-balance-positive{color:#147a4b!important;}
+    .finance-balance-negative{color:#c62828!important;}
+    @media(max-width:800px){
+      .finance-summary-grid{grid-template-columns:1fr;}
+      .finance-details{grid-template-columns:1fr;}
+    }
+    @media(max-width:600px){
+      .finance-section .section-card{padding:14px;border-radius:12px;}
+      .finance-section .section-title{font-size:18px;}
+      .finance-tabs{gap:6px;}
+      .finance-tabs .tab-btn{padding:8px 12px;font-size:12px;}
+      .fin-card h3{font-size:18px;}
+      .finance-table th,.finance-table td{font-size:11px;padding:8px 9px;}
+      .btn-finance-pdf{width:100%;font-size:12px;}
+    }
+
+  </style>
+
 </head>
 
 
@@ -938,7 +987,7 @@
 
         <div
           class="grid-card"
-          onclick="showComingSoon('Finance Reports')"
+          onclick="openFinanceReport()"
         >
 
           <i class="fa-solid fa-file-invoice-dollar card-icon"></i>
@@ -1431,6 +1480,101 @@
     </div>
 
 
+
+
+    <!-- =======================================================
+         FINANCE REPORTS
+    ======================================================== -->
+    <div
+      id="financeView"
+      class="view-section hidden"
+    >
+      <div class="section-header">
+        <button
+          class="btn-back"
+          onclick="showDashboard()"
+        >
+          <i class="fa-solid fa-arrow-left"></i>
+          Back
+        </button>
+        <h2>Finance Reports</h2>
+      </div>
+
+      <section id="finance" class="finance-section">
+        <div class="container">
+          <div class="section-card">
+            <h2 class="section-title">💰 ಆರ್ಥಿಕ ವರದಿ (Finance Report 2022-2026)</h2>
+            <p class="section-desc">ಸಂಸ್ಥೆಯ ವರ್ಷಾವಾರು ಆದಾಯ ಮತ್ತು ವೆಚ್ಚದ ವಿವರಗಳು:</p>
+
+            <div class="finance-tabs" id="financeYearTabs">
+              <button class="tab-btn active" onclick="showFinanceYear('2026')">2026</button>
+              <button class="tab-btn" onclick="showFinanceYear('2025')">2025</button>
+              <button class="tab-btn" onclick="showFinanceYear('2024')">2024</button>
+              <button class="tab-btn" onclick="showFinanceYear('2023')">2023</button>
+              <button class="tab-btn" onclick="showFinanceYear('2022')">2022</button>
+            </div>
+
+            <div class="finance-summary-grid">
+              <div class="fin-card fin-income">
+                <span class="fin-label">ಒಟ್ಟು ಆದಾಯ (Income)</span>
+                <h3 id="totalIncome">₹ 0.00</h3>
+              </div>
+              <div class="fin-card fin-expense">
+                <span class="fin-label">ಒಟ್ಟು ವೆಚ್ಚ (Expense)</span>
+                <h3 id="totalExpense">₹ 0.00</h3>
+              </div>
+              <div class="fin-card fin-balance">
+                <span class="fin-label">ಉಳಿಕೆ (Balance)</span>
+                <h3 id="totalBalance">₹ 0.00</h3>
+              </div>
+            </div>
+
+            <div id="financeYearTitle" class="finance-note" style="margin-bottom:16px;"></div>
+
+            <div class="finance-details">
+              <div class="finance-panel">
+                <h3>📥 ಆದಾಯದ ವಿವರ (Income)</h3>
+                <div class="finance-table-wrap">
+                  <table class="finance-table">
+                    <thead>
+                      <tr><th>ವಿವರ (Particulars)</th><th class="amount">ಮೊತ್ತ (₹)</th></tr>
+                    </thead>
+                    <tbody id="financeIncomeBody"></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="finance-panel">
+                <h3>📤 ವೆಚ್ಚಗಳ ವಿವರ (Expenses)</h3>
+                <div class="finance-table-wrap">
+                  <table class="finance-table">
+                    <thead>
+                      <tr><th>ವಿವರ (Particulars)</th><th class="amount">ಮೊತ್ತ (₹)</th></tr>
+                    </thead>
+                    <tbody id="financeExpenseBody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div id="financeFinalDetails" class="finance-panel" style="margin-top:16px;">
+              <h3>📊 ಅಂತಿಮ ಲೆಕ್ಕಾಚಾರ (Final Cash Balance)</h3>
+              <div class="finance-table-wrap">
+                <table class="finance-table">
+                  <tbody id="financeFinalBody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="finance-action">
+              <button class="btn-finance-pdf" onclick="downloadFinancePDF()">
+                📄 ಆರ್ಥಿಕ ವರದಿ PDF ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
 
     <!-- =======================================================
          BLOOD DONORS
@@ -2083,11 +2227,15 @@
        EXISTING WEBSITE JAVASCRIPT
   ========================================================== -->
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
   <script src="js/script.js"></script>
 
   <script src="js/members.js"></script>
 
   <script src="js/attendance.js"></script>
+
+  <script src="js/finance.js"></script>
 
 
 
@@ -2122,6 +2270,8 @@
         "membersView",
 
         "bloodDonorsView",
+
+        "financeView",
 
         "posterGeneratorView"
 
