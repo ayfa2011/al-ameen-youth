@@ -1,14 +1,43 @@
 // ============================================================
-// ATTENDANCE - PROGRAMS + ATTENDANCE SHEETS
+// ATTENDANCE - FIREBASE CONNECTION
 // ============================================================
 
 async function apiGet(action) {
-  if (!hasApiUrl()) throw new Error("SCRIPT_URL is not configured.");
-  const response = await fetch(`${SCRIPT_URL}?action=${encodeURIComponent(action)}`, { cache: "no-store" });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const data = await response.json();
-  if (data.error) throw new Error(data.error);
-  return data;
+  if (action === "getReports") return getFirebaseAttendanceReports();
+  throw new Error(`Unsupported Firebase action: ${action}`);
+}
+
+async function getFirebasePrograms() {
+  await waitForFirebase();
+  const snapshot = await window.firebaseDb.ref("programs").once("value");
+  return snapshot.val() || {};
+}
+
+async function getFirebaseAttendanceReports() {
+  await waitForFirebase();
+  const [programSnap, attendanceSnap] = await Promise.all([
+    window.firebaseDb.ref("programs").once("value"),
+    window.firebaseDb.ref("attendance").once("value")
+  ]);
+
+  const programs = programSnap.val() || {};
+  const attendance = attendanceSnap.val() || {};
+
+  return Object.entries(programs)
+    .map(([programId, program]) => {
+      const records = Object.values(attendance[programId] || {});
+      const present = records.filter(r => String(r?.status || "").toLowerCase() === "present");
+      return {
+        slNo: program.slNo ?? "",
+        programId,
+        programName: program.programName || "",
+        date: program.date || "",
+        presentCount: present.length,
+        membersList: present.map(r => r.memberName).filter(Boolean).join(", ")
+      };
+    })
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)))
+    .map((r, i) => ({ ...r, slNo: r.slNo || i + 1 }));
 }
 
 async function loadAttendanceSheet() {
@@ -18,18 +47,18 @@ async function loadAttendanceSheet() {
   container.innerHTML = `<p class="loading-message">Loading Members List...</p>`;
 
   try {
-    await fetchMembersFromSheet();
+    await fetchMembersFromFirebase();
     if (!fullMembersList.length) throw new Error("No members");
 
     container.innerHTML = fullMembersList.map(m => `
       <label class="attendance-item">
-        <input type="checkbox" value="${escapeHTML(m.name)}" class="att-checkbox">
+        <input type="checkbox" value="${escapeHTML(m.name)}" data-member-id="${escapeHTML(m.id)}" class="att-checkbox">
         <span><strong>${escapeHTML(m.id)}.</strong> ${escapeHTML(m.name)}</span>
       </label>
     `).join("");
   } catch (error) {
     console.error(error);
-    container.innerHTML = `<p class="error-message">ಸದಸ್ಯರ ಪಟ್ಟಿ ಸಿಗಲಿಲ್ಲ. Google Sheet connection ಪರಿಶೀಲಿಸಿ.</p>`;
+    container.innerHTML = `<p class="error-message">ಸದಸ್ಯರ ಪಟ್ಟಿ ಸಿಗಲಿಲ್ಲ. Firebase connection ಪರಿಶೀಲಿಸಿ.</p>`;
   }
 }
 
@@ -40,7 +69,7 @@ async function loadAttendanceReports() {
   tbody.innerHTML = `<tr><td colspan="3" class="empty-cell">Loading Reports...</td></tr>`;
 
   try {
-    const reports = await apiGet("getReports");
+    const reports = await getFirebaseAttendanceReports();
     tbody.innerHTML = reports.length
       ? reports.map((r, i) => `
         <tr>
@@ -66,37 +95,46 @@ async function submitAttendance() {
     return;
   }
 
-  const selectedMembers = [...document.querySelectorAll(".att-checkbox:checked")].map(cb => cb.value);
-  if (!selectedMembers.length) {
+  const selected = [...document.querySelectorAll(".att-checkbox:checked")];
+  if (!selected.length) {
     alert("ದಯವಿಟ್ಟು ಕನಿಷ್ಠ ಒಬ್ಬ ಸದಸ್ಯರನ್ನು ಆಯ್ಕೆ ಮಾಡಿ!");
     return;
   }
 
-  if (!hasApiUrl()) {
-    alert("ಮೊದಲು js/script.js ನಲ್ಲಿ Google Apps Script URL ಹಾಕಿ.");
-    return;
-  }
-
   try {
-    const response = await fetch(SCRIPT_URL, {
-      method: "POST",
-      body: JSON.stringify({
-        action: "saveAttendance",
-        programName: progName,
-        date: progDate,
-        members: selectedMembers
-      })
+    await waitForFirebase();
+
+    const programRef = window.firebaseDb.ref("programs").push();
+    const programId = programRef.key;
+    const programData = {
+      id: programId,
+      programName: progName,
+      date: progDate,
+      createdAt: firebase.database.ServerValue.TIMESTAMP
+    };
+
+    const updates = {};
+    updates[`programs/${programId}`] = programData;
+
+    // Store a record for every member so Present/Absent history is complete.
+    const selectedIds = new Set(selected.map(cb => String(cb.dataset.memberId || "")));
+    fullMembersList.forEach(member => {
+      const memberId = String(member.id);
+      updates[`attendance/${programId}/${memberId}`] = {
+        memberId,
+        memberName: member.name,
+        status: selectedIds.has(memberId) ? "Present" : "Absent"
+      };
     });
 
-    const result = await response.json();
-    if (result.error) throw new Error(result.error);
+    await window.firebaseDb.ref().update(updates);
 
-    alert("Attendance ಯಶಸ್ವಿಯಾಗಿ Save ಆಗಿದೆ!");
+    alert("Attendance ಯಶಸ್ವಿಯಾಗಿ Firebaseನಲ್ಲಿ Save ಆಗಿದೆ!");
     progNameEl.value = "";
     document.querySelectorAll(".att-checkbox").forEach(cb => cb.checked = false);
   } catch (error) {
     console.error(error);
-    alert("Attendance save ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. Google Apps Script ಪರಿಶೀಲಿಸಿ.");
+    alert("Attendance save ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. Firebase connection ಪರಿಶೀಲಿಸಿ.");
   }
 }
 

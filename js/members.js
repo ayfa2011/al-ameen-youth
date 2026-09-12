@@ -1,5 +1,5 @@
 // ============================================================
-// MEMBERS - GOOGLE SHEETS CONNECTION
+// MEMBERS - FIREBASE CONNECTION
 // ============================================================
 
 let fullMembersList = [];
@@ -12,38 +12,44 @@ function normalizeBloodGroup(value) {
 
 function normalizeMember(row) {
   return {
-    id: row["Member ID"] ?? row.id ?? "",
-    name: row["Name"] ?? row.name ?? "",
-    designation: row["Designation"] ?? row.designation ?? "Member",
-    education: row["Education"] ?? row.education ?? "",
-    fatherName: row["FatherName"] ?? row.fatherName ?? "",
-    mobile: row["Mobile"] ?? row.mobile ?? "",
-    contribution: row["Monthy Contribution Amount"] ?? row["Monthly Contribution Amount"] ?? row.contribution ?? "",
-    location: row["Location"] ?? row.location ?? "",
-    bloodGroup: normalizeBloodGroup(row["Blood Group"] ?? row.bloodGroup ?? ""),
-    bloodCount: row["How Many Times Blood Donated :"] ?? row["How Many Times Blood Donated"] ?? row.bloodCount ?? 0
+    id: row.id ?? row["Member ID"] ?? "",
+    name: row.name ?? row["Name"] ?? "",
+    designation: row.designation ?? row["Designation"] ?? "Member",
+    education: row.education ?? row["Education"] ?? "",
+    fatherName: row.fatherName ?? row["FatherName"] ?? "",
+    mobile: row.mobile ?? row["Mobile"] ?? "",
+    contribution: row.contribution ?? row["Monthy Contribution Amount"] ?? row["Monthly Contribution Amount"] ?? "",
+    location: row.location ?? row["Location"] ?? "",
+    bloodGroup: normalizeBloodGroup(row.bloodGroup ?? row["Blood Group"] ?? ""),
+    bloodCount: row.bloodCount ?? row["How Many Times Blood Donated :"] ?? row["How Many Times Blood Donated"] ?? 0
   };
 }
 
-async function fetchMembersFromSheet(force = false) {
+async function waitForFirebase() {
+  if (!window.firebaseReady) throw new Error("Firebase is not initialized.");
+  await window.firebaseReady;
+  if (!window.firebaseDb) throw new Error("Firebase Database is unavailable.");
+}
+
+async function fetchMembersFromFirebase(force = false) {
   if (!force && fullMembersList.length) return fullMembersList;
 
-  if (typeof hasApiUrl === "function" && !hasApiUrl()) {
-    console.warn("SCRIPT_URL is not configured.");
-    fullMembersList = [];
-    window.fullMembersList = fullMembersList;
-    return fullMembersList;
-  }
+  await waitForFirebase();
+  const snapshot = await window.firebaseDb.ref("members").once("value");
+  const data = snapshot.val() || {};
 
-  const response = await fetch(`${SCRIPT_URL}?action=getMembers`, { cache: "no-store" });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  fullMembersList = Object.values(data)
+    .map(normalizeMember)
+    .filter(m => String(m.name || "").trim());
 
-  const data = await response.json();
-  if (!Array.isArray(data)) throw new Error(data.error || "Invalid Members response");
-
-  fullMembersList = data.map(normalizeMember);
+  fullMembersList.sort((a, b) => Number(a.id) - Number(b.id));
   window.fullMembersList = fullMembersList;
   return fullMembersList;
+}
+
+// Backward-compatible function name used by the existing website.
+async function fetchMembersFromSheet(force = false) {
+  return fetchMembersFromFirebase(force);
 }
 
 function memberCardHTML(m) {
@@ -55,7 +61,6 @@ function memberCardHTML(m) {
     <div class="member-card">
       <div class="member-info">
         <h3>${escapeHTML(m.name)}</h3>
-
         <div class="member-info-details">
           <p><strong>ID:</strong> ${escapeHTML(m.id || "-")}</p>
           <p><strong>Designation:</strong> ${escapeHTML(m.designation || "Member")}</p>
@@ -67,7 +72,6 @@ function memberCardHTML(m) {
           <p class="member-attendance"><strong>Attendance:</strong> ${attendanceCount} ${attendanceCount === 1 ? "Program" : "Programs"}</p>
         </div>
       </div>
-
       <div class="card-actions">
         ${phone ? `<a class="btn-call" href="tel:${escapeHTML(phone)}" aria-label="Call ${escapeHTML(m.name)}" title="Call"></a>` : ""}
         ${whatsapp ? `<a class="btn-wa" href="https://wa.me/${escapeHTML(whatsapp)}" target="_blank" rel="noopener" aria-label="WhatsApp ${escapeHTML(m.name)}" title="WhatsApp"></a>` : ""}
@@ -75,53 +79,22 @@ function memberCardHTML(m) {
     </div>`;
 }
 
-let attendanceCountsByName = {};
-
-function normalizeMemberNameForAttendance(value) {
-  return String(value ?? "")
-    .trim()
-    .replace(/\s+/g, " ")
-    .toLowerCase();
-}
+let attendanceCountsByMemberId = {};
 
 async function loadMemberAttendanceCounts() {
-  attendanceCountsByName = {};
+  attendanceCountsByMemberId = {};
+  await waitForFirebase();
 
-  if (typeof hasApiUrl === "function" && !hasApiUrl()) {
-    return;
-  }
+  const snapshot = await window.firebaseDb.ref("attendance").once("value");
+  const allAttendance = snapshot.val() || {};
 
-  try {
-    const response = await fetch(`${SCRIPT_URL}?action=getReports`, { cache: "no-store" });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-    const reports = await response.json();
-    if (!Array.isArray(reports)) return;
-
-    reports.forEach(report => {
-      const rawMembers = String(report.membersList ?? "").trim();
-      if (!rawMembers) return;
-
-      /*
-        Attendance reports store the selected member names in membersList.
-        The normal format is comma separated; newline/semicolon are also
-        accepted so older sheets continue to work.
-      */
-      const names = rawMembers
-        .split(/[,;\n|]+/)
-        .map(name => name.trim())
-        .filter(Boolean);
-
-      names.forEach(name => {
-        const key = normalizeMemberNameForAttendance(name);
-        if (!key) return;
-        attendanceCountsByName[key] =
-          (attendanceCountsByName[key] || 0) + 1;
-      });
+  Object.values(allAttendance).forEach(programAttendance => {
+    Object.entries(programAttendance || {}).forEach(([memberId, record]) => {
+      if (String(record?.status || "").toLowerCase() !== "present") return;
+      attendanceCountsByMemberId[memberId] =
+        (attendanceCountsByMemberId[memberId] || 0) + 1;
     });
-  } catch (error) {
-    console.warn("Attendance counts could not be loaded:", error);
-  }
+  });
 }
 
 async function renderMemberCards() {
@@ -131,12 +104,11 @@ async function renderMemberCards() {
   container.innerHTML = `<p class="loading-message">Members loading...</p>`;
 
   try {
-    await fetchMembersFromSheet();
+    await fetchMembersFromFirebase();
     await loadMemberAttendanceCounts();
 
     fullMembersList.forEach(member => {
-      const key = normalizeMemberNameForAttendance(member.name);
-      member.attendanceCount = attendanceCountsByName[key] || 0;
+      member.attendanceCount = attendanceCountsByMemberId[String(member.id)] || 0;
     });
 
     container.innerHTML = fullMembersList.length
@@ -144,7 +116,7 @@ async function renderMemberCards() {
       : `<p class="empty-message">Members data ಸಿಗಲಿಲ್ಲ.</p>`;
   } catch (error) {
     console.error(error);
-    container.innerHTML = `<p class="error-message">Members data load ಆಗಲಿಲ್ಲ. Google Apps Script URL ಪರಿಶೀಲಿಸಿ.</p>`;
+    container.innerHTML = `<p class="error-message">Members data load ಆಗಲಿಲ್ಲ. Firebase connection ಪರಿಶೀಲಿಸಿ.</p>`;
   }
 }
 
@@ -156,31 +128,24 @@ async function renderBloodDonors() {
   container.innerHTML = `<p class="loading-message">Blood Donors loading...</p>`;
 
   try {
-    await fetchMembersFromSheet();
+    await fetchMembersFromFirebase();
 
-    // Show every member who has a name. Blood Group / donation count can be
-    // updated later directly in the Members sheet.
     const members = fullMembersList.filter(m => String(m.name || "").trim());
     if (countEl) countEl.textContent = members.length;
-
     renderBloodDonorCards(members);
   } catch (error) {
     console.error(error);
     if (countEl) countEl.textContent = "0";
-    container.innerHTML = `<p class="error-message">Blood Donors data load ಆಗಲಿಲ್ಲ. Google Apps Script URL ಪರಿಶೀಲಿಸಿ.</p>`;
+    container.innerHTML = `<p class="error-message">Blood Donors data load ಆಗಲಿಲ್ಲ. Firebase connection ಪರಿಶೀಲಿಸಿ.</p>`;
   }
 }
 
 function normalizePhoneForLinks(value) {
   let phone = String(value ?? "").trim().replace(/[^0-9+]/g, "");
   if (!phone) return "";
-
-  // Excel may contain Indian 10-digit mobile numbers. Add India country code
-  // for WhatsApp; UAE/international numbers already carrying + are preserved.
   if (/^\d{10}$/.test(phone)) phone = "91" + phone;
   else if (/^0\d{9,}$/.test(phone)) phone = "91" + phone.slice(1);
   else if (phone.startsWith("+")) phone = phone.slice(1);
-
   return phone;
 }
 
@@ -205,17 +170,15 @@ function renderBloodDonorCards(members) {
           <i class="fa-solid fa-droplet"></i>
           <span>${escapeHTML(displayGroup)}</span>
         </div>
-
         <div class="blood-donor-info">
           <h3>${escapeHTML(m.name)}</h3>
           <p><span>Member ID</span> <strong>${escapeHTML(m.id || "-")}</strong></p>
           <p><span>Blood Group</span> <strong>${escapeHTML(displayGroup)}</strong></p>
           <p><span>Blood Donated</span> <strong>${escapeHTML(donated)} ${donated === "1" ? "time" : "times"}</strong></p>
         </div>
-
         <div class="blood-donor-actions">
           ${phone ? `<a class="btn-call" href="tel:${escapeHTML(phone)}" aria-label="Call ${escapeHTML(m.name)}"><i class="fa-solid fa-phone"></i><span>Call</span></a>` : `<span class="btn-disabled">No Phone</span>`}
-          ${whatsapp ? `<a class="btn-wa" href="https://wa.me/${escapeHTML(whatsapp)}" target="_blank" rel="noopener" aria-label="WhatsApp ${escapeHTML(m.name)}"><i class="fa-brands fa-whatsapp"></i><span>WhatsApp</span></a>` : ""}
+          ${whatsapp ? `<a class="btn-wa" href="https://wa.me/${escapeHTML(whatsapp)}" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i><span>WhatsApp</span></a>` : ""}
         </div>
       </div>`;
   }).join("");
