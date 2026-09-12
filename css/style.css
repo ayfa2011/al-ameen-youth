@@ -1070,6 +1070,125 @@ body {
   background: #ffffff;
 }
 
+/* Header.png contains the official logo and federation title. */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 22px;
+}
+
+.header-brand-image {
+  display: block;
+  width: 100%;
+  max-width: 920px;
+  height: auto;
+  object-fit: contain;
+}
+
+
+/* Primary shortcuts shown below the banner. */
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 14px 15px 2px;
+}
+
+.quick-action {
+  width: 100%;
+  min-height: 76px;
+  padding: 12px 14px;
+  border: 1px solid #d9e6de;
+  border-radius: 15px;
+  background: #ffffff;
+  color: #173e2d;
+  box-shadow: 0 5px 16px rgba(20, 67, 46, 0.07);
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.quick-action:hover,
+.quick-action:focus-visible {
+  transform: translateY(-2px);
+  border-color: #aac7b7;
+  box-shadow: 0 10px 22px rgba(20, 67, 46, 0.13);
+  outline: none;
+}
+
+.quick-action-icon {
+  width: 43px;
+  height: 43px;
+  flex: 0 0 43px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: #e9f4ed;
+  color: #177147;
+  font-size: 18px;
+}
+
+.quick-action-assets .quick-action-icon {
+  background: #fff4dc;
+  color: #aa6d0a;
+}
+
+.quick-action-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.quick-action-copy strong {
+  color: #173e2d;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.quick-action-copy small {
+  color: #6b7c73;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.quick-action-arrow {
+  margin-left: auto;
+  color: #5a8670;
+  font-size: 13px;
+}
+
+@media (max-width: 520px) {
+  .quick-actions {
+    gap: 9px;
+    padding: 11px 10px 2px;
+  }
+
+  .quick-action {
+    min-height: 72px;
+    padding: 10px 8px;
+    gap: 8px;
+    border-radius: 12px;
+  }
+
+  .quick-action-icon {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+    border-radius: 10px;
+    font-size: 14px;
+  }
+
+  .quick-action-copy strong { font-size: 11px; }
+  .quick-action-copy small { font-size: 9px; }
+  .quick-action-arrow { display: none; }
+}
+
 .logo-title {
   width: 100%;
   display: flex;
