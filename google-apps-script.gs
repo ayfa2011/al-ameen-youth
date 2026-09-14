@@ -39,10 +39,32 @@ function doPost(e) {
       return jsonOutput(saveAttendance(body));
     }
 
+    if (body.action === "uploadDrivePhoto") {
+      return jsonOutput(uploadDrivePhoto(body));
+    }
+
     return jsonOutput({ error: "Unknown POST action" });
   } catch (error) {
     return jsonOutput({ error: error.message });
   }
+}
+
+// Creates a central AYFA Activity Photos folder and one folder for each report.
+// Files arrive from the website as base64 and are saved directly to Google Drive.
+function uploadDrivePhoto(data) {
+  if (!data.base64 || !data.fileName) throw new Error("Photo data is required.");
+
+  const rootName = "AYFA Activity Photos";
+  const rootFolders = DriveApp.getFoldersByName(rootName);
+  const root = rootFolders.hasNext() ? rootFolders.next() : DriveApp.createFolder(rootName);
+  const safeFolderName = String(data.folderName || "Activity Report").slice(0, 120);
+  const folders = root.getFoldersByName(safeFolderName);
+  const folder = folders.hasNext() ? folders.next() : root.createFolder(safeFolderName);
+  const bytes = Utilities.base64Decode(data.base64);
+  const blob = Utilities.newBlob(bytes, data.mimeType || "image/jpeg", data.fileName);
+  const file = folder.createFile(blob);
+
+  return { success: true, fileId: file.getId(), folderUrl: folder.getUrl() };
 }
 
 function jsonOutput(data) {

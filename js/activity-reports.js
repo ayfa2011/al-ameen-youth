@@ -65,7 +65,42 @@ function closeProgramModal() { document.getElementById("programModal")?.remove()
 
 function openProgramReportForm() {
   const today = new Date().toISOString().slice(0, 10);
-  programModal(`<div class="program-modal-card"><div class="program-modal-header"><div><h3>Submit Activity Report</h3><p>Add program details and Google Drive photo links.</p></div><button type="button" class="program-close" onclick="closeProgramModal()"><i class="fa-solid fa-xmark"></i></button></div><form id="programReportForm" class="program-report-form" onsubmit="submitProgramReport(event)"><label>Program title *<input name="title" required></label><label>Description *<textarea name="description" required></textarea></label><label>Date *<input name="date" type="date" value="${today}" required></label><label class="program-photo-field">Google Drive photo links <span>One link per line. First link is the cover photo.</span><textarea name="photoLinks" placeholder="https://drive.google.com/file/d/.../view&#10;https://drive.google.com/file/d/.../view"></textarea></label><p id="programFormMessage" class="program-form-message"></p><div class="program-form-actions"><button type="button" class="program-cancel" onclick="closeProgramModal()">Cancel</button><button type="submit" class="program-submit">Submit report</button></div></form></div>`);
+  programModal(`<div class="program-modal-card"><div class="program-modal-header"><div><h3>Submit Activity Report</h3><p>Photos upload automatically to Google Drive.</p></div><button type="button" class="program-close" onclick="closeProgramModal()"><i class="fa-solid fa-xmark"></i></button></div><form id="programReportForm" class="program-report-form" onsubmit="submitProgramReport(event)"><label>Program title *<input name="title" required></label><label>Description *<textarea name="description" required></textarea></label><label>Date *<input name="date" type="date" value="${today}" required></label><label class="program-photo-field">Upload photos <span>Multiple photos allowed. A new Drive folder is created for every report.</span><input name="photos" type="file" accept="image/*" multiple onchange="previewSelectedProgramPhotos(this.files)"></label><div id="programPhotoPreview" class="program-photo-preview"></div><p id="programFormMessage" class="program-form-message"></p><div class="program-form-actions"><button type="button" class="program-cancel" onclick="closeProgramModal()">Cancel</button><button type="submit" class="program-submit">Submit report</button></div></form></div>`);
+}
+
+function previewSelectedProgramPhotos(files) {
+  const preview = document.getElementById("programPhotoPreview");
+  if (preview) preview.innerHTML = Array.from(files || []).map(file => `<div><i class="fa-solid fa-image"></i> ${escapeHTML(file.name)}</div>`).join("");
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",")[1]);
+    reader.onerror = () => reject(new Error("Photo read ಆಗಲಿಲ್ಲ."));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadPhotosToDrive(files, folderName) {
+  for (const file of files) {
+    const payload = { action: "uploadDrivePhoto", folderName, fileName: file.name, mimeType: file.type, base64: await fileToBase64(file) };
+    await fetch(SCRIPT_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) });
+  }
+}
+
+function openDrivePhotoUpload() {
+  programModal(`<div class="program-modal-card"><div class="program-modal-header"><div><h3>Upload Photos to Drive</h3><p>Selected photos are saved in a new Google Drive folder.</p></div><button type="button" class="program-close" onclick="closeProgramModal()"><i class="fa-solid fa-xmark"></i></button></div><form class="program-report-form" onsubmit="submitDrivePhotoUpload(event)"><label>Folder name *<input name="folderName" placeholder="Example: 2026 Blood Donation Program" required></label><label class="program-photo-field">Select photos *<input name="photos" type="file" accept="image/*" multiple required onchange="previewSelectedProgramPhotos(this.files)"></label><div id="programPhotoPreview" class="program-photo-preview"></div><p id="programFormMessage" class="program-form-message"></p><div class="program-form-actions"><button type="button" class="program-cancel" onclick="closeProgramModal()">Cancel</button><button class="program-submit">Upload to Drive</button></div></form></div>`);
+}
+
+async function submitDrivePhotoUpload(event) {
+  event.preventDefault();
+  const form = event.target;
+  const files = Array.from(form.querySelector("[name='photos']").files || []);
+  const message = document.getElementById("programFormMessage");
+  const button = form.querySelector("button[type='submit']");
+  try { button.disabled = true; message.textContent = "Photos uploading to Google Drive..."; await uploadPhotosToDrive(files, new FormData(form).get("folderName")); message.textContent = "Upload request sent. Google Drive folderನಲ್ಲಿ photos save ಆಗುತ್ತವೆ."; button.textContent = "Uploaded"; }
+  catch (error) { console.error(error); message.textContent = "Upload ಆಗಲಿಲ್ಲ. Apps Script deployment ಪರಿಶೀಲಿಸಿ."; button.disabled = false; }
 }
 
 async function submitProgramReport(event) {
@@ -74,14 +109,16 @@ async function submitProgramReport(event) {
   const message = document.getElementById("programFormMessage");
   const submit = form.querySelector("button[type='submit']");
   const values = Object.fromEntries(new FormData(form).entries());
-  const photoLinks = String(values.photoLinks || "").split(/\n|,/).map(link => link.trim()).filter(Boolean);
+  const photos = Array.from(form.querySelector("[name='photos']").files || []);
   try {
     submit.disabled = true;
     submit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
-    message.textContent = "Report saving...";
+    message.textContent = photos.length ? "Photos uploading to Google Drive..." : "Report saving...";
     await window.firebaseReady;
     const reportRef = window.firebaseDb.ref("programReports").push();
-    await reportRef.set({ title: values.title.trim(), description: values.description.trim(), date: values.date, photos: photoLinks, createdAt: new Date().toISOString(), submittedBy: "AYFA member" });
+    const folderName = `${values.date} - ${values.title.trim()}`;
+    if (photos.length) await uploadPhotosToDrive(photos, folderName);
+    await reportRef.set({ title: values.title.trim(), description: values.description.trim(), date: values.date, photos: [], photosUploaded: photos.length, driveFolderName: folderName, createdAt: new Date().toISOString(), submittedBy: "AYFA member" });
     closeProgramModal();
     await loadProgramReports();
   } catch (error) {

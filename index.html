@@ -908,7 +908,7 @@
       >
         <span class="quick-action-icon"><i class="fa-solid fa-hand-holding-heart"></i></span>
         <span class="quick-action-copy">
-          <strong>ವಂತಿಗೆ ಸಂಗ್ರಹ</strong>
+          <strong>ಉಸ್ಯುವಾರಿಗಳ ವಂತಿಗೆ ಸಂಗ್ರಹ</strong>
           <small>Contribution collection</small>
         </span>
         <i class="fa-solid fa-arrow-up-right-from-square quick-action-arrow" aria-hidden="true"></i>
@@ -916,7 +916,7 @@
 
       <button
         type="button"
-        class="quick-action quick-action-assets"
+        class="quick-action quick-action-assets quick-action-featured"
         onclick="openRentalManagement()"
       >
         <span class="quick-action-icon"><i class="fa-solid fa-chair"></i></span>
@@ -1032,13 +1032,13 @@
 
         <div
           class="grid-card"
-          onclick="showComingSoon('Donors & Sponsors')"
+          onclick="openAgendaManagement()"
         >
 
-          <i class="fa-solid fa-heart-circle-check card-icon"></i>
+          <i class="fa-solid fa-clipboard-list card-icon"></i>
 
           <span>
-            Donors & Sponsors
+            ಸಭಾ ಅಜೆಂಡಾ
           </span>
 
         </div>
@@ -1098,7 +1098,7 @@
 
         <div
           class="grid-card"
-          onclick="showComingSoon('Upload Photos to Drive')"
+          onclick="openDrivePhotoUpload()"
         >
 
           <i class="fa-solid fa-cloud-arrow-up card-icon"></i>
@@ -1457,6 +1457,14 @@
       </div>
 
       <div id="rentalContent" class="rental-content" aria-live="polite"></div>
+    </div>
+
+    <div id="agendaView" class="view-section hidden">
+      <div class="section-header"><button class="btn-back" onclick="showDashboard()"><i class="fa-solid fa-arrow-left"></i> Back</button><h2>ಸಭಾ ಅಜೆಂಡಾ &amp; ನಿರ್ಣಯಗಳು</h2></div>
+      <section class="agenda-section">
+        <div class="agenda-toolbar"><div><p class="agenda-kicker">MEETING RECORDS</p><h3>ಅಜೆಂಡಾ &amp; ನಿರ್ಣಯಗಳು</h3></div><button class="agenda-add-button" onclick="openAgendaForm()"><i class="fa-solid fa-plus"></i> ಹೊಸ ಅಜೆಂಡಾ</button></div>
+        <div class="agenda-simple-sections"><div class="agenda-panel"><h3><i class="fa-solid fa-list-check"></i> ಅಜೆಂಡಾ</h3><div id="allAgendaList"></div></div><div class="agenda-panel"><h3><i class="fa-solid fa-check-double"></i> ನಿರ್ಣಯಗಳು</h3><div id="decisionAgendaList"></div></div></div>
+      </section>
     </div>
 
     <div
@@ -2220,6 +2228,7 @@
 
   <script src="js/rentals.js"></script>
   <script src="js/activity-reports.js"></script>
+  <script src="js/agenda.js"></script>
 
 
 
@@ -2276,7 +2285,9 @@
 
         "posterGeneratorView",
 
-        "rentalView"
+        "rentalView",
+
+        "agendaView"
 
       ];
 
