@@ -76,6 +76,9 @@ async function submitProgramReport(event) {
   const values = Object.fromEntries(new FormData(form).entries());
   const files = Array.from(form.querySelector("[name='photos']").files || []);
   try {
+    if (files.some(file => file.size > 10 * 1024 * 1024)) {
+      throw new Error("Each photo must be smaller than 10 MB.");
+    }
     submit.disabled = true;
     submit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
     message.textContent = files.length ? "Photos uploading..." : "Report saving...";
@@ -85,15 +88,28 @@ async function submitProgramReport(event) {
     for (const [index, file] of files.entries()) {
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
       const storageRef = window.firebaseStorage.ref(`program-reports/${reportRef.key}/${Date.now()}_${index}_${safeName}`);
-      await storageRef.put(file);
+      message.textContent = `Photo ${index + 1} of ${files.length} uploading...`;
+      const uploadTask = storageRef.put(file);
+      await Promise.race([
+        uploadTask,
+        new Promise((_, reject) => setTimeout(() => {
+          uploadTask.cancel();
+          reject(new Error("Photo upload timed out. Check Firebase Storage setup or try a smaller photo."));
+        }, 60000))
+      ]);
       urls.push(await storageRef.getDownloadURL());
     }
+    message.textContent = "Report saving...";
     await reportRef.set({ title: values.title.trim(), description: values.description.trim(), date: values.date, photos: urls, createdAt: new Date().toISOString(), submittedBy: "AYFA member" });
     closeProgramModal();
     await loadProgramReports();
   } catch (error) {
     console.error(error);
-    message.textContent = "Report save ಆಗಲಿಲ್ಲ. Firebase Storage ಮತ್ತು Database rules ಪರಿಶೀಲಿಸಿ.";
+    const code = String(error?.code || "");
+    const detail = String(error?.message || "");
+    if (code.includes("unauthorized")) message.textContent = "Upload permission ಇಲ್ಲ. Firebase Storage rules update ಮಾಡಬೇಕು.";
+    else if (code.includes("object-not-found")) message.textContent = "Firebase Storage enable ಆಗಿಲ್ಲ ಅಥವಾ bucket setup ಸರಿಯಿಲ್ಲ.";
+    else message.textContent = `Report save ಆಗಲಿಲ್ಲ: ${detail || "Firebase Storage ಮತ್ತು Database rules ಪರಿಶೀಲಿಸಿ."}`;
     submit.disabled = false;
     submit.textContent = "Submit report";
   }
