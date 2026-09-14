@@ -819,7 +819,7 @@
       <input
         type="password"
         id="pinInput"
-        maxlength="4"
+        maxlength="20"
         placeholder="••••"
         class="pin-input"
       >
@@ -917,12 +917,12 @@
       <button
         type="button"
         class="quick-action quick-action-assets"
-        onclick="showComingSoon('ಚಯರ್ / ಟೇಬಲ್ / ಸ್ಪೀಕರ್')"
+        onclick="openRentalManagement()"
       >
         <span class="quick-action-icon"><i class="fa-solid fa-chair"></i></span>
         <span class="quick-action-copy">
           <strong>ಚಯರ್ / ಟೇಬಲ್ / ಸ್ಪೀಕರ್</strong>
-          <small>ಶೀಘ್ರದಲ್ಲೇ ಲಭ್ಯವಿರುತ್ತದೆ</small>
+          <small>Rental &amp; payment management</small>
         </span>
         <i class="fa-solid fa-arrow-right quick-action-arrow" aria-hidden="true"></i>
       </button>
@@ -1094,25 +1094,6 @@
 
         </div>
 
-
-
-        <!-- SUBMIT PROGRAM REPORT -->
-
-        <div
-          class="grid-card"
-          onclick="showComingSoon('Submit Program Report')"
-        >
-
-          <i class="fa-solid fa-pen-to-square card-icon"></i>
-
-          <span>
-            Submit Program Report
-          </span>
-
-        </div>
-
-
-
         <!-- UPLOAD PHOTOS -->
 
         <div
@@ -1181,181 +1162,26 @@
       </div>
 
 
-      <div class="activity-report-intro">
-
-        <div class="activity-report-icon">
-
-          <i class="fa-solid fa-chart-line"></i>
-
+      <section class="annual-activity-reports">
+        <div class="annual-activity-heading">
+          <div><p>PREVIOUS REPORTS</p><h3>Year-wise Activity Reports</h3></div>
+          <i class="fa-solid fa-file-pdf"></i>
         </div>
-
-        <div>
-
-          <h3>
-            Year-wise Activity Reports
-          </h3>
-
-          <p>
-            View the annual activities and reports of
-            Al-Ameen Youth Federation.
-          </p>
-
+        <div class="annual-activity-grid">
+          <a href="https://drive.google.com/file/d/1GCqHZ0jn4reak5N1UeacQM_DfO3GxYHG/view?usp=sharing" target="_blank" rel="noopener noreferrer" class="annual-activity-card"><strong>2026</strong><span>Annual Activity Report</span><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+          <a href="https://drive.google.com/file/d/1BZxv3bAIq3cslrF52VcGP2brENB3qYfV/view?usp=drivesdk" target="_blank" rel="noopener noreferrer" class="annual-activity-card"><strong>2025</strong><span>Annual Activity Report</span><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+          <a href="https://drive.google.com/file/d/19TMLmC9v6l-u8rZyF1K-BbBoztbhf17t/view?usp=drivesdk" target="_blank" rel="noopener noreferrer" class="annual-activity-card"><strong>2024</strong><span>Annual Activity Report</span><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+          <a href="https://drive.google.com/file/d/1hv9yTa5sab-VUDUyOaN0qEW_DnMBqVmb/view?usp=drivesdk" target="_blank" rel="noopener noreferrer" class="annual-activity-card"><strong>2022</strong><span>Annual Activity Report</span><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
         </div>
+      </section>
 
-      </div>
-
-
-      <div class="activity-reports-grid">
-
-
-        <!-- 2026 -->
-
-        <div class="activity-report-card">
-
-          <div class="report-year">
-            2026
-          </div>
-
-          <div class="report-info">
-
-            <h3>
-              2026 Activities
-            </h3>
-
-            <p>
-              Annual Activity Report
-            </p>
-
-          </div>
-
-          <a
-            href="https://drive.google.com/file/d/1GCqHZ0jn4reak5N1UeacQM_DfO3GxYHG/view?usp=sharing"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="report-btn"
-          >
-
-            <i class="fa-solid fa-file-pdf"></i>
-
-            View PDF
-
-          </a>
-
+      <section class="program-reports-section">
+        <div class="program-reports-toolbar">
+          <div><p class="program-reports-kicker">AYFA ACTIVITIES &amp; PROGRAMS</p><h3 id="programReportsTitle">Activities</h3></div>
+          <div class="program-reports-actions"><select id="programReportYear" onchange="renderProgramReports()" aria-label="Select report year"></select><button type="button" class="program-report-submit" onclick="openProgramReportForm()"><i class="fa-solid fa-plus"></i> Submit Activity Report</button></div>
         </div>
-
-
-
-        <!-- 2025 -->
-
-        <div class="activity-report-card">
-
-          <div class="report-year">
-            2025
-          </div>
-
-          <div class="report-info">
-
-            <h3>
-              2025 Activities
-            </h3>
-
-            <p>
-              Annual Activity Report
-            </p>
-
-          </div>
-
-          <a
-            href="https://drive.google.com/file/d/1BZxv3bAIq3cslrF52VcGP2brENB3qYfV/view?usp=drivesdk"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="report-btn"
-          >
-
-            <i class="fa-solid fa-file-pdf"></i>
-
-            View PDF
-
-          </a>
-
-        </div>
-
-
-
-        <!-- 2024 -->
-
-        <div class="activity-report-card">
-
-          <div class="report-year">
-            2024
-          </div>
-
-          <div class="report-info">
-
-            <h3>
-              2024 Activities
-            </h3>
-
-            <p>
-              Annual Activity Report
-            </p>
-
-          </div>
-
-          <a
-            href="https://drive.google.com/file/d/19TMLmC9v6l-u8rZyF1K-BbBoztbhf17t/view?usp=drivesdk"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="report-btn"
-          >
-
-            <i class="fa-solid fa-file-pdf"></i>
-
-            View PDF
-
-          </a>
-
-        </div>
-
-
-
-        <!-- 2022 -->
-
-        <div class="activity-report-card">
-
-          <div class="report-year">
-            2022
-          </div>
-
-          <div class="report-info">
-
-            <h3>
-              2022 Activities
-            </h3>
-
-            <p>
-              Annual Activity Report
-            </p>
-
-          </div>
-
-          <a
-            href="https://drive.google.com/file/d/1hv9yTa5sab-VUDUyOaN0qEW_DnMBqVmb/view?usp=drivesdk"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="report-btn"
-          >
-
-            <i class="fa-solid fa-file-pdf"></i>
-
-            View PDF
-
-          </a>
-
-        </div>
-
-
-      </div>
+        <div id="programReportsList" class="program-reports-list" aria-live="polite"></div>
+      </section>
 
     </div>
 
@@ -1611,6 +1437,28 @@
     <!-- =======================================================
          FINANCE REPORTS
     ======================================================== -->
+
+    <!-- =======================================================
+         RENTAL & PAYMENT MANAGEMENT
+    ======================================================== -->
+    <div id="rentalView" class="view-section hidden">
+      <div class="section-header rental-header">
+        <button class="btn-back" onclick="showDashboard()">
+          <i class="fa-solid fa-arrow-left"></i>
+          Back
+        </button>
+        <div>
+          <p class="rental-eyebrow">RENTAL &amp; PAYMENT</p>
+          <h2>Chair, Table &amp; Speaker</h2>
+        </div>
+        <button class="rental-login-button" id="rentalLoginButton" type="button" onclick="openRentalLogin()">
+          <i class="fa-solid fa-lock"></i> Supervisor Login
+        </button>
+      </div>
+
+      <div id="rentalContent" class="rental-content" aria-live="polite"></div>
+    </div>
+
     <div
       id="financeView"
       class="view-section hidden"
@@ -2359,7 +2207,9 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
   <script src="js/firebase-config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <script src="js/script.js"></script>
 
@@ -2368,6 +2218,9 @@
   <script src="js/attendance.js"></script>
 
   <script src="js/finance.js"></script>
+
+  <script src="js/rentals.js"></script>
+  <script src="js/activity-reports.js"></script>
 
 
 
@@ -2422,7 +2275,9 @@
 
         "financeView",
 
-        "posterGeneratorView"
+        "posterGeneratorView",
+
+        "rentalView"
 
       ];
 

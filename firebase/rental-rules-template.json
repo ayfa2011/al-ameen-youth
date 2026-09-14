@@ -1,0 +1,16 @@
+{
+  "rules": {
+    "rentals": {
+      ".read": "auth != null",
+      "$rentalId": {
+        ".write": "auth != null && (root.child('rentalRoles').child(auth.uid).val() == 'admin' || (root.child('rentalRoles').child(auth.uid).val() == 'chairTable' && (data.child('category').val() == 'chairTable' || newData.child('category').val() == 'chairTable')) || (root.child('rentalRoles').child(auth.uid).val() == 'speaker' && (data.child('category').val() == 'speaker' || newData.child('category').val() == 'speaker')))"
+      }
+    },
+    "rentalRoles": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || root.child('rentalRoles').child(auth.uid).val() == 'admin')",
+        ".write": "auth != null && root.child('rentalRoles').child(auth.uid).val() == 'admin'"
+      }
+    }
+  }
+}

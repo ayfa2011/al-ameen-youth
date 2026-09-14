@@ -1086,6 +1086,76 @@ body {
   object-fit: contain;
 }
 
+/* Activity & program reports */
+.annual-activity-reports{margin-bottom:25px;padding:16px;border:1px solid #dfe9e3;border-radius:15px;background:#fff;box-shadow:0 4px 15px rgba(23,76,55,.05)}.annual-activity-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px}.annual-activity-heading p{margin:0 0 3px;color:#a66d10;font-size:10px;font-weight:800;letter-spacing:.1em}.annual-activity-heading h3{margin:0;color:#173e2d;font-size:17px}.annual-activity-heading>i{color:#c84842;font-size:21px}.annual-activity-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}.annual-activity-card{min-height:90px;padding:12px;border:1px solid #e0e9e3;border-radius:11px;background:#f8fbf9;color:#294a39;text-decoration:none;display:grid;gap:5px;align-content:center;position:relative;transition:.18s}.annual-activity-card:hover{transform:translateY(-2px);border-color:#b7d0c0;box-shadow:0 8px 15px rgba(23,76,55,.09)}.annual-activity-card strong{font-size:21px}.annual-activity-card span{color:#6d8075;font-size:10px;line-height:1.25}.annual-activity-card i{position:absolute;right:10px;top:10px;color:#659079;font-size:11px}
+@media(max-width:650px){.annual-activity-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.annual-activity-card{min-height:80px}.annual-activity-reports{padding:13px}.annual-activity-heading h3{font-size:15px}}
+.program-reports-toolbar{display:flex;align-items:end;justify-content:space-between;gap:15px;margin:0 0 16px}.program-reports-kicker{margin:0 0 4px;color:#a66d10;font-size:10px;font-weight:800;letter-spacing:.1em}.program-reports-toolbar h3{margin:0;color:#173e2d;font-size:20px}.program-reports-actions{display:flex;gap:8px;align-items:center}.program-reports-actions select,.program-report-submit{min-height:38px;border-radius:9px;font:inherit;font-size:12px;font-weight:700}.program-reports-actions select{padding:0 9px;border:1px solid #d9e5dd;background:#fff;color:#284737}.program-report-submit{padding:0 12px;border:0;background:#174c37;color:#fff;cursor:pointer}.program-reports-list{display:grid;gap:13px}.program-report-card{display:grid;grid-template-columns:210px minmax(0,1fr);gap:18px;padding:13px;border:1px solid #dfe9e3;border-radius:15px;background:#fff;box-shadow:0 4px 15px rgba(23,76,55,.05)}.program-report-cover{min-height:150px;overflow:hidden;border-radius:11px;background:#edf5f0}.program-report-cover img{width:100%;height:100%;object-fit:cover;display:block}.program-report-placeholder{width:100%;height:100%;min-height:150px;display:grid;place-content:center;gap:7px;text-align:center;background:linear-gradient(135deg,#1b7955,#166e92);color:#fff}.program-report-placeholder i{font-size:25px}.program-report-placeholder span{font-size:12px;font-weight:700}.program-report-copy{min-width:0}.program-report-copy h3{margin:2px 0 7px;color:#173e2d;font-size:17px}.program-report-copy p{margin:0;color:#51675b;font-size:13px;line-height:1.6}.program-report-meta{display:flex;gap:13px;flex-wrap:wrap;margin-top:11px;color:#718278;font-size:11px}.program-report-read{margin-top:12px;padding:0;border:0;background:transparent;color:#176c49;font:inherit;font-size:12px;font-weight:800;cursor:pointer}.program-reports-empty{min-height:200px;display:grid;place-content:center;gap:8px;text-align:center;color:#718278;font-size:13px}.program-reports-empty i{font-size:25px;color:#a5beb0}.program-reports-empty strong{color:#385747}.program-reports-empty span{font-size:11px}.program-modal{position:fixed;inset:0;z-index:1100;display:grid;place-items:center;padding:18px;background:rgba(6,31,20,.5)}.program-modal-card{width:min(620px,100%);max-height:92vh;overflow:auto;border-radius:17px;background:#fff;box-shadow:0 24px 60px rgba(0,0,0,.27)}.program-modal-header{display:flex;justify-content:space-between;gap:14px;padding:18px;border-bottom:1px solid #e6eee9}.program-modal-header h3{margin:0;color:#173e2d;font-size:18px}.program-modal-header p{margin:5px 0 0;color:#6d7e74;font-size:12px}.program-close{width:33px;height:33px;border:0;border-radius:8px;background:#f0f5f1;color:#365445;cursor:pointer}.program-report-form{display:grid;gap:14px;padding:18px}.program-report-form label{display:grid;gap:6px;color:#496154;font-size:12px;font-weight:800}.program-report-form input,.program-report-form textarea{width:100%;min-height:40px;padding:9px 10px;border:1px solid #dbe6de;border-radius:8px;color:#253f32;font:inherit}.program-report-form textarea{min-height:115px;resize:vertical}.program-photo-field{padding:12px;border:1px dashed #a8c6b3;border-radius:10px;background:#f8fcf9}.program-photo-field span{color:#77897f;font-size:10px;font-weight:500}.program-photo-field input{padding:0;border:0;background:transparent}.program-photo-preview{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.program-photo-preview div{padding:8px;border-radius:8px;background:#f1f7f3;color:#476252;font-size:11px}.program-photo-preview i{margin-right:5px;color:#1b7955}.program-photo-preview small{display:block;margin-top:3px;color:#7d8d83}.program-form-message{min-height:15px;margin:0;color:#b44b37;font-size:11px}.program-form-actions{display:flex;justify-content:flex-end;gap:9px}.program-cancel,.program-submit{min-height:40px;padding:0 13px;border-radius:8px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}.program-cancel{border:1px solid #d8e5dc;background:#fff;color:#365445}.program-submit{border:0;background:#174c37;color:#fff}.program-detail-content{padding:18px}.program-detail-content>p{margin:0;color:#3e5649;font-size:14px;line-height:1.7}.program-photo-gallery{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:18px}.program-photo-gallery img{width:100%;aspect-ratio:1.3;object-fit:cover;border-radius:10px}.program-no-photo{margin-top:18px;padding:18px;border-radius:10px;background:#edf5f0;color:#597164;text-align:center;font-size:12px}@media(max-width:650px){.program-reports-toolbar{align-items:start;flex-direction:column}.program-reports-actions{width:100%}.program-reports-actions select{flex:0 0 76px}.program-report-submit{flex:1}.program-report-card{grid-template-columns:110px minmax(0,1fr);gap:11px;padding:10px}.program-report-cover,.program-report-placeholder{min-height:110px}.program-report-copy h3{font-size:14px}.program-report-copy p{font-size:11px;line-height:1.45}.program-report-meta{gap:8px;margin-top:8px;font-size:9px}.program-report-read{margin-top:8px;font-size:10px}.program-modal{align-items:end;padding:0}.program-modal-card{width:100%;max-height:91vh;border-radius:20px 20px 0 0}.program-modal-header,.program-report-form,.program-detail-content{padding:15px}.program-report-form input,.program-report-form textarea{min-height:44px;font-size:16px}.program-form-actions{position:sticky;bottom:-15px;margin:4px -15px -15px;padding:11px 15px;background:#fff;border-top:1px solid #e6eee9}.program-form-actions button{flex:1}.program-photo-gallery{grid-template-columns:1fr}}
+
+/* Rental & payment management */
+.rental-header { align-items: center; flex-wrap: wrap; }
+.rental-header > div { flex: 1; min-width: 180px; }
+.rental-eyebrow { margin: 0 0 3px; color: #a66d10; font-size: 10px; font-weight: 800; letter-spacing: .11em; }
+.rental-login-button, .rental-primary-button, .rental-secondary-button, .rental-filter-button, .rental-icon-button {
+  border: 0; cursor: pointer; font: inherit; font-weight: 700; transition: .18s ease;
+}
+.rental-login-button { padding: 9px 12px; border: 1px solid #d7e4dc; border-radius: 9px; background: #fff; color: #174c37; font-size: 12px; }
+.rental-login-button:hover, .rental-login-button.is-active { background: #174c37; color: #fff; border-color: #174c37; }
+.rental-summary-grid, .rental-category-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.rental-summary-grid { margin: 4px 0 20px; }
+.rental-stat-card, .rental-category-card, .rental-panel { border: 1px solid #e0e9e3; border-radius: 14px; background: #fff; box-shadow: 0 4px 14px rgba(23,76,55,.05); }
+.rental-stat-card { padding: 15px; }
+.rental-stat-card span { display: block; color: #6a7b72; font-size: 11px; font-weight: 700; }
+.rental-stat-card strong { display: block; margin-top: 7px; color: #173e2d; font-size: 23px; }
+.rental-stat-card.pending strong { color: #bd4a35; }
+.rental-category-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 18px; }
+.rental-category-card { padding: 17px; text-align: left; cursor: pointer; }
+.rental-category-card:hover { transform: translateY(-2px); border-color: #accbb9; }
+.rental-category-card i { width: 38px; height: 38px; display: inline-grid; place-items: center; border-radius: 11px; background: #eaf4ee; color: #19704a; font-size: 17px; }
+.rental-category-card.speaker i { background: #fff3de; color: #a66d10; }
+.rental-category-card h3 { margin: 11px 0 4px; color: #173e2d; font-size: 15px; }
+.rental-category-card p { margin: 0; color: #697b72; font-size: 12px; }
+.rental-toolbar { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-bottom: 12px; }
+.rental-toolbar h3 { margin: 0 auto 0 0; color: #173e2d; font-size: 16px; }
+.rental-primary-button { padding: 10px 13px; border-radius: 9px; background: #174c37; color: #fff; font-size: 12px; }
+.rental-primary-button:hover { background: #0d3525; transform: translateY(-1px); }
+.rental-secondary-button { padding: 10px 13px; border: 1px solid #d9e5dd; border-radius: 9px; background: #fff; color: #174c37; font-size: 12px; }
+.rental-filters { display: flex; gap: 7px; flex-wrap: wrap; margin: 0 0 12px; }
+.rental-filter-button { padding: 7px 10px; border: 1px solid #dce7df; border-radius: 99px; background: #fff; color: #567063; font-size: 11px; }
+.rental-filter-button.active, .rental-filter-button:hover { border-color: #174c37; background: #eaf4ee; color: #174c37; }
+.rental-search { flex: 1 1 210px; min-height: 38px; padding: 0 11px; border: 1px solid #dce7df; border-radius: 9px; font: inherit; font-size: 12px; }
+.rental-search:focus { outline: 3px solid rgba(25,112,74,.13); border-color: #19704a; }
+.rental-table-wrap { overflow-x: auto; }
+.rental-table { width: 100%; min-width: 660px; border-collapse: collapse; }
+.rental-table th, .rental-table td { padding: 11px 10px; border-bottom: 1px solid #edf2ee; color: #40574b; font-size: 12px; text-align: left; vertical-align: middle; }
+.rental-table th { background: #f6f9f7; color: #61766a; font-size: 11px; }
+.rental-table td.amount { text-align: right; font-variant-numeric: tabular-nums; }
+.rental-table tr:last-child td { border-bottom: 0; }
+.rental-status { display: inline-block; padding: 4px 7px; border-radius: 99px; font-size: 10px; font-weight: 800; }
+.rental-status.paid { background: #e8f7ed; color: #167440; }.rental-status.partial { background: #fff5da; color: #9b690e; }.rental-status.pending { background: #fff0ed; color: #c34a35; }
+.rental-empty { padding: 32px 15px; color: #718178; font-size: 13px; text-align: center; }
+.rental-modal { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 18px; background: rgba(8, 30, 20, .48); }
+.rental-modal-card { width: min(620px, 100%); max-height: min(730px, 92vh); overflow: auto; border-radius: 16px; background: #fff; box-shadow: 0 20px 55px rgba(0,0,0,.25); }
+.rental-modal-head { display: flex; align-items: start; justify-content: space-between; gap: 14px; padding: 18px 19px 14px; border-bottom: 1px solid #e7eee9; }
+.rental-modal-head h3 { margin: 0; color: #173e2d; font-size: 18px; }.rental-modal-head p { margin: 5px 0 0; color: #687a70; font-size: 12px; }
+.rental-icon-button { width: 33px; height: 33px; border-radius: 8px; background: #f1f5f2; color: #385447; }
+.rental-form { padding: 18px; }.rental-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
+.rental-field { display: grid; gap: 6px; }.rental-field.full { grid-column: 1 / -1; }.rental-field label { color: #496154; font-size: 11px; font-weight: 800; }.rental-field input, .rental-field select, .rental-field textarea { width: 100%; min-height: 39px; padding: 8px 10px; border: 1px solid #dbe6de; border-radius: 8px; background: #fff; color: #253f32; font: inherit; font-size: 13px; }.rental-field textarea { min-height: 66px; resize: vertical; }
+.rental-form-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 18px; }
+.rental-login-options { display: grid; gap: 9px; margin: 0 0 15px; }.rental-login-option { padding: 10px; border: 1px solid #dce7df; border-radius: 9px; cursor: pointer; font-size: 13px; }.rental-login-option input { margin-right: 7px; }
+.rental-notice { margin: 0 18px 18px; padding: 10px 11px; border-radius: 8px; background: #fff8e8; color: #7a5a1c; font-size: 11px; line-height: 1.45; }
+@media(max-width: 650px) { .rental-summary-grid { grid-template-columns: 1fr; gap: 8px; }.rental-category-grid { gap: 9px; }.rental-stat-card { padding: 12px; }.rental-stat-card strong { font-size: 20px; }.rental-category-card { padding: 13px 10px; }.rental-category-card h3 { font-size: 13px; }.rental-category-card p { font-size: 10px; }.rental-header { gap: 10px; }.rental-login-button { margin-left: auto; }.rental-form-grid { grid-template-columns: 1fr; }.rental-field.full { grid-column: auto; } }
+
+@media(max-width: 650px) {
+  .rental-modal { align-items: end; padding: 0; }
+  .rental-modal-card { width: 100%; max-height: 90vh; border-radius: 20px 20px 0 0; }
+  .rental-modal-head { padding: 16px 16px 12px; }
+  .rental-form { padding: 15px; }
+  .rental-field input, .rental-field select, .rental-field textarea { min-height: 44px; font-size: 16px; }
+  .rental-form-actions { position: sticky; bottom: -15px; margin: 16px -15px -15px; padding: 11px 15px; background: #fff; border-top: 1px solid #e7eee9; }
+  .rental-form-actions button { min-height: 42px; flex: 1; }
+  .rental-table { min-width: 610px; }
+}
+
 
 /* Primary shortcuts shown below the banner. */
 .quick-actions {

@@ -16,7 +16,7 @@ const SCRIPT_URL =
 // FRONT-END PIN
 // ============================================================
 
-const CORRECT_PIN = "1234";
+const CORRECT_PIN = "ayfa";
 
 
 // ============================================================
@@ -218,7 +218,7 @@ function showDashboard() {
 // ACTIVITY REPORTS
 // ============================================================
 
-function openActivityReports() {
+function openActivityReports(openForm = false) {
 
   hideAllViews();
 
@@ -229,6 +229,12 @@ function openActivityReports() {
 
     activityView.classList.remove("hidden");
 
+  }
+
+  if (typeof loadProgramReports === "function") {
+    loadProgramReports().then(() => {
+      if (openForm && typeof openProgramReportForm === "function") openProgramReportForm();
+    });
   }
 
   window.scrollTo({
