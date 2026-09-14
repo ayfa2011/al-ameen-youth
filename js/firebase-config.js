@@ -18,7 +18,6 @@ firebase.initializeApp(firebaseConfig);
 
 window.firebaseApp = firebase.app();
 window.firebaseDb = firebase.database();
-window.firebaseStorage = firebase.storage();
 window.firebaseAuth = firebase.auth();
 
 // Anonymous sign-in keeps the database from being completely public.

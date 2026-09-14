@@ -40,6 +40,12 @@ function reportPreview(text) {
   return words.length > 35 ? `${words.slice(0, 35).join(" ")}…` : words.join(" ");
 }
 
+function displayPhotoUrl(url) {
+  const value = String(url || "").trim();
+  const driveId = value.match(/drive\.google\.com\/file\/d\/([^/]+)/)?.[1] || value.match(/[?&]id=([^&]+)/)?.[1];
+  return driveId ? `https://drive.google.com/thumbnail?id=${encodeURIComponent(driveId)}&sz=w1200` : value;
+}
+
 function renderProgramReports() {
   const list = document.getElementById("programReportsList");
   const title = document.getElementById("programReportsTitle");
@@ -49,7 +55,7 @@ function renderProgramReports() {
   const reports = programReportState.reports.filter(report => String(report.date || "").startsWith(year));
   list.innerHTML = reports.length ? reports.map(report => {
     const photos = Array.isArray(report.photos) ? report.photos : Object.values(report.photos || {});
-    const cover = photos[0];
+    const cover = photos[0] ? displayPhotoUrl(photos[0]) : "";
     return `<article class="program-report-card"><div class="program-report-cover">${cover ? `<img src="${escapeHTML(cover)}" alt="${escapeHTML(report.title)}">` : '<div class="program-report-placeholder"><i class="fa-solid fa-calendar-check"></i><span>AYFA Activity</span></div>'}</div><div class="program-report-copy"><h3>${escapeHTML(report.title || "Untitled program")}</h3><p>${escapeHTML(reportPreview(report.description))}</p><div class="program-report-meta"><span><i class="fa-regular fa-calendar"></i> ${programDate(report.date)}</span>${photos.length > 1 ? `<span><i class="fa-solid fa-images"></i> ${photos.length} photos</span>` : ""}</div><button type="button" class="program-report-read" onclick="openProgramReportDetail('${report.id}')">Read more <i class="fa-solid fa-arrow-right"></i></button></div></article>`;
   }).join("") : `<div class="program-reports-empty"><i class="fa-regular fa-folder-open"></i><strong>No activities for ${year}</strong><span>Submit the first program report for this year.</span></div>`;
 }
@@ -59,13 +65,7 @@ function closeProgramModal() { document.getElementById("programModal")?.remove()
 
 function openProgramReportForm() {
   const today = new Date().toISOString().slice(0, 10);
-  programModal(`<div class="program-modal-card"><div class="program-modal-header"><div><h3>Submit Activity Report</h3><p>Add the program details and photos.</p></div><button type="button" class="program-close" onclick="closeProgramModal()"><i class="fa-solid fa-xmark"></i></button></div><form id="programReportForm" class="program-report-form" onsubmit="submitProgramReport(event)"><label>Program title *<input name="title" required></label><label>Description *<textarea name="description" required></textarea></label><label>Date *<input name="date" type="date" value="${today}" required></label><label class="program-photo-field">Upload photos <span>Multiple photos allowed</span><input id="programPhotos" name="photos" type="file" accept="image/*" multiple onchange="previewProgramPhotos(this.files)"></label><div id="programPhotoPreview" class="program-photo-preview"></div><p id="programFormMessage" class="program-form-message"></p><div class="program-form-actions"><button type="button" class="program-cancel" onclick="closeProgramModal()">Cancel</button><button type="submit" class="program-submit">Submit report</button></div></form></div>`);
-}
-
-function previewProgramPhotos(files) {
-  const preview = document.getElementById("programPhotoPreview");
-  if (!preview) return;
-  preview.innerHTML = Array.from(files || []).map((file, index) => `<div><i class="fa-solid fa-image"></i><span>${escapeHTML(file.name)}</span><small>Photo ${index + 1}</small></div>`).join("");
+  programModal(`<div class="program-modal-card"><div class="program-modal-header"><div><h3>Submit Activity Report</h3><p>Add program details and Google Drive photo links.</p></div><button type="button" class="program-close" onclick="closeProgramModal()"><i class="fa-solid fa-xmark"></i></button></div><form id="programReportForm" class="program-report-form" onsubmit="submitProgramReport(event)"><label>Program title *<input name="title" required></label><label>Description *<textarea name="description" required></textarea></label><label>Date *<input name="date" type="date" value="${today}" required></label><label class="program-photo-field">Google Drive photo links <span>One link per line. First link is the cover photo.</span><textarea name="photoLinks" placeholder="https://drive.google.com/file/d/.../view&#10;https://drive.google.com/file/d/.../view"></textarea></label><p id="programFormMessage" class="program-form-message"></p><div class="program-form-actions"><button type="button" class="program-cancel" onclick="closeProgramModal()">Cancel</button><button type="submit" class="program-submit">Submit report</button></div></form></div>`);
 }
 
 async function submitProgramReport(event) {
@@ -74,42 +74,21 @@ async function submitProgramReport(event) {
   const message = document.getElementById("programFormMessage");
   const submit = form.querySelector("button[type='submit']");
   const values = Object.fromEntries(new FormData(form).entries());
-  const files = Array.from(form.querySelector("[name='photos']").files || []);
+  const photoLinks = String(values.photoLinks || "").split(/\n|,/).map(link => link.trim()).filter(Boolean);
   try {
-    if (files.some(file => file.size > 10 * 1024 * 1024)) {
-      throw new Error("Each photo must be smaller than 10 MB.");
-    }
     submit.disabled = true;
     submit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
-    message.textContent = files.length ? "Photos uploading..." : "Report saving...";
+    message.textContent = "Report saving...";
     await window.firebaseReady;
     const reportRef = window.firebaseDb.ref("programReports").push();
-    const urls = [];
-    for (const [index, file] of files.entries()) {
-      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const storageRef = window.firebaseStorage.ref(`program-reports/${reportRef.key}/${Date.now()}_${index}_${safeName}`);
-      message.textContent = `Photo ${index + 1} of ${files.length} uploading...`;
-      const uploadTask = storageRef.put(file);
-      await Promise.race([
-        uploadTask,
-        new Promise((_, reject) => setTimeout(() => {
-          uploadTask.cancel();
-          reject(new Error("Photo upload timed out. Check Firebase Storage setup or try a smaller photo."));
-        }, 60000))
-      ]);
-      urls.push(await storageRef.getDownloadURL());
-    }
-    message.textContent = "Report saving...";
-    await reportRef.set({ title: values.title.trim(), description: values.description.trim(), date: values.date, photos: urls, createdAt: new Date().toISOString(), submittedBy: "AYFA member" });
+    await reportRef.set({ title: values.title.trim(), description: values.description.trim(), date: values.date, photos: photoLinks, createdAt: new Date().toISOString(), submittedBy: "AYFA member" });
     closeProgramModal();
     await loadProgramReports();
   } catch (error) {
     console.error(error);
     const code = String(error?.code || "");
     const detail = String(error?.message || "");
-    if (code.includes("unauthorized")) message.textContent = "Upload permission ಇಲ್ಲ. Firebase Storage rules update ಮಾಡಬೇಕು.";
-    else if (code.includes("object-not-found")) message.textContent = "Firebase Storage enable ಆಗಿಲ್ಲ ಅಥವಾ bucket setup ಸರಿಯಿಲ್ಲ.";
-    else message.textContent = `Report save ಆಗಲಿಲ್ಲ: ${detail || "Firebase Storage ಮತ್ತು Database rules ಪರಿಶೀಲಿಸಿ."}`;
+    message.textContent = `Report save ಆಗಲಿಲ್ಲ: ${detail || code || "Firebase Database connection ಪರಿಶೀಲಿಸಿ."}`;
     submit.disabled = false;
     submit.textContent = "Submit report";
   }
@@ -118,6 +97,6 @@ async function submitProgramReport(event) {
 function openProgramReportDetail(id) {
   const report = programReportState.reports.find(item => item.id === id);
   if (!report) return;
-  const photos = Array.isArray(report.photos) ? report.photos : Object.values(report.photos || {});
+  const photos = (Array.isArray(report.photos) ? report.photos : Object.values(report.photos || {})).map(displayPhotoUrl);
   programModal(`<div class="program-modal-card program-detail"><div class="program-modal-header"><div><h3>${escapeHTML(report.title)}</h3><p><i class="fa-regular fa-calendar"></i> ${programDate(report.date)}</p></div><button type="button" class="program-close" onclick="closeProgramModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="program-detail-content"><p>${escapeHTML(report.description).replace(/\n/g, "<br>")}</p>${photos.length ? `<div class="program-photo-gallery">${photos.map((url, index) => `<img src="${escapeHTML(url)}" alt="${escapeHTML(report.title)} photo ${index + 1}">`).join("")}</div>` : '<div class="program-no-photo">No photos were uploaded for this activity.</div>'}</div></div>`);
 }
