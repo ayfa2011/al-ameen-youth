@@ -1,0 +1,11 @@
+const SUPERVISOR_PIN="ayfa";
+const SUPERVISOR_SESSION_KEY="ayfaSupervisorSession";
+function isSupervisorLoggedIn(){return sessionStorage.getItem(SUPERVISOR_SESSION_KEY)==="true";}
+function supervisorLogin(){const pin=prompt("Supervisor PIN ನಮೂದಿಸಿ:");if(pin===null)return false;if(String(pin).trim()===SUPERVISOR_PIN){sessionStorage.setItem(SUPERVISOR_SESSION_KEY,"true");refreshSupervisorUI();alert("Supervisor Login ಯಶಸ್ವಿಯಾಗಿದೆ.");return true;}alert("ತಪ್ಪಾದ Supervisor PIN.");return false;}
+function openSupervisorLogin(){if(isSupervisorLoggedIn()){if(confirm("Supervisor Login active ಇದೆ.\n\nLogout ಮಾಡಬೇಕೇ?"))supervisorLogout();}else supervisorLogin();}
+function supervisorLogout(){sessionStorage.removeItem(SUPERVISOR_SESSION_KEY);refreshSupervisorUI();}
+function requireSupervisor(){if(isSupervisorLoggedIn())return true;alert("ಈ ಕಾರ್ಯ Supervisor ಮಾತ್ರ ಮಾಡಬಹುದು.\n\nಮೇಲಿನ 🔐 Supervisor Login ಬಳಸಿ.");return false;}
+function supervisorButtonHTML(){return `<button type="button" class="ayfa-supervisor-btn" onclick="openSupervisorLogin()"><i class="fa-solid ${isSupervisorLoggedIn()?"fa-unlock":"fa-lock"}"></i> ${isSupervisorLoggedIn()?"Supervisor Logout":"Supervisor Login"}</button>`;}
+function refreshSupervisorUI(){document.querySelectorAll("[data-supervisor-login]").forEach(el=>el.innerHTML=supervisorButtonHTML());if(typeof renderAgendas==="function")try{renderAgendas();}catch(e){}if(typeof renderProgramReports==="function")try{renderProgramReports();}catch(e){}}
+function supervisorInjectStyles(){if(document.getElementById("ayfaSupervisorStyles"))return;document.head.insertAdjacentHTML("beforeend",`<style id="ayfaSupervisorStyles">.ayfa-supervisor-bar{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin:0 0 14px;flex-wrap:wrap}.ayfa-supervisor-btn{border:1px solid #d7e2ee;background:#f7fbff;color:#174f91;border-radius:10px;padding:9px 12px;min-height:40px;font-size:12px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:7px}.ayfa-supervisor-note{font-size:11px;color:#6b7280;margin-right:auto}@media(max-width:640px){.ayfa-supervisor-bar{justify-content:stretch}.ayfa-supervisor-btn{width:100%;justify-content:center}.ayfa-supervisor-note{width:100%;margin:0}}</style>`);}
+supervisorInjectStyles();setTimeout(refreshSupervisorUI,0);

@@ -27,7 +27,7 @@ function doGet(e) {
         return jsonOutput({ error: "Unknown action: " + action });
     }
   } catch (error) {
-    return jsonOutput({ error: error.message });
+    return jsonOutput({ success: false, error: error.message, errorType: error.name || "Error", stack: error.stack || "" });
   }
 }
 
@@ -45,26 +45,37 @@ function doPost(e) {
 
     return jsonOutput({ error: "Unknown POST action" });
   } catch (error) {
-    return jsonOutput({ error: error.message });
+    return jsonOutput({ success: false, error: error.message, errorType: error.name || "Error", stack: error.stack || "" });
   }
 }
 
 // Creates a central AYFA Activity Photos folder and one folder for each report.
 // Files arrive from the website as base64 and are saved directly to Google Drive.
 function uploadDrivePhoto(data) {
-  if (!data.base64 || !data.fileName) throw new Error("Photo data is required.");
+  try {
+    if (!data || !data.base64 || !data.fileName) {
+      throw new Error("Photo data is required. fileName/base64 missing.");
+    }
 
-  const rootName = "AYFA Activity Photos";
-  const rootFolders = DriveApp.getFoldersByName(rootName);
-  const root = rootFolders.hasNext() ? rootFolders.next() : DriveApp.createFolder(rootName);
-  const safeFolderName = String(data.folderName || "Activity Report").slice(0, 120);
-  const folders = root.getFoldersByName(safeFolderName);
-  const folder = folders.hasNext() ? folders.next() : root.createFolder(safeFolderName);
-  const bytes = Utilities.base64Decode(data.base64);
-  const blob = Utilities.newBlob(bytes, data.mimeType || "image/jpeg", data.fileName);
-  const file = folder.createFile(blob);
+    const rootName = "AYFA Activity Photos";
+    const rootFolders = DriveApp.getFoldersByName(rootName);
+    const root = rootFolders.hasNext() ? rootFolders.next() : DriveApp.createFolder(rootName);
+    const safeFolderName = String(data.folderName || "Activity Report").trim().slice(0, 120) || "Activity Report";
+    const folders = root.getFoldersByName(safeFolderName);
+    const folder = folders.hasNext() ? folders.next() : root.createFolder(safeFolderName);
+    const bytes = Utilities.base64Decode(data.base64);
+    const blob = Utilities.newBlob(bytes, data.mimeType || "image/jpeg", data.fileName);
+    const file = folder.createFile(blob);
 
-  return { success: true, fileId: file.getId(), folderUrl: folder.getUrl() };
+    return { success: true, fileId: file.getId(), fileName: file.getName(), folderUrl: folder.getUrl() };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message || String(error),
+      errorType: error.name || "Error",
+      stack: error.stack || ""
+    };
+  }
 }
 
 function jsonOutput(data) {

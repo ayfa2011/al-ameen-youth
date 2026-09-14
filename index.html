@@ -1176,6 +1176,7 @@
       </section>
 
       <section class="program-reports-section">
+        <div class="ayfa-supervisor-bar"><span class="ayfa-supervisor-note">🔒 Activity Reports: view-only for members. Add / Edit / Delete = Supervisor only.</span><span data-supervisor-login></span></div>
         <div class="program-reports-toolbar">
           <div><p class="program-reports-kicker">AYFA ACTIVITIES &amp; PROGRAMS</p><h3 id="programReportsTitle">Activities</h3></div>
           <div class="program-reports-actions"><select id="programReportYear" onchange="renderProgramReports()" aria-label="Select report year"></select><button type="button" class="program-report-submit" onclick="openProgramReportForm()"><i class="fa-solid fa-plus"></i> Submit Activity Report</button></div>
@@ -1462,6 +1463,7 @@
     <div id="agendaView" class="view-section hidden">
       <div class="section-header"><button class="btn-back" onclick="showDashboard()"><i class="fa-solid fa-arrow-left"></i> Back</button><h2>ಸಭಾ ಅಜೆಂಡಾ &amp; ನಿರ್ಣಯಗಳು</h2></div>
       <section class="agenda-section">
+        <div class="ayfa-supervisor-bar"><span class="ayfa-supervisor-note">🔒 ಅಜೆಂಡಾ / ನಿರ್ಣಯ: view-only for members. Add / Edit / Delete = Supervisor only.</span><span data-supervisor-login></span></div>
         <div class="agenda-toolbar"><div><p class="agenda-kicker">MEETING RECORDS</p><h3>ಅಜೆಂಡಾ &amp; ನಿರ್ಣಯಗಳು</h3></div><button class="agenda-add-button" onclick="openAgendaForm()"><i class="fa-solid fa-plus"></i> ಹೊಸ ಅಜೆಂಡಾ</button></div>
         <div class="agenda-simple-sections"><div class="agenda-panel"><h3><i class="fa-solid fa-list-check"></i> ಅಜೆಂಡಾ</h3><div id="allAgendaList"></div></div><div class="agenda-panel"><h3><i class="fa-solid fa-check-double"></i> ನಿರ್ಣಯಗಳು</h3><div id="decisionAgendaList"></div></div></div>
       </section>
@@ -2217,6 +2219,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <script src="js/supervisor.js"></script>
 
   <script src="js/script.js"></script>
 
