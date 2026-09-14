@@ -1,16 +1,26 @@
 // ============================================================
 // AL-AMEEN GOOGLE APPS SCRIPT BACKEND
+// Google Sheet -> Firebase near-real-time sync
 // ============================================================
-// Google Sheet must contain these EXACT sheet names:
-// 1. Members
-// 2. Programs
-// 3. Attendance
 //
-// Paste this complete code into Extensions > Apps Script.
-// Then Deploy > New deployment > Web app.
-// Execute as: Me
-// Who has access: Anyone
+// SHEETS:
+//   Members
+//   Programs
+//   Attendance
+//
+// WEBSITE:
+//   Reads Members / Attendance from Firebase.
+//
+// IMPORTANT:
+// 1) Do NOT put the Firebase service-account private key in the
+//    website or GitHub.
+// 2) Store SERVICE_ACCOUNT_PRIVATE_KEY and SERVICE_ACCOUNT_EMAIL
+//    in Apps Script > Project Settings > Script properties.
+// 3) Install the onEdit trigger once using setupFirebaseSyncTrigger().
 // ============================================================
+
+const FIREBASE_DATABASE_URL =
+  "https://al-ameen-website-e24d0-default-rtdb.asia-southeast1.firebasedatabase.app";
 
 function doGet(e) {
   try {
@@ -35,12 +45,16 @@ function doPost(e) {
   try {
     const body = JSON.parse(e.postData.contents || "{}");
 
-    if (body.action === "saveAttendance") {
-      return jsonOutput(saveAttendance(body));
-    }
-
     if (body.action === "uploadDrivePhoto") {
       return jsonOutput(uploadDrivePhoto(body));
+    }
+
+    if (body.action === "saveAttendance") {
+      const result = saveAttendance(body);
+      // Keep Firebase in sync when attendance is added through the website.
+      syncProgramsToFirebase_();
+      syncAttendanceToFirebase_();
+      return jsonOutput(result);
     }
 
     return jsonOutput({ error: "Unknown POST action" });
@@ -49,25 +63,30 @@ function doPost(e) {
   }
 }
 
-// Creates a central AYFA Activity Photos folder and one folder for each report.
-// Files arrive from the website as base64 and are saved directly to Google Drive.
+
 function uploadDrivePhoto(data) {
   try {
     if (!data || !data.base64 || !data.fileName) {
-      throw new Error("Photo data is required. fileName/base64 missing.");
+      throw new Error("Photo data is required.");
     }
 
     const rootName = "AYFA Activity Photos";
     const rootFolders = DriveApp.getFoldersByName(rootName);
     const root = rootFolders.hasNext() ? rootFolders.next() : DriveApp.createFolder(rootName);
-    const safeFolderName = String(data.folderName || "Activity Report").trim().slice(0, 120) || "Activity Report";
+    const safeFolderName = String(data.folderName || "Activity Report").trim().slice(0, 120);
     const folders = root.getFoldersByName(safeFolderName);
     const folder = folders.hasNext() ? folders.next() : root.createFolder(safeFolderName);
+
     const bytes = Utilities.base64Decode(data.base64);
     const blob = Utilities.newBlob(bytes, data.mimeType || "image/jpeg", data.fileName);
     const file = folder.createFile(blob);
 
-    return { success: true, fileId: file.getId(), fileName: file.getName(), folderUrl: folder.getUrl() };
+    return {
+      success: true,
+      fileId: file.getId(),
+      fileName: file.getName(),
+      folderUrl: folder.getUrl()
+    };
   } catch (error) {
     return {
       success: false,
@@ -96,6 +115,7 @@ function rowsAsObjects(sheetName) {
   if (!values.length) return [];
 
   const headers = values[0].map(h => String(h).trim());
+
   return values.slice(1)
     .filter(row => row.some(cell => String(cell).trim() !== ""))
     .map(row => {
@@ -124,7 +144,6 @@ function saveAttendance(data) {
     throw new Error("At least one member is required.");
   }
 
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
   const programs = getSheet("Programs");
   const attendance = getSheet("Attendance");
 
@@ -133,6 +152,7 @@ function saveAttendance(data) {
 
   const allMembers = getMembers();
   const selected = new Set(data.members.map(String));
+
   const rows = allMembers.map(member => [
     programId,
     member["Name"] || "",
@@ -140,7 +160,9 @@ function saveAttendance(data) {
   ]);
 
   if (rows.length) {
-    attendance.getRange(attendance.getLastRow() + 1, 1, rows.length, 3).setValues(rows);
+    attendance
+      .getRange(attendance.getLastRow() + 1, 1, rows.length, 3)
+      .setValues(rows);
   }
 
   return {
@@ -156,8 +178,12 @@ function getAttendanceReports() {
 
   return programs.map((program, index) => {
     const id = String(program["ProgramID"] || "");
-    const records = attendance.filter(row => String(row["ProgramID"] || "") === id);
-    const present = records.filter(row => String(row["Status"] || "").toLowerCase() === "present");
+    const records = attendance.filter(
+      row => String(row["ProgramID"] || "") === id
+    );
+    const present = records.filter(
+      row => String(row["Status"] || "").toLowerCase() === "present"
+    );
 
     return {
       slNo: index + 1,
@@ -165,7 +191,224 @@ function getAttendanceReports() {
       programName: program["ProgramName"] || "",
       date: program["Date"] || "",
       presentCount: present.length,
-      membersList: present.map(row => row["MemberName"] || "").filter(Boolean).join(", ")
+      membersList: present
+        .map(row => row["MemberName"] || "")
+        .filter(Boolean)
+        .join(", ")
     };
   }).reverse();
+}
+
+// ============================================================
+// FIREBASE AUTHENTICATION
+// Uses a Google service account + OAuth2 JWT.
+// Private key stays inside Apps Script Script Properties.
+// ============================================================
+
+function getFirebaseAccessToken_() {
+  const props = PropertiesService.getScriptProperties();
+  const email = props.getProperty("SERVICE_ACCOUNT_EMAIL");
+  const privateKey = props.getProperty("SERVICE_ACCOUNT_PRIVATE_KEY");
+
+  if (!email || !privateKey) {
+    throw new Error(
+      "Firebase service-account credentials are missing. " +
+      "Set SERVICE_ACCOUNT_EMAIL and SERVICE_ACCOUNT_PRIVATE_KEY " +
+      "in Apps Script Script Properties."
+    );
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+
+  const header = {
+    alg: "RS256",
+    typ: "JWT"
+  };
+
+  const claim = {
+    iss: email,
+    scope: "https://www.googleapis.com/auth/firebase.database https://www.googleapis.com/auth/userinfo.email",
+    aud: "https://oauth2.googleapis.com/token",
+    iat: now,
+    exp: now + 3600
+  };
+
+  const encodedHeader = base64UrlEncode_(JSON.stringify(header));
+  const encodedClaim = base64UrlEncode_(JSON.stringify(claim));
+  const unsignedJwt = encodedHeader + "." + encodedClaim;
+
+  const signatureBytes = Utilities.computeRsaSha256Signature(
+    unsignedJwt,
+    privateKey.replace(/\\n/g, "\n")
+  );
+
+  const jwt = unsignedJwt + "." + base64UrlEncodeBytes_(signatureBytes);
+
+  const response = UrlFetchApp.fetch("https://oauth2.googleapis.com/token", {
+    method: "post",
+    contentType: "application/x-www-form-urlencoded",
+    payload: {
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: jwt
+    },
+    muteHttpExceptions: true
+  });
+
+  const code = response.getResponseCode();
+  const body = response.getContentText();
+
+  if (code !== 200) {
+    throw new Error("Google OAuth token error (" + code + "): " + body);
+  }
+
+  const tokenData = JSON.parse(body);
+  if (!tokenData.access_token) {
+    throw new Error("No Firebase access token returned.");
+  }
+
+  return tokenData.access_token;
+}
+
+function base64UrlEncode_(text) {
+  return Utilities.base64EncodeWebSafe(
+    Utilities.newBlob(text).getBytes()
+  ).replace(/=+$/, "");
+}
+
+function base64UrlEncodeBytes_(bytes) {
+  return Utilities.base64EncodeWebSafe(bytes).replace(/=+$/, "");
+}
+
+// ============================================================
+// FIREBASE WRITE HELPERS
+// ============================================================
+
+function firebasePut_(path, data) {
+  const token = getFirebaseAccessToken_();
+  const url =
+    FIREBASE_DATABASE_URL.replace(/\/$/, "") +
+    "/" + path.replace(/^\/|\/$/g, "") +
+    ".json?access_token=" +
+    encodeURIComponent(token);
+
+  const response = UrlFetchApp.fetch(url, {
+    method: "put",
+    contentType: "application/json",
+    payload: JSON.stringify(data),
+    muteHttpExceptions: true
+  });
+
+  const code = response.getResponseCode();
+  const body = response.getContentText();
+
+  if (code < 200 || code >= 300) {
+    throw new Error(
+      "Firebase write failed (" + code + ") at /" + path + ": " + body
+    );
+  }
+
+  return body;
+}
+
+// ============================================================
+// SHEET -> FIREBASE SYNC
+// ============================================================
+
+function syncMembersToFirebase_() {
+  const members = rowsAsObjects("Members");
+
+  // Use the same numeric row keys as the imported Firebase data:
+  // members/1, members/2, members/3, ...
+  const data = {};
+
+  members.forEach((member, index) => {
+    data[String(index + 1)] = member;
+  });
+
+  firebasePut_("members", data);
+}
+
+function syncProgramsToFirebase_() {
+  const programs = rowsAsObjects("Programs");
+  const data = {};
+
+  programs.forEach((program, index) => {
+    const id = String(
+      program["ProgramID"] ||
+      program["programId"] ||
+      ("P" + (index + 1))
+    ).trim();
+
+    data[id] = program;
+  });
+
+  firebasePut_("programs", data);
+}
+
+function syncAttendanceToFirebase_() {
+  const attendance = rowsAsObjects("Attendance");
+  const data = {};
+
+  // Keep each attendance record as a stable numeric key.
+  attendance.forEach((row, index) => {
+    data[String(index + 1)] = row;
+  });
+
+  firebasePut_("attendanceRecords", data);
+}
+
+// Full sync: run this once after credentials are configured.
+function syncAllToFirebase() {
+  syncMembersToFirebase_();
+  syncProgramsToFirebase_();
+  syncAttendanceToFirebase_();
+
+  return "Firebase sync completed successfully.";
+}
+
+// ============================================================
+// NEAR-REAL-TIME SHEET EDIT TRIGGER
+// ============================================================
+//
+// IMPORTANT:
+// A simple onEdit(e) trigger cannot reliably use services that
+// require authorization. We therefore install an installable
+// trigger from setupFirebaseSyncTrigger().
+//
+// Any edit in Members / Programs / Attendance triggers a sync.
+// For a small internal database this is fast and reliable.
+// ============================================================
+
+function onSheetEditFirebase(e) {
+  try {
+    if (!e || !e.range) return;
+
+    const sheetName = e.range.getSheet().getName();
+
+    if (sheetName === "Members") {
+      syncMembersToFirebase_();
+    } else if (sheetName === "Programs") {
+      syncProgramsToFirebase_();
+    } else if (sheetName === "Attendance") {
+      syncAttendanceToFirebase_();
+    }
+  } catch (error) {
+    console.error("Firebase sync error: " + error.message);
+  }
+}
+
+function setupFirebaseSyncTrigger() {
+  // Remove duplicate triggers created by previous setup attempts.
+  ScriptApp.getProjectTriggers().forEach(trigger => {
+    if (trigger.getHandlerFunction() === "onSheetEditInstalled_") {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+
+  ScriptApp.newTrigger("onSheetEditInstalled_")
+    .forSpreadsheet(SpreadsheetApp.getActive())
+    .onEdit()
+    .create();
+
+  return "Firebase Sheet edit trigger installed.";
 }
