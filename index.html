@@ -19,6 +19,10 @@
     rel="stylesheet"
     href="css/style.css"
   >
+  <link rel="stylesheet" href="css/quiz.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Kannada:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
 
   <!-- FONT AWESOME -->
@@ -900,6 +904,12 @@
 
     <nav class="quick-actions" aria-label="ಮುಖ್ಯ ಸೇವೆಗಳು">
 
+      <button type="button" class="quick-action quiz-quick-action" onclick="openQuiz()">
+        <span class="quick-action-icon"><i class="fa-solid fa-circle-question"></i></span>
+        <span class="quick-action-copy"><strong>ಸಾಪ್ತಾಹಿಕ ಕ್ವಿಜ್</strong><small>Quiz • ಭಾಗವಹಿಸಿ ಮತ್ತು ಅಂಕ ಗಳಿಸಿ</small></span>
+        <i class="fa-solid fa-arrow-right quick-action-arrow" aria-hidden="true"></i>
+      </button>
+
       <a
         class="quick-action quick-action-contribution"
         href="https://script.google.com/macros/s/AKfycbzzkW-Kxg-StVu61vEYJHXnYRZNtEbgBulIrxRZZHjNnF45HSfB5FJBUTGCTsMVL1ny/exec"
@@ -1130,6 +1140,11 @@
       </div>
 
     </div>
+
+    <section id="quizView" class="view-section hidden quiz-view">
+      <div class="quiz-topbar"><button class="btn-back" onclick="showDashboard()"><i class="fa-solid fa-arrow-left"></i> ಮುಖ್ಯಪುಟ</button><span class="quiz-brand"><i class="fa-solid fa-bolt"></i> AL-AMEEN QUIZ</span></div>
+      <main id="quizRoot" class="quiz-root"></main>
+    </section>
 
 
 
@@ -2233,6 +2248,8 @@
   <script src="js/rentals.js"></script>
   <script src="js/activity-reports.js"></script>
   <script src="js/agenda.js"></script>
+  <script src="js/quiz-config.js"></script>
+  <script src="js/quiz.js"></script>
 
 
 
