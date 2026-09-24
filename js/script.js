@@ -160,6 +160,8 @@ function hasApiUrl() {
 
 function hideAllViews() {
 
+  document.getElementById("dashboardHomeActions")?.classList.add("hidden");
+
   const views = [
 
     "dashboardView",
@@ -196,6 +198,8 @@ function hideAllViews() {
 function showDashboard() {
 
   hideAllViews();
+
+  document.getElementById("dashboardHomeActions")?.classList.remove("hidden");
 
   const dashboard =
     document.getElementById("dashboardView");

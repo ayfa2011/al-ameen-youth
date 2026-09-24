@@ -874,6 +874,8 @@
 
 
 
+    <div id="dashboardHomeActions" class="dashboard-only">
+
     <!-- =======================================================
          BANNER
     ======================================================== -->
@@ -938,6 +940,8 @@
       </button>
 
     </nav>
+
+    </div>
 
 
 
@@ -1221,7 +1225,7 @@
 
           <i class="fa-solid fa-arrow-left"></i>
 
-          Back
+          ಹಿಂದೆ
 
         </button>
 
@@ -1461,7 +1465,7 @@
       <div class="section-header rental-header">
         <button class="btn-back" onclick="showDashboard()">
           <i class="fa-solid fa-arrow-left"></i>
-          Back
+          ಹಿಂದೆ
         </button>
         <div>
           <p class="rental-eyebrow">ಬಾಡಿಗೆ ನಿರ್ವಹಣೆ</p>
@@ -2280,6 +2284,8 @@
     // ========================================================
 
     function hideAllViews() {
+
+      document.getElementById("dashboardHomeActions")?.classList.add("hidden");
 
       const views = [
 
