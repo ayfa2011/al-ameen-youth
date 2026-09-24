@@ -51,6 +51,67 @@ function initializeQuizSheets() {
   return "Quiz sheets are ready. Temporary admin password: ayfa (change it after first login).";
 }
 
+// Run manually from Apps Script to reset the quiz admin password to "ayfa".
+// The first successful admin login must replace this temporary password.
+function resetQuizAdminPasswordToAyfa() {
+  const props = PropertiesService.getScriptProperties();
+  const salt = Utilities.getUuid();
+  props.setProperties({
+    QUIZ_ADMIN_SALT: salt,
+    QUIZ_ADMIN_HASH: quizHash_("ayfa", salt),
+    QUIZ_ADMIN_MUST_CHANGE: "true"
+  });
+  return "Admin password reset to ayfa. Change it at the next login.";
+}
+
+// Optional one-time content installer for the initial 20-question quiz and two
+// pre-approved members. Run only in the bound Apps Script project after the
+// spreadsheet ID is configured. No plaintext passwords are stored in Sheets.
+function seedInitialQuizContent() {
+  initializeQuizSheets();
+  const questions = [
+    ["ಕರ್ನಾಟಕದ ರಾಜಧಾನಿ ಯಾವುದು?",["ಬೆಂಗಳೂರು","ಮೈಸೂರು","ಮಂಗಳೂರು","ಹುಬ್ಬಳ್ಳಿ"],["ಬೆಂಗಳೂರು"]],
+    ["ಭಾರತದ ರಾಷ್ಟ್ರಧ್ವಜದಲ್ಲಿ ಎಷ್ಟು ಬಣ್ಣಗಳಿವೆ?",["ಎರಡು","ಮೂರು","ನಾಲ್ಕು","ಐದು"],["ಮೂರು"]],
+    ["ಭಾರತದ ರಾಷ್ಟ್ರಗೀತೆ ಯಾವುದು?",["ವಂದೇ ಮಾತರಂ","ಜನ ಗಣ ಮನ","ಸಾರೆ ಜಹಾಂ ಸೆ ಅಚ್ಚಾ","ನಮ್ಮ ನಾಡು"],["ಜನ ಗಣ ಮನ"]],
+    ["ನೀರಿನ ರಾಸಾಯನಿಕ ಸೂತ್ರ ಯಾವುದು?",["CO₂","O₂","H₂O","NaCl"],["H₂O"]],
+    ["ವಾರದಲ್ಲಿ ಎಷ್ಟು ದಿನಗಳಿವೆ?",["ಐದು","ಆರು","ಏಳು","ಎಂಟು"],["ಏಳು"]],
+    ["ಸೂರ್ಯ ಯಾವ ದಿಕ್ಕಿನಲ್ಲಿ ಉದಯಿಸುತ್ತಾನೆ?",["ಪಶ್ಚಿಮ","ಉತ್ತರ","ದಕ್ಷಿಣ","ಪೂರ್ವ"],["ಪೂರ್ವ"]],
+    ["ಭಾರತದ ರಾಷ್ಟ್ರೀಯ ಪ್ರಾಣಿ ಯಾವುದು?",["ಸಿಂಹ","ಹುಲಿ","ಆನೆ","ನವಿಲು"],["ಹುಲಿ"]],
+    ["ಒಂದು ವರ್ಷದಲ್ಲಿ ಎಷ್ಟು ತಿಂಗಳು?",["10","11","12","13"],["12"]],
+    ["ಭೂಮಿಗೆ ಬೆಳಕು ನೀಡುವ ನಕ್ಷತ್ರ ಯಾವುದು?",["ಚಂದ್ರ","ಸೂರ್ಯ","ಧ್ರುವತಾರೆ","ಶುಕ್ರ"],["ಸೂರ್ಯ"]],
+    ["ಕೆಳಗಿನವುಗಳಲ್ಲಿ ಹಣ್ಣುಗಳನ್ನು ಆಯ್ಕೆಮಾಡಿ",["ಮಾವು","ಕ್ಯಾರೆಟ್","ಬಾಳೆಹಣ್ಣು","ಆಲೂಗಡ್ಡೆ"],["ಮಾವು","ಬಾಳೆಹಣ್ಣು"]],
+    ["ಕರ್ನಾಟಕದ ರಾಜ್ಯ ಪ್ರಾಣಿ ಯಾವುದು?",[],["ಆನೆ"]],
+    ["ಕೆಂಪು ಗ್ರಹ ಎಂದು ಯಾವುದನ್ನು ಕರೆಯುತ್ತಾರೆ?",[],["ಮಂಗಳ"]],
+    ["ಭಾರತದ ಸ್ವಾತಂತ್ರ್ಯ ದಿನ ಯಾವಾಗ?",[],["ಆಗಸ್ಟ್ 15"]],
+    ["ಜೇನುತುಪ್ಪವನ್ನು ತಯಾರಿಸುವ ಕೀಟ ಯಾವುದು?",[],["ಜೇನುನೊಣ"]],
+    ["ಭಾರತದ ರಾಷ್ಟ್ರೀಯ ಹೂವು ಯಾವುದು?",[],["ಕಮಲ"]],
+    ["ಭೂಮಿಯ ಏಕೈಕ ನೈಸರ್ಗಿಕ ಉಪಗ್ರಹ ಯಾವುದು?",[],["ಚಂದ್ರ"]],
+    ["ಈ ವ್ಯಕ್ತಿಯನ್ನು ಗುರುತಿಸಿ",[],["ಮಹಾತ್ಮ ಗಾಂಧಿ","ಗಾಂಧಿ"],"person"],
+    ["ಈ ವ್ಯಕ್ತಿಯನ್ನು ಗುರುತಿಸಿ",[],["ಸ್ವಾಮಿ ವಿವೇಕಾನಂದ","ವಿವೇಕಾನಂದ"],"person"],
+    ["ಈ ಧ್ವನಿಯನ್ನು ಗುರುತಿಸಿ",[],["ಗಂಟೆ","ಬೆಲ್","bell"],"sound"],
+    ["ಈ ನೃತ್ಯ ಶೈಲಿಯನ್ನು ಗುರುತಿಸಿ",[],["ಭರತನಾಟ್ಯ","bharatanatyam"],"dance"]
+  ];
+  const sheet = quizSheet_("QuizQuestions");
+  const existing = quizRows_("QuizQuestions");
+  questions.forEach((q,i) => {
+    if (existing.some(row => String(row.QuizID)==="current" && Number(row.QuestionNo)===i+1)) return;
+    const type=q[3]|| (i<10?"multiple":"typing");
+    const mediaURL=type==="person"?(i===16?"https://upload.wikimedia.org/wikipedia/commons/d/d1/Portrait_Gandhi.jpg":""):"";
+    sheet.appendRow(["current",i+1,type,q[0],JSON.stringify(q[1]),JSON.stringify(q[2]),30,1,mediaURL,true]);
+  });
+  const members = [
+    {name:"Safwan",mobile:"8105027723",password:"ayfa"},
+    {name:"Nasir Paladka",mobile:"8296793691",password:"ayfa"}
+  ];
+  const memberSheet=quizSheet_("QuizMembers");
+  members.forEach(m=>{
+    if (quizMemberByMobile_(m.mobile)) return;
+    const salt=Utilities.getUuid();
+    memberSheet.appendRow([Utilities.getUuid(),m.mobile,m.name,salt,quizHash_(m.password,salt),"",new Date(),"active"]);
+  });
+  return "Initial 20 questions and approved members are ready.";
+}
+
 function quizSheet_(name) {
   const book=quizSpreadsheet_();
   const sheet = book.getSheetByName(name);

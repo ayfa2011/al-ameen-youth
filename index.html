@@ -904,12 +904,6 @@
 
     <nav class="quick-actions" aria-label="ಮುಖ್ಯ ಸೇವೆಗಳು">
 
-      <button type="button" class="quick-action quiz-quick-action" onclick="openQuiz()">
-        <span class="quick-action-icon"><i class="fa-solid fa-circle-question"></i></span>
-        <span class="quick-action-copy"><strong>ಸಾಪ್ತಾಹಿಕ ಕ್ವಿಜ್</strong><small>Quiz • ಭಾಗವಹಿಸಿ ಮತ್ತು ಅಂಕ ಗಳಿಸಿ</small></span>
-        <i class="fa-solid fa-arrow-right quick-action-arrow" aria-hidden="true"></i>
-      </button>
-
       <a
         class="quick-action quick-action-contribution"
         href="https://script.google.com/macros/s/AKfycbzzkW-Kxg-StVu61vEYJHXnYRZNtEbgBulIrxRZZHjNnF45HSfB5FJBUTGCTsMVL1ny/exec"
@@ -935,6 +929,12 @@
           <small>Rental &amp; payment management</small>
         </span>
         <i class="fa-solid fa-arrow-right quick-action-arrow" aria-hidden="true"></i>
+      </button>
+
+      <button type="button" class="quiz-entry-button" onclick="openQuiz()">
+        <i class="fa-solid fa-circle-question" aria-hidden="true"></i>
+        <span>ಕ್ವಿಝ್ ಪೇಜಿಗೆ ಪ್ರವೇಶಿಸಿ</span>
+        <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
       </button>
 
     </nav>
@@ -1166,7 +1166,7 @@
 
           <i class="fa-solid fa-arrow-left"></i>
 
-          Back
+          ಹಿಂದೆ
 
         </button>
 
@@ -1464,12 +1464,9 @@
           Back
         </button>
         <div>
-          <p class="rental-eyebrow">RENTAL &amp; PAYMENT</p>
-          <h2>Chair, Table &amp; Speaker</h2>
+          <p class="rental-eyebrow">ಬಾಡಿಗೆ ನಿರ್ವಹಣೆ</p>
+          <h2>Chair &amp; Table · Speaker</h2>
         </div>
-        <button class="rental-login-button" id="rentalLoginButton" type="button" onclick="openRentalLogin()">
-          <i class="fa-solid fa-lock"></i> Supervisor Login
-        </button>
       </div>
 
       <div id="rentalContent" class="rental-content" aria-live="polite"></div>

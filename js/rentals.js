@@ -11,6 +11,7 @@ const RENTAL_PIN_HASHES = {
 const rentalState = {
   rentals: [],
   role: "viewer",
+  category: "",
   filter: "all",
   search: ""
 };
@@ -81,6 +82,8 @@ function rentalReportYearOptions() {
 }
 
 function openRentalManagement() {
+  rentalState.category = "";
+  rentalState.search = "";
   hideAllViews();
   const view = document.getElementById("rentalView");
   if (view) view.classList.remove("hidden");
@@ -112,35 +115,36 @@ function renderRentalDashboard() {
   updateRentalLoginButton();
   const target = document.getElementById("rentalContent");
   if (!target) return;
-  const totals = rentalTotals(rentalState.rentals);
-  const chairRentals = rentalState.rentals.filter(rental => rental.category === "chairTable");
-  const speakerRentals = rentalState.rentals.filter(rental => rental.category === "speaker");
-  const chairTotals = rentalTotals(chairRentals);
-  const speakerTotals = rentalTotals(speakerRentals);
-  target.innerHTML = `
-    <div class="rental-summary-grid">
-      <div class="rental-stat-card"><span>Total rental amount</span><strong>${rentalCurrency(totals.total)}</strong></div>
-      <div class="rental-stat-card"><span>Collected</span><strong>${rentalCurrency(totals.paid)}</strong></div>
-      <div class="rental-stat-card pending"><span>Pending payment</span><strong>${rentalCurrency(totals.balance)}</strong></div>
-    </div>
-    <div class="rental-category-grid">
-      <button type="button" class="rental-category-card" onclick="setRentalFilter('chairTable')">
-        <i class="fa-solid fa-chair"></i><h3>Chair &amp; Table</h3><p>${chairRentals.length} rentals · ${rentalCurrency(chairTotals.total)}</p>
-      </button>
-      <button type="button" class="rental-category-card speaker" onclick="setRentalFilter('speaker')">
-        <i class="fa-solid fa-volume-high"></i><h3>Speaker</h3><p>${speakerRentals.length} rentals · ${rentalCurrency(speakerTotals.total)}</p>
-      </button>
-    </div>
-    <section class="rental-panel">
-      <div class="rental-toolbar" style="padding:14px 14px 0;">
-        <h3>Recent rentals</h3>
-        <select id="rentalReportYear" class="rental-secondary-button" aria-label="Report year">${rentalReportYearOptions()}</select>
-        <button class="rental-secondary-button" type="button" onclick="downloadRentalReport('chairTable', document.getElementById('rentalReportYear').value)"><i class="fa-solid fa-file-excel"></i> Chair/Table report</button>
-        <button class="rental-secondary-button" type="button" onclick="downloadRentalReport('speaker', document.getElementById('rentalReportYear').value)"><i class="fa-solid fa-file-excel"></i> Speaker report</button>
-        ${rentalState.role !== "viewer" ? '<button class="rental-primary-button" type="button" onclick="openRentalEntry()"><i class="fa-solid fa-plus"></i> New rental</button>' : ""}
-      </div>
-      <div style="padding:14px;">${rentalFiltersHTML()}${rentalTableHTML()}</div>
-    </section>`;
+  if (!rentalState.category) {
+    target.innerHTML = `<div class="rental-simple-intro"><h3>ಯಾವ ವಿಭಾಗ ತೆರೆಯಬೇಕು?</h3><p>Chair &amp; Table ಮತ್ತು Speaker ವಿವರಗಳು ಪ್ರತ್ಯೇಕವಾಗಿವೆ.</p></div><div class="rental-category-grid rental-department-grid">
+      <button type="button" class="rental-category-card" onclick="setRentalCategory('chairTable')"><i class="fa-solid fa-chair"></i><h3>Chair &amp; Table</h3><p>ಬುಕಿಂಗ್, ವಸೂಲಿ ಮತ್ತು ಬಾಕಿ</p></button>
+      <button type="button" class="rental-category-card speaker" onclick="setRentalCategory('speaker')"><i class="fa-solid fa-volume-high"></i><h3>Speaker</h3><p>ಬುಕಿಂಗ್, ವಸೂಲಿ ಮತ್ತು ಬಾಕಿ</p></button>
+    </div>`;
+    return;
+  }
+  const category = rentalState.category;
+  const rentals = rentalState.rentals.filter(rental => rental.category === category);
+  const totals = rentalTotals(rentals);
+  const today = new Date().toISOString().slice(0, 10);
+  const upcoming = rentals.filter(rental => String(rental.returnDate || rental.startDate || "") >= today).sort((a,b) => String(a.startDate).localeCompare(String(b.startDate)));
+  const history = rentals.filter(rental => !upcoming.includes(rental));
+  const categoryLabel = RENTAL_CATEGORY[category].label;
+  const canManage = rentalCanManage(category);
+  const bookingList = (items, empty) => items.length ? `<div class="rental-order-list">${items.map(rental => `<article class="rental-order-card"><div class="rental-order-heading"><strong>${escapeHTML(rental.customerName)}</strong><span class="rental-status ${rentalStatus(rental)}">${rentalStatusLabel(rentalStatus(rental))}</span></div><p>${escapeHTML(rental.item || categoryLabel)} · ${escapeHTML(rental.quantity || "—")}</p><div class="rental-order-meta"><span><i class="fa-regular fa-calendar"></i> ${rentalDate(rental.startDate)}${rental.returnDate ? ` – ${rentalDate(rental.returnDate)}` : ""}</span><strong>${rentalCurrency(rental.totalAmount)}</strong></div><div class="rental-order-meta"><span>ಪಾವತಿಸಿದ್ದು ${rentalCurrency(rental.paidAmount)}</span><strong class="${Number(rental.balance) ? "rental-due" : ""}">ಬಾಕಿ ${rentalCurrency(rental.balance)}</strong></div>${canManage ? `<div class="rental-order-actions"><button class="rental-secondary-button" type="button" onclick="openRentalEntry('${rental.id}')">ಬುಕಿಂಗ್ ಸಂಪಾದಿಸಿ</button><button class="rental-secondary-button" type="button" onclick="openPaymentModal('${rental.id}')">ಹಣ ಸೇರಿಸಿ</button></div>` : ""}</article>`).join("")}</div>` : `<div class="rental-empty">${empty}</div>`;
+  target.innerHTML = `<div class="rental-department-toolbar"><button class="rental-secondary-button" type="button" onclick="setRentalCategory('')"><i class="fa-solid fa-arrow-left"></i> ವಿಭಾಗಗಳು</button><h3><i class="fa-solid ${RENTAL_CATEGORY[category].icon}"></i> ${categoryLabel}</h3>${rentalState.role === category ? `<button class="rental-secondary-button" type="button" onclick="openRentalLogin()">ಲಾಗ್ ಔಟ್ · ${categoryLabel}</button>` : `<button class="rental-secondary-button" type="button" onclick="openRentalLogin('${category}')"><i class="fa-solid fa-lock"></i> ${categoryLabel} Supervisor Login</button>`}</div>
+    <div class="rental-summary-grid rental-simple-summary"><div class="rental-stat-card"><span>ಒಟ್ಟು ಬಾಡಿಗೆ</span><strong>${rentalCurrency(totals.total)}</strong></div><div class="rental-stat-card"><span>ವಸೂಲಿ ಆಗಿರುವ ಹಣ</span><strong>${rentalCurrency(totals.paid)}</strong></div><div class="rental-stat-card pending"><span>ಬರಬೇಕಿರುವ ಹಣ</span><strong>${rentalCurrency(totals.balance)}</strong></div></div>
+    ${canManage ? `<button class="rental-primary-button rental-new-booking" type="button" onclick="openRentalEntry()"><i class="fa-solid fa-plus"></i> ${categoryLabel} ಬುಕಿಂಗ್ ಸೇರಿಸಿ</button>` : ""}
+    <section class="rental-panel rental-order-section"><h3><i class="fa-regular fa-calendar-check"></i> ಮುಂದಿನ ಬುಕಿಂಗ್‌ಗಳು <span>${upcoming.length}</span></h3>${bookingList(upcoming,"ಮುಂದಿನ ಬುಕಿಂಗ್ ಇಲ್ಲ.")}</section>
+    <section class="rental-panel rental-order-section"><h3><i class="fa-solid fa-clock-rotate-left"></i> ಹಿಂದಿನ ಆರ್ಡರ್‌ಗಳು <span>${history.length}</span></h3>${bookingList(history,"ಹಿಂದಿನ ಆರ್ಡರ್‌ಗಳು ಇಲ್ಲ.")}</section>
+    <div class="rental-report-action"><select id="rentalReportYear" class="rental-secondary-button" aria-label="ವರದಿ ವರ್ಷ">${rentalReportYearOptions()}</select><button class="rental-secondary-button" type="button" onclick="downloadRentalReport('${category}', document.getElementById('rentalReportYear').value)"><i class="fa-solid fa-file-excel"></i> ${categoryLabel} ವರದಿ</button></div>`;
+
+}
+
+function setRentalCategory(category) {
+  rentalState.category = category;
+  rentalState.filter = category || "all";
+  rentalState.search = "";
+  renderRentalDashboard();
 }
 
 function rentalFiltersHTML() {
@@ -175,9 +179,11 @@ function rentalModal(content) {
 }
 function closeRentalModal() { document.getElementById("rentalModal")?.remove(); }
 
-function openRentalLogin() {
-  if (rentalState.role !== "viewer") { rentalState.role = "viewer"; renderRentalDashboard(); return; }
-  rentalModal(`<div class="rental-modal-card"><div class="rental-modal-head"><div><h3><i class="fa-solid fa-lock"></i> Supervisor Login</h3><p>Select the section you manage.</p></div><button class="rental-icon-button" onclick="closeRentalModal()"><i class="fa-solid fa-xmark"></i></button></div><form class="rental-form" onsubmit="submitRentalLogin(event)"><div class="rental-login-options"><label class="rental-login-option"><input type="radio" name="rentalRole" value="chairTable" checked> <strong>Chair &amp; Table</strong> supervisor</label><label class="rental-login-option"><input type="radio" name="rentalRole" value="speaker"> <strong>Speaker</strong> supervisor</label></div><div class="rental-field"><label>Supervisor PIN</label><input id="rentalPin" type="password" required autocomplete="current-password"></div><p id="rentalLoginError" class="pin-error"></p><div class="rental-form-actions"><button class="rental-secondary-button" type="button" onclick="closeRentalModal()">Cancel</button><button class="rental-primary-button" type="submit">Login</button></div></form><p class="rental-notice">PIN unlock is only a screen-level control. Configure Firebase user roles before using this module for live payment data.</p></div>`);
+function openRentalLogin(category = rentalState.category) {
+  if (!category || !RENTAL_CATEGORY[category]) return;
+  if (rentalState.role === category) { rentalState.role = "viewer"; renderRentalDashboard(); return; }
+  if (rentalState.role !== "viewer") rentalState.role = "viewer";
+  rentalModal(`<div class="rental-modal-card"><div class="rental-modal-head"><div><h3><i class="fa-solid fa-lock"></i> ${RENTAL_CATEGORY[category].label} Supervisor</h3><p>ಈ ವಿಭಾಗದ Supervisor PIN ನಮೂದಿಸಿ.</p></div><button class="rental-icon-button" onclick="closeRentalModal()" aria-label="ಮುಚ್ಚಿ"><i class="fa-solid fa-xmark"></i></button></div><form class="rental-form" onsubmit="submitRentalLogin(event)"><input type="hidden" name="rentalRole" value="${category}"><div class="rental-field"><label for="rentalPin">Supervisor PIN</label><input id="rentalPin" type="password" required autocomplete="current-password" inputmode="numeric"></div><p id="rentalLoginError" class="pin-error"></p><div class="rental-form-actions"><button class="rental-secondary-button" type="button" onclick="closeRentalModal()">ಹಿಂದೆ</button><button class="rental-primary-button" type="submit">ಪ್ರವೇಶಿಸಿ</button></div></form></div>`);
 }
 
 async function hashRentalPin(value) {
@@ -203,10 +209,10 @@ function openRentalEntry(id = "") {
   if (!rentalCanManage(category)) return;
   const itemOptions = category === "speaker" ? '<option value="Speaker">Speaker</option>' : '<option value="Chair">Chair</option><option value="Table">Table</option><option value="Chair & Table">Chair &amp; Table</option>';
   const value = (name, fallback = "") => escapeHTML(String(existing?.[name] ?? fallback));
-  rentalModal(`<div class="rental-modal-card"><div class="rental-modal-head"><div><h3>${existing ? "Edit" : "New"} ${RENTAL_CATEGORY[category].label} rental</h3><p>Payment totals update automatically.</p></div><button class="rental-icon-button" onclick="closeRentalModal()"><i class="fa-solid fa-xmark"></i></button></div><form class="rental-form" onsubmit="saveRentalEntry(event, '${id}')"><input type="hidden" name="category" value="${category}"><div class="rental-form-grid"><div class="rental-field"><label>Customer name *</label><input name="customerName" value="${value("customerName")}" required></div><div class="rental-field"><label>Mobile</label><input name="mobile" value="${value("mobile")}" inputmode="tel"></div><div class="rental-field"><label>Place</label><input name="place" value="${value("place")}"></div><div class="rental-field"><label>Rental item *</label><select name="item">${itemOptions.replace(`value="${existing?.item}"`, `value="${existing?.item}" selected`)}</select></div><div class="rental-field"><label>Quantity *</label><input name="quantity" value="${value("quantity")}" placeholder="Example: 50 chairs" required></div><div class="rental-field"><label>Rent start date *</label><input name="startDate" value="${value("startDate")}" type="date" required></div><div class="rental-field"><label>Number of days *</label><input name="days" type="number" min="1" value="${value("days", "1")}" required></div><div class="rental-field"><label>Return date *</label><input name="returnDate" value="${value("returnDate")}" type="date" required></div><div class="rental-field"><label>Rent amount *</label><input name="totalAmount" type="number" min="0" step="1" value="${value("totalAmount")}" required></div><div class="rental-field"><label>Amount paid</label><input name="paidAmount" type="number" min="0" step="1" value="${value("paidAmount", "0")}"></div><div class="rental-field"><label>Payment date</label><input name="paymentDate" value="${value("paymentDate")}" type="date"></div><div class="rental-field"><label>Collected by</label><input name="collectedBy" value="${value("collectedBy", `${RENTAL_CATEGORY[category].label} Supervisor`)}"></div><div class="rental-field"><label>Maintenance / repair cost</label><input name="maintenanceCost" type="number" min="0" step="1" value="${value("maintenanceCost", "0")}"></div><div class="rental-field full"><label>Note</label><textarea name="note" placeholder="Example: Wedding program">${value("note")}</textarea></div></div><div class="rental-form-actions"><button class="rental-secondary-button" type="button" onclick="closeRentalModal()">Cancel</button><button class="rental-primary-button" type="submit">${existing ? "Update" : "Save"} rental</button></div></form></div>`);
+  rentalModal(`<div class="rental-modal-card"><div class="rental-modal-head"><div><h3>${existing ? "ಬುಕಿಂಗ್ ತಿದ್ದುಪಡಿ" : "ಹೊಸ ಬುಕಿಂಗ್"}</h3><p>${RENTAL_CATEGORY[category].label} ವಿಭಾಗ</p></div><button class="rental-icon-button" onclick="closeRentalModal()"><i class="fa-solid fa-xmark"></i></button></div><form class="rental-form" onsubmit="saveRentalEntry(event, '${id}')"><input type="hidden" name="category" value="${category}"><div class="rental-form-grid"><div class="rental-field"><label>ಗ್ರಾಹಕರ ಹೆಸರು *</label><input name="customerName" value="${value("customerName")}" required></div><div class="rental-field"><label>ಮೊಬೈಲ್ ಸಂಖ್ಯೆ</label><input name="mobile" value="${value("mobile")}" inputmode="tel"></div><div class="rental-field"><label>ಸ್ಥಳ</label><input name="place" value="${value("place")}"></div><div class="rental-field"><label>ಯಾವ ವಸ್ತು? *</label><select name="item">${itemOptions.replace(`value="${existing?.item}"`, `value="${existing?.item}" selected`)}</select></div><div class="rental-field"><label>ಪ್ರಮಾಣ *</label><input name="quantity" value="${value("quantity")}" placeholder="ಉದಾ: 50 ಕುರ್ಚಿಗಳು" required></div><div class="rental-field"><label>ಬಾಡಿಗೆ ಆರಂಭ ದಿನಾಂಕ *</label><input name="startDate" value="${value("startDate")}" type="date" required></div><div class="rental-field"><label>ದಿನಗಳು</label><input name="days" type="number" min="1" value="${value("days", "1")}" required></div><div class="rental-field"><label>ಹಿಂತಿರುಗಿಸುವ ದಿನಾಂಕ *</label><input name="returnDate" value="${value("returnDate")}" type="date" required></div><div class="rental-field"><label>ಒಟ್ಟು ಬಾಡಿಗೆ ಹಣ (₹) *</label><input name="totalAmount" type="number" min="0" step="1" value="${value("totalAmount")}" required></div><div class="rental-field"><label>ಈಗ ಪಾವತಿಸಿದ ಹಣ (₹)</label><input name="paidAmount" type="number" min="0" step="1" value="${value("paidAmount", "0")}"></div><div class="rental-field"><label>Payment date</label><input name="paymentDate" value="${value("paymentDate")}" type="date"></div><div class="rental-field"><label>Collected by</label><input name="collectedBy" value="${value("collectedBy", `${RENTAL_CATEGORY[category].label} Supervisor`)}"></div><div class="rental-field"><label>Maintenance / repair cost</label><input name="maintenanceCost" type="number" min="0" step="1" value="${value("maintenanceCost", "0")}"></div><div class="rental-field full"><label>ಸೂಚನೆ (ಐಚ್ಛಿಕ)</label><textarea name="note" placeholder="ಉದಾ: ಮದುವೆ ಕಾರ್ಯಕ್ರಮ">${value("note")}</textarea></div></div><div class="rental-form-actions"><button class="rental-secondary-button" type="button" onclick="closeRentalModal()">Cancel</button><button class="rental-primary-button" type="submit">${existing ? "ಬದಲಾವಣೆ ಉಳಿಸಿ" : "ಬುಕಿಂಗ್ ಉಳಿಸಿ"}</button></div></form></div>`);
   const entryForm = document.querySelector("#rentalModal form.rental-form");
   if (entryForm) {
-    ["mobile", "paymentDate", "collectedBy", "maintenanceCost"].forEach(name => {
+    ["paymentDate", "collectedBy", "maintenanceCost"].forEach(name => {
       entryForm.querySelector(`[name='${name}']`)?.closest(".rental-field")?.remove();
     });
 
