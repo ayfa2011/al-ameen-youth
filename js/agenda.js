@@ -1,4 +1,13 @@
 const agendaState = { items: [] };
+function agendaApiUrl() { return typeof SCRIPT_URL === "string" ? SCRIPT_URL : ""; }
+async function agendaSheetRequest(payload) {
+  const url = agendaApiUrl();
+  if (!url) throw new Error("Spreadsheet connection is not configured.");
+  const response = await fetch(url, { method: "POST", mode: "cors", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) });
+  const result = await response.json();
+  if (!response.ok || result.success === false || result.error) throw new Error(result.error || "Spreadsheet save failed.");
+  return result;
+}
 
 async function openAgendaManagement() {
   hideAllViews();
@@ -6,8 +15,20 @@ async function openAgendaManagement() {
   window.scrollTo({ top: 0, behavior: "smooth" });
   try {
     await window.firebaseReady;
-    const data = (await window.firebaseDb.ref("meetingAgendas").once("value")).val() || {};
-    agendaState.items = Object.entries(data).map(([id, value]) => ({ id, ...value })).sort((a,b) => String(b.meetingDate || "").localeCompare(String(a.meetingDate || "")));
+    let data = {};
+    try { data = (await window.firebaseDb.ref("meetingAgendas").once("value")).val() || {}; } catch (error) { console.warn("Agenda Firebase read unavailable:", error); }
+    agendaState.items = Object.entries(data).map(([id, value]) => ({ id, ...value }));
+    if (isSupervisorLoggedIn() && agendaState.items.length) {
+      try { await agendaSheetRequest({ action: "syncAgendas", agendas: agendaState.items }); }
+      catch (error) { console.warn("Existing agenda migration to spreadsheet failed:", error); }
+    }
+    const response = await fetch(`${agendaApiUrl()}?action=getAgendas`);
+    const sheetItems = await response.json();
+    if (!Array.isArray(sheetItems)) throw new Error(sheetItems.error || "Agenda sheet returned an invalid response.");
+    const byId = new Map(agendaState.items.map(item => [item.id, item]));
+    sheetItems.forEach(item => { if (item.id) byId.set(String(item.id), { ...byId.get(String(item.id)), ...item, id: String(item.id) }); });
+    agendaState.items = [...byId.values()];
+    agendaState.items.sort((a,b) => String(b.meetingDate || "").localeCompare(String(a.meetingDate || "")));
     renderAgendas();
   } catch (error) {
     console.error("Agenda load error:", error);
@@ -155,6 +176,9 @@ function agendaInjectStyles() {
       .agenda-edit-btn { background:#edf4ff; color:#175ea8; }
       .agenda-delete-btn { background:#fff0f0; color:#b42318; }
       .agenda-decision-add-btn { background:#e8f7ef; color:#177245; }
+      .agenda-discussed-btn { background:#e8f2ff; color:#165a9e; }
+      .agenda-complete-btn { background:#e6f7ed; color:#177245; }
+      .agenda-completed { display:inline-flex;align-items:center;gap:5px;padding:6px 10px;border-radius:999px;background:#e6f7ed;color:#177245;font-size:12px;font-weight:800; }
       .agenda-decision-status-pending { background:#fff4d8; color:#996600; }
       .agenda-decision-status-progress { background:#e8f2ff; color:#165a9e; }
       .agenda-decision-status-completed { background:#e6f7ed; color:#177245; }
@@ -166,7 +190,11 @@ function agendaInjectStyles() {
         .agenda-item-title-row strong { font-size:16px; }
         .agenda-item-actions { width:100%; justify-content:flex-start; }
         .agenda-item-actions button,
-        .agenda-decision-add-btn { min-height:40px; }
+        .agenda-decision-add-btn,
+        .agenda-discussed-btn,
+        .agenda-complete-btn { min-height:44px;flex:1;justify-content:center;font-size:13px; }
+        .agenda-simple-sections { gap:10px; }
+        .agenda-panel { padding:13px; }
         .agenda-decision-actions { align-items:flex-start; }
       }
     </style>
@@ -175,25 +203,22 @@ function agendaInjectStyles() {
 
 function agendaItemHTML(item) {
   const status = agendaStatus(item);
-  const isDecision = status === "Decision Taken";
+  const isDecision = ["Decision Taken", "Under Action", "Completed"].includes(status);
+  const isCompleted = status === "Completed" || item.decisionStatus === "Completed";
 
   const decisionBlock = isDecision ? `
     <div class="agenda-decision">
       <b>ನಿರ್ಣಯ:</b> ${escapeHTML(item.decision || "ನಿರ್ಣಯದ ವಿವರ ಸೇರಿಸಿಲ್ಲ.")}
-      ${item.responsible ? `<br><b>ಜವಾಬ್ದಾರಿ:</b> ${escapeHTML(item.responsible)}` : ""}
-      ${item.targetDate ? `<br><b>ಗುರಿ ದಿನಾಂಕ:</b> ${escapeHTML(item.targetDate)}` : ""}
+      ${isCompleted && item.implementedDate ? `<br><b>ಜಾರಿಯಾದ ದಿನಾಂಕ:</b> ${escapeHTML(item.implementedDate)}` : ""}
       <div class="agenda-decision-actions">
-        <span class="agenda-decision-status ${decisionStatusClass(item.decisionStatus)}">
-          ${escapeHTML(decisionStatusLabel(item.decisionStatus))}
-        </span>
-        ${isSupervisorLoggedIn() ? `<button type="button" class="agenda-edit-btn" onclick="editDecision('${item.id}')"><i class="fa-solid fa-pen"></i><span>ನಿರ್ಣಯ ತಿದ್ದು</span></button>` : ""}
+        ${isCompleted ? `<span class="agenda-completed"><i class="fa-solid fa-circle-check"></i> ಪೂರ್ಣಗೊಂಡಿದೆ</span>` : (isSupervisorLoggedIn() ? `<button type="button" class="agenda-complete-btn" onclick="completeAgenda('${item.id}')"><i class="fa-solid fa-check"></i><span>ಕಾರ್ಯಗತಗೊಳಿಸಲಾಗಿದೆ</span></button>` : `<span class="agenda-decision-status">ಕಾರ್ಯಗತಗೊಳಿಸುವಿಕೆ ಬಾಕಿ</span>`)}
       </div>
     </div>
   ` : "";
 
   const moveButton = isSupervisorLoggedIn() && !isDecision && status !== "Cancelled" ? `
-    <button type="button" class="agenda-decision-add-btn" onclick="moveAgendaToDecision('${item.id}')">
-      <i class="fa-solid fa-check"></i><span>ನಿರ್ಣಯಕ್ಕೆ ಸೇರಿಸಿ</span>
+    <button type="button" class="agenda-discussed-btn" onclick="moveAgendaToDecision('${item.id}')">
+      <i class="fa-solid fa-comments"></i><span>ಚರ್ಚಿಸಲಾಗಿದೆ</span>
     </button>
   ` : "";
 
@@ -202,7 +227,7 @@ function agendaItemHTML(item) {
       <div class="agenda-item-main">
         <div class="agenda-item-title-row">
           <strong>${escapeHTML(item.title || "—")}</strong>
-          <span class="agenda-status ${agendaStatusClass(status)}">${escapeHTML(agendaStatusLabel(status))}</span>
+          ${isCompleted ? `<span class="agenda-completed"><i class="fa-solid fa-circle-check"></i> ಪೂರ್ಣಗೊಂಡಿದೆ</span>` : ""}
         </div>
         ${item.description ? `<p>${escapeHTML(item.description)}</p>` : ""}
         <small>
@@ -213,15 +238,16 @@ function agendaItemHTML(item) {
         ${decisionBlock}
       </div>
 
-      <div class="agenda-item-actions">${moveButton}${isSupervisorLoggedIn() ? `<button type="button" class="agenda-edit-btn" onclick="editAgenda('${item.id}')" title="Edit"><i class="fa-solid fa-pen"></i><span>ತಿದ್ದು</span></button><button type="button" class="agenda-delete-btn" onclick="deleteAgenda('${item.id}')" title="Delete"><i class="fa-solid fa-trash"></i><span>ಅಳಿಸಿ</span></button>` : ""}</div>
+      <div class="agenda-item-actions">${moveButton}${isSupervisorLoggedIn() && !isDecision ? `<button type="button" class="agenda-delete-btn" onclick="deleteAgenda('${item.id}')" title="Delete"><i class="fa-solid fa-trash"></i><span>ಡಿಲೀಟ್</span></button>` : ""}</div>
     </div>
   `;
 }
 
 function renderAgendas() { agendaInjectStyles(); const b=document.querySelector("#agendaView .agenda-add-button"); if(b)b.style.display=isSupervisorLoggedIn()?"inline-flex":"none";
 
-  const allAgendas = agendaState.items.filter(item => agendaStatus(item) !== "Decision Taken");
-  const decisions = agendaState.items.filter(item => agendaStatus(item) === "Decision Taken");
+  const allAgendas = agendaState.items.filter(item => !["Decision Taken", "Under Action", "Completed"].includes(agendaStatus(item)));
+  const underAction = agendaState.items.filter(item => ["Decision Taken", "Under Action"].includes(agendaStatus(item)) && item.decisionStatus !== "Completed");
+  const completed = agendaState.items.filter(item => agendaStatus(item) === "Completed" || item.decisionStatus === "Completed");
 
   const put = (id, data, empty) => {
     const el = document.getElementById(id);
@@ -233,7 +259,8 @@ function renderAgendas() { agendaInjectStyles(); const b=document.querySelector(
   };
 
   put("allAgendaList", allAgendas, "ಇನ್ನೂ ಅಜೆಂಡಾ ಸೇರಿಸಿಲ್ಲ.");
-  put("decisionAgendaList", decisions, "ಇನ್ನೂ ನಿರ್ಣಯಗಳು ದಾಖಲಾಗಿಲ್ಲ.");
+  put("actionAgendaList", underAction, "ಚರ್ಚಿಸಿದ ವಿಷಯಗಳು ಇಲ್ಲಿಲ್ಲ.");
+  put("completedAgendaList", completed, "ಪೂರ್ಣಗೊಂಡ ನಿರ್ಣಯಗಳು ಇಲ್ಲಿಲ್ಲ.");
 }
 
 function openAgendaForm(editId = "", decisionMode = false) { if(!requireSupervisor())return; const existing = editId ? agendaState.items.find(item => item.id === editId) : null;
@@ -287,24 +314,6 @@ function openAgendaForm(editId = "", decisionMode = false) { if(!requireSupervis
               <input name="meetingDate" type="date" required value="${escapeHTML(existing?.meetingDate || "")}">
             </label>
 
-            <label>
-              Priority
-              <select name="priority">
-                <option value="Normal" ${existing?.priority === "Normal" || !existing?.priority ? "selected" : ""}>Normal</option>
-                <option value="Important" ${existing?.priority === "Important" ? "selected" : ""}>Important</option>
-                <option value="Urgent" ${existing?.priority === "Urgent" ? "selected" : ""}>Urgent</option>
-              </select>
-            </label>
-
-            <label>
-              Status
-              <select name="status">
-                <option value="Upcoming" ${existing?.status === "Upcoming" || !existing?.status ? "selected" : ""}>ಮುಂದಿನ ಅಜೆಂಡಾ</option>
-                <option value="Under Discussion" ${existing?.status === "Under Discussion" ? "selected" : ""}>ಚರ್ಚೆಯಲ್ಲಿದೆ</option>
-                <option value="Postponed" ${existing?.status === "Postponed" ? "selected" : ""}>ಮುಂದೂಡಲಾಗಿದೆ</option>
-                <option value="Cancelled" ${existing?.status === "Cancelled" ? "selected" : ""}>ರದ್ದುಪಡಿಸಲಾಗಿದೆ</option>
-              </select>
-            </label>
           `}
 
           ${decisionMode || isEdit ? `
@@ -313,25 +322,6 @@ function openAgendaForm(editId = "", decisionMode = false) { if(!requireSupervis
               <textarea name="decision" ${decisionMode ? "required" : ""} placeholder="ಸಭೆಯಲ್ಲಿ ತೆಗೆದುಕೊಂಡ ನಿರ್ಣಯವನ್ನು ಇಲ್ಲಿ ಬರೆಯಿರಿ">${escapeHTML(existing?.decision || "")}</textarea>
             </label>
 
-            <label>
-              ನಿರ್ಣಯದ ಸ್ಥಿತಿ / Decision Status
-              <select name="decisionStatus">
-                <option value="Pending" ${existing?.decisionStatus === "Pending" || !existing?.decisionStatus ? "selected" : ""}>ಕಾರ್ಯಗತಗೊಳಿಸಬೇಕಾಗಿದೆ</option>
-                <option value="In Progress" ${existing?.decisionStatus === "In Progress" ? "selected" : ""}>ಕಾರ್ಯ ಪ್ರಗತಿಯಲ್ಲಿದೆ</option>
-                <option value="Completed" ${existing?.decisionStatus === "Completed" ? "selected" : ""}>ಪೂರ್ಣಗೊಂಡಿದೆ</option>
-                <option value="Not Started" ${existing?.decisionStatus === "Not Started" ? "selected" : ""}>ಇನ್ನೂ ಆರಂಭವಾಗಿಲ್ಲ</option>
-              </select>
-            </label>
-
-            <label>
-              ಜವಾಬ್ದಾರಿ / Responsible
-              <input name="responsible" value="${escapeHTML(existing?.responsible || "")}" placeholder="ಯಾರಿಗೆ ಜವಾಬ್ದಾರಿ ನೀಡಲಾಗಿದೆ?">
-            </label>
-
-            <label>
-              ಗುರಿ ದಿನಾಂಕ / Target date
-              <input name="targetDate" type="date" value="${escapeHTML(existing?.targetDate || "")}">
-            </label>
           ` : ""}
 
           <div class="program-form-actions">
@@ -371,9 +361,9 @@ async function saveAgenda(event, editId = "", decisionMode = false) {
     description: String(values.description || oldItem.description || "").trim(),
     meetingDate: values.meetingDate || oldItem.meetingDate || "",
     priority: values.priority || oldItem.priority || "Normal",
-    status: decisionMode ? "Decision Taken" : (values.status || "Upcoming"),
-    decision: String(values.decision || oldItem.decision || "").trim(),
-    decisionStatus: values.decisionStatus || oldItem.decisionStatus || "Pending",
+    status: decisionMode ? "Under Action" : (oldItem.status === "Completed" ? "Completed" : (oldItem.status === "Decision Taken" || oldItem.status === "Under Action" ? oldItem.status : "Upcoming")),
+    decision: decisionMode ? String(values.decision || oldItem.decision || "").trim() : String(oldItem.decision || "").trim(),
+    decisionStatus: oldItem.decisionStatus || "Pending",
     responsible: String(values.responsible || oldItem.responsible || "").trim(),
     targetDate: values.targetDate || oldItem.targetDate || "",
     updatedAt: new Date().toISOString()
@@ -389,6 +379,7 @@ async function saveAgenda(event, editId = "", decisionMode = false) {
     return;
   }
 
+  let savedId = editId;
   try {
     await window.firebaseReady;
 
@@ -398,11 +389,17 @@ async function saveAgenda(event, editId = "", decisionMode = false) {
         createdAt: oldItem.createdAt || new Date().toISOString()
       });
     } else {
-      await window.firebaseDb.ref("meetingAgendas").push({
+      payload.createdAt = new Date().toISOString();
+      const savedRef = await window.firebaseDb.ref("meetingAgendas").push({
         ...payload,
-        createdAt: new Date().toISOString()
+        createdAt: payload.createdAt
       });
+      savedId = savedRef.key;
     }
+
+    const savedItem = { ...payload, id: savedId, createdAt: payload.createdAt || oldItem.createdAt || new Date().toISOString() };
+    try { await agendaSheetRequest({ action: "saveAgenda", agenda: savedItem }); }
+    catch (error) { await window.firebaseDb.ref(`meetingAgendas/${savedId}`).update({ sheetSyncPending: true }); throw error; }
 
     document.getElementById("agendaModal")?.remove();
     await openAgendaManagement();
@@ -413,12 +410,27 @@ async function saveAgenda(event, editId = "", decisionMode = false) {
   }
 }
 
+async function completeAgenda(id) {
+  if (!requireSupervisor()) return;
+  const item = agendaState.items.find(entry => entry.id === id);
+  if (!item) return;
+  const now = new Date().toISOString().slice(0, 10);
+  const payload = { ...item, id, status: "Completed", decisionStatus: "Completed", implementedDate: now, updatedAt: new Date().toISOString() };
+  try {
+    await window.firebaseReady;
+    await window.firebaseDb.ref(`meetingAgendas/${id}`).update(payload);
+    await agendaSheetRequest({ action: "saveAgenda", agenda: payload });
+    await openAgendaManagement();
+  } catch (error) { console.error("Agenda completion error:", error); alert("ನಿರ್ಣಯ ಪೂರ್ಣಗೊಳಿಸಲು ಆಗಲಿಲ್ಲ. ಸಂಪರ್ಕ ಪರಿಶೀಲಿಸಿ."); }
+}
+
 async function deleteAgenda(id) { if(!requireSupervisor())return; const item = agendaState.items.find(entry => entry.id === id);
   if (!item) return;
   if (!confirm(`"${item.title}" ಅನ್ನು ಅಳಿಸಲು ಖಚಿತವೇ?\n\nಅಳಿಸಿದ ನಂತರ ಈ record ಅನ್ನು ಮರಳಿ ಪಡೆಯಲು ಸಾಧ್ಯವಾಗುವುದಿಲ್ಲ.`)) return;
   try {
     await window.firebaseReady;
     await window.firebaseDb.ref(`meetingAgendas/${id}`).remove();
+    await agendaSheetRequest({ action: "deleteAgenda", id });
     await openAgendaManagement();
   } catch (error) { console.error("Agenda delete error:", error); alert("ಅಜೆಂಡಾ delete ಆಗಲಿಲ್ಲ. Firebase connection ಪರಿಶೀಲಿಸಿ."); }
 }

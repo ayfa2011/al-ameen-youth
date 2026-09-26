@@ -33,6 +33,22 @@ body {
   display: none !important;
 }
 
+/* Keep the main dashboard and each full-screen module mutually exclusive. */
+#appContainer[data-active-view="quiz"] #dashboardHomeActions,
+#appContainer[data-active-view="quiz"] #dashboardView,
+#appContainer[data-active-view="quiz"] #rentalView,
+#appContainer[data-active-view="rental"] #dashboardHomeActions,
+#appContainer[data-active-view="rental"] #dashboardView,
+#appContainer[data-active-view="rental"] #quizView,
+#appContainer[data-active-view="dashboard"] #quizView,
+#appContainer[data-active-view="dashboard"] #rentalView,
+#appContainer[data-active-view="other"] #dashboardHomeActions,
+#appContainer[data-active-view="other"] #dashboardView,
+#appContainer[data-active-view="other"] #quizView,
+#appContainer[data-active-view="other"] #rentalView {
+  display: none !important;
+}
+
 button,
 input {
   font-family: inherit;

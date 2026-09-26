@@ -85,6 +85,7 @@ function openRentalManagement() {
   rentalState.category = "";
   rentalState.search = "";
   hideAllViews();
+  document.getElementById("appContainer")?.setAttribute("data-active-view", "rental");
   const view = document.getElementById("rentalView");
   if (view) view.classList.remove("hidden");
   window.scrollTo({ top: 0, behavior: "smooth" });

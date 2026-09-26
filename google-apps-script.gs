@@ -33,6 +33,8 @@ function doGet(e) {
         return jsonOutput(getPrograms());
       case "getReports":
         return jsonOutput(getAttendanceReports());
+      case "getAgendas":
+        return jsonOutput(getAgendas_());
       default:
         return jsonOutput({ error: "Unknown action: " + action });
     }
@@ -57,10 +59,67 @@ function doPost(e) {
       return jsonOutput(result);
     }
 
+    if (body.action === "saveAgenda") return jsonOutput(saveAgenda_(body.agenda || {}));
+    if (body.action === "deleteAgenda") return jsonOutput(deleteAgenda_(body.id));
+    if (body.action === "syncAgendas") return jsonOutput(syncExistingAgendasToSheet_(body.agendas || []));
+
     return jsonOutput({ error: "Unknown POST action" });
   } catch (error) {
     return jsonOutput({ success: false, error: error.message, errorType: error.name || "Error", stack: error.stack || "" });
   }
+}
+
+function getOrCreateAgendaSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName("Agenda");
+  if (!sheet) sheet = ss.insertSheet("Agenda");
+  const headers = ["ID", "ಸಭೆಯ ದಿನಾಂಕ", "ಅಜೆಂಡಾ / ವಿಷಯ", "ವಿವರ", "ಸ್ಥಿತಿ", "ನಿರ್ಣಯ", "ಜಾರಿಯಾದ ದಿನಾಂಕ", "Priority", "ಜವಾಬ್ದಾರಿ", "ಗುರಿ ದಿನಾಂಕ", "Created At", "Updated At"];
+  if (sheet.getLastRow() === 0) sheet.appendRow(headers);
+  else if (String(sheet.getRange(1, 1).getValue()).trim() !== "ID") sheet.insertRowBefore(1), sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  return sheet;
+}
+
+function syncExistingAgendasToSheet_(items) {
+  const sheet = getOrCreateAgendaSheet_();
+  const rows = sheet.getDataRange().getDisplayValues();
+  const known = new Set(rows.slice(1).map(row => String(row[0])));
+  (items || []).forEach(item => {
+    if (!item || !item.id || known.has(String(item.id)) || !item.title || !item.meetingDate) return;
+    sheet.appendRow([String(item.id), item.meetingDate || "", item.title || "", item.description || "", item.status || "Upcoming", item.decision || "", item.implementedDate || "", item.priority || "Normal", item.responsible || "", item.targetDate || "", item.createdAt || "", item.updatedAt || ""]);
+    known.add(String(item.id));
+  });
+  return { success: true };
+}
+
+function getAgendas_() {
+  const sheet = getOrCreateAgendaSheet_();
+  const values = sheet.getDataRange().getDisplayValues();
+  if (values.length < 2) return [];
+  const headers = values[0].map(value => String(value).trim());
+  return values.slice(1).filter(row => row[0]).map(row => {
+    const item = {};
+    headers.forEach((header, index) => { if (header) item[header] = row[index] || ""; });
+    return { id: String(item.ID), meetingDate: item["ಸಭೆಯ ದಿನಾಂಕ"], title: item["ಅಜೆಂಡಾ / ವಿಷಯ"], description: item["ವಿವರ"], status: item["ಸ್ಥಿತಿ"], decision: item["ನಿರ್ಣಯ"], implementedDate: item["ಜಾರಿಯಾದ ದಿನಾಂಕ"], priority: item.Priority, responsible: item["ಜವಾಬ್ದಾರಿ"], targetDate: item["ಗುರಿ ದಿನಾಂಕ"], createdAt: item["Created At"], updatedAt: item["Updated At"], decisionStatus: item["ಸ್ಥಿತಿ"] === "Completed" ? "Completed" : "Pending" };
+  });
+}
+
+function saveAgenda_(item) {
+  if (!item.id || !item.title || !item.meetingDate) throw new Error("Agenda ID, title and meeting date are required.");
+  const sheet = getOrCreateAgendaSheet_();
+  const rows = sheet.getDataRange().getDisplayValues();
+  const index = rows.findIndex((row, i) => i > 0 && String(row[0]) === String(item.id));
+  const row = [String(item.id), item.meetingDate || "", item.title || "", item.description || "", item.status || "Upcoming", item.decision || "", item.implementedDate || "", item.priority || "Normal", item.responsible || "", item.targetDate || "", item.createdAt || "", item.updatedAt || new Date().toISOString()];
+  if (index > 0) sheet.getRange(index + 1, 1, 1, row.length).setValues([row]); else sheet.appendRow(row);
+  return { success: true, id: String(item.id) };
+}
+
+function deleteAgenda_(id) {
+  if (!id) throw new Error("Agenda ID is required.");
+  const sheet = getOrCreateAgendaSheet_();
+  const rows = sheet.getDataRange().getDisplayValues();
+  const index = rows.findIndex((row, i) => i > 0 && String(row[0]) === String(id));
+  if (index > 0) sheet.deleteRow(index + 1);
+  return { success: true, id: String(id) };
 }
 
 

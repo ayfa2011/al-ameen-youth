@@ -160,6 +160,7 @@ function hasApiUrl() {
 
 function hideAllViews() {
 
+  document.getElementById("appContainer")?.setAttribute("data-active-view", "other");
   document.getElementById("dashboardHomeActions")?.classList.add("hidden");
 
   const views = [
@@ -199,6 +200,7 @@ function showDashboard() {
 
   hideAllViews();
 
+  document.getElementById("appContainer")?.setAttribute("data-active-view", "dashboard");
   document.getElementById("dashboardHomeActions")?.classList.remove("hidden");
 
   const dashboard =

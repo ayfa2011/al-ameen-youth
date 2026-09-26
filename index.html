@@ -1480,8 +1480,8 @@
       <div class="section-header"><button class="btn-back" onclick="showDashboard()"><i class="fa-solid fa-arrow-left"></i> Back</button><h2>ಸಭಾ ಅಜೆಂಡಾ &amp; ನಿರ್ಣಯಗಳು</h2></div>
       <section class="agenda-section">
         <div class="ayfa-supervisor-bar"><span class="ayfa-supervisor-note">🔒 ಅಜೆಂಡಾ / ನಿರ್ಣಯ: view-only for members. Add / Edit / Delete = Supervisor only.</span><span data-supervisor-login></span></div>
-        <div class="agenda-toolbar"><div><p class="agenda-kicker">MEETING RECORDS</p><h3>ಅಜೆಂಡಾ &amp; ನಿರ್ಣಯಗಳು</h3></div><button class="agenda-add-button" onclick="openAgendaForm()"><i class="fa-solid fa-plus"></i> ಹೊಸ ಅಜೆಂಡಾ</button></div>
-        <div class="agenda-simple-sections"><div class="agenda-panel"><h3><i class="fa-solid fa-list-check"></i> ಅಜೆಂಡಾ</h3><div id="allAgendaList"></div></div><div class="agenda-panel"><h3><i class="fa-solid fa-check-double"></i> ನಿರ್ಣಯಗಳು</h3><div id="decisionAgendaList"></div></div></div>
+        <div class="agenda-toolbar"><div><p class="agenda-kicker">MEETING RECORDS</p><h3>ಸಭೆಯ ವಿಷಯಗಳು</h3></div><button class="agenda-add-button" onclick="openAgendaForm()"><i class="fa-solid fa-plus"></i> ಹೊಸ ಅಜೆಂಡಾ ಸೇರಿಸಿ</button></div>
+        <div class="agenda-simple-sections"><div class="agenda-panel"><h3><i class="fa-solid fa-list-check"></i> ಸಭಾ ಅಜೆಂಡಾ</h3><div id="allAgendaList"></div></div><div class="agenda-panel"><h3><i class="fa-solid fa-comments"></i> ಚರ್ಚಿಸಿದ ವಿಷಯಗಳು</h3><div id="actionAgendaList"></div></div><div class="agenda-panel"><h3><i class="fa-solid fa-circle-check"></i> ಕಾರ್ಯಗತಗೊಂಡ ನಿರ್ಣಯಗಳು</h3><div id="completedAgendaList"></div></div></div>
       </section>
     </div>
 
@@ -2249,6 +2249,7 @@
   <script src="js/rentals.js"></script>
   <script src="js/activity-reports.js"></script>
   <script src="js/agenda.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", () => { if (typeof openAgendaManagement === "function") openAgendaManagement(); });</script>
   <script src="js/quiz-config.js"></script>
   <script src="js/quiz.js"></script>
 
@@ -2285,6 +2286,7 @@
 
     function hideAllViews() {
 
+      document.getElementById("appContainer")?.setAttribute("data-active-view", "other");
       document.getElementById("dashboardHomeActions")?.classList.add("hidden");
 
       const views = [
