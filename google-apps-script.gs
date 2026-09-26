@@ -76,6 +76,7 @@ function getOrCreateAgendaSheet_() {
   const headers = ["ID", "ಸಭೆಯ ದಿನಾಂಕ", "ಅಜೆಂಡಾ / ವಿಷಯ", "ವಿವರ", "ಸ್ಥಿತಿ", "ನಿರ್ಣಯ", "ಜಾರಿಯಾದ ದಿನಾಂಕ", "Priority", "ಜವಾಬ್ದಾರಿ", "ಗುರಿ ದಿನಾಂಕ", "Created At", "Updated At"];
   if (sheet.getLastRow() === 0) sheet.appendRow(headers);
   else if (String(sheet.getRange(1, 1).getValue()).trim() !== "ID") sheet.insertRowBefore(1), sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  if (sheet.getLastColumn() < 13) sheet.getRange(1, 13).setValue("Discussed At");
   return sheet;
 }
 
@@ -85,7 +86,7 @@ function syncExistingAgendasToSheet_(items) {
   const known = new Set(rows.slice(1).map(row => String(row[0])));
   (items || []).forEach(item => {
     if (!item || !item.id || known.has(String(item.id)) || !item.title || !item.meetingDate) return;
-    sheet.appendRow([String(item.id), item.meetingDate || "", item.title || "", item.description || "", item.status || "Upcoming", item.decision || "", item.implementedDate || "", item.priority || "Normal", item.responsible || "", item.targetDate || "", item.createdAt || "", item.updatedAt || ""]);
+    sheet.appendRow([String(item.id), item.meetingDate || "", item.title || "", item.description || "", item.status || "Upcoming", item.decision || "", item.implementedDate || "", item.priority || "Normal", item.responsible || "", item.targetDate || "", item.createdAt || "", item.updatedAt || "", item.discussedDate || ""]);
     known.add(String(item.id));
   });
   return { success: true };
@@ -99,7 +100,7 @@ function getAgendas_() {
   return values.slice(1).filter(row => row[0]).map(row => {
     const item = {};
     headers.forEach((header, index) => { if (header) item[header] = row[index] || ""; });
-    return { id: String(item.ID), meetingDate: item["ಸಭೆಯ ದಿನಾಂಕ"], title: item["ಅಜೆಂಡಾ / ವಿಷಯ"], description: item["ವಿವರ"], status: item["ಸ್ಥಿತಿ"], decision: item["ನಿರ್ಣಯ"], implementedDate: item["ಜಾರಿಯಾದ ದಿನಾಂಕ"], priority: item.Priority, responsible: item["ಜವಾಬ್ದಾರಿ"], targetDate: item["ಗುರಿ ದಿನಾಂಕ"], createdAt: item["Created At"], updatedAt: item["Updated At"], decisionStatus: item["ಸ್ಥಿತಿ"] === "Completed" ? "Completed" : "Pending" };
+    return { id: String(item.ID), meetingDate: item["ಸಭೆಯ ದಿನಾಂಕ"], title: item["ಅಜೆಂಡಾ / ವಿಷಯ"], description: item["ವಿವರ"], status: item["ಸ್ಥಿತಿ"], decision: item["ನಿರ್ಣಯ"], discussedDate: item["Discussed At"] || "", implementedDate: item["ಜಾರಿಯಾದ ದಿನಾಂಕ"], priority: item.Priority, responsible: item["ಜವಾಬ್ದಾರಿ"], targetDate: item["ಗುರಿ ದಿನಾಂಕ"], createdAt: item["Created At"], updatedAt: item["Updated At"], decisionStatus: item["ಸ್ಥಿತಿ"] === "Completed" ? "Completed" : "Pending" };
   });
 }
 
@@ -108,7 +109,8 @@ function saveAgenda_(item) {
   const sheet = getOrCreateAgendaSheet_();
   const rows = sheet.getDataRange().getDisplayValues();
   const index = rows.findIndex((row, i) => i > 0 && String(row[0]) === String(item.id));
-  const row = [String(item.id), item.meetingDate || "", item.title || "", item.description || "", item.status || "Upcoming", item.decision || "", item.implementedDate || "", item.priority || "Normal", item.responsible || "", item.targetDate || "", item.createdAt || "", item.updatedAt || new Date().toISOString()];
+  const row = [String(item.id), item.meetingDate || "", item.title || "", item.description || "", item.status || "Upcoming", item.decision || "", item.implementedDate || "", item.priority || "Normal", item.responsible || "", item.targetDate || "", item.createdAt || "", item.updatedAt || new Date().toISOString(), item.discussedDate || ""];
+  if (sheet.getLastColumn() < 13) sheet.getRange(1, 13).setValue("Discussed At");
   if (index > 0) sheet.getRange(index + 1, 1, 1, row.length).setValues([row]); else sheet.appendRow(row);
   return { success: true, id: String(item.id) };
 }

@@ -28,12 +28,12 @@ async function openAgendaManagement() {
     const byId = new Map(agendaState.items.map(item => [item.id, item]));
     sheetItems.forEach(item => { if (item.id) byId.set(String(item.id), { ...byId.get(String(item.id)), ...item, id: String(item.id) }); });
     agendaState.items = [...byId.values()];
-    agendaState.items.sort((a,b) => String(b.meetingDate || "").localeCompare(String(a.meetingDate || "")));
+    agendaState.items.sort((a,b) => String(b.createdAt || b.meetingDate || "").localeCompare(String(a.createdAt || a.meetingDate || "")));
     renderAgendas();
   } catch (error) {
     console.error("Agenda load error:", error);
     const el = document.getElementById("agendaError");
-    if (el) el.textContent = "ಅಜೆಂಡಾ data load ಆಗಲಿಲ್ಲ. Firebase connection ಪರಿಶೀಲಿಸಿ.";
+    if (el) el.textContent = "Agenda could not be loaded. Please check the connection.";
   }
 }
 
@@ -41,162 +41,49 @@ function agendaStatus(item) {
   return item.status || "Upcoming";
 }
 
-function agendaStatusClass(status) {
-  const map = {
-    "Upcoming": "agenda-status-upcoming",
-    "Under Discussion": "agenda-status-discussion",
-    "Decision Taken": "agenda-status-decision",
-    "Postponed": "agenda-status-postponed",
-    "Cancelled": "agenda-status-cancelled"
-  };
-  return map[status] || "agenda-status-upcoming";
-}
-
-function agendaStatusLabel(status) {
-  const map = {
-    "Upcoming": "ಮುಂದಿನ ಅಜೆಂಡಾ",
-    "Under Discussion": "ಚರ್ಚೆಯಲ್ಲಿದೆ",
-    "Decision Taken": "ನಿರ್ಣಯ ದಾಖಲಾಗಿದೆ",
-    "Postponed": "ಮುಂದೂಡಲಾಗಿದೆ",
-    "Cancelled": "ರದ್ದುಪಡಿಸಲಾಗಿದೆ"
-  };
-  return map[status] || status;
-}
-
-function decisionStatusLabel(status) {
-  const map = {
-    "Pending": "ಕಾರ್ಯಗತಗೊಳಿಸಬೇಕಾಗಿದೆ",
-    "In Progress": "ಕಾರ್ಯ ಪ್ರಗತಿಯಲ್ಲಿದೆ",
-    "Completed": "ಪೂರ್ಣಗೊಂಡಿದೆ",
-    "Not Started": "ಇನ್ನೂ ಆರಂಭವಾಗಿಲ್ಲ"
-  };
-  return map[status] || status || "ಕಾರ್ಯಗತಗೊಳಿಸಬೇಕಾಗಿದೆ";
-}
-
-function decisionStatusClass(status) {
-  const map = {
-    "Pending": "agenda-decision-status-pending",
-    "In Progress": "agenda-decision-status-progress",
-    "Completed": "agenda-decision-status-completed",
-    "Not Started": "agenda-decision-status-not-started"
-  };
-  return map[status] || "agenda-decision-status-pending";
-}
-
 function agendaInjectStyles() {
   if (document.getElementById("agendaEnhancedStyles")) return;
 
   document.head.insertAdjacentHTML("beforeend", `
     <style id="agendaEnhancedStyles">
-      .agenda-item {
-        position: relative;
-        display: flex;
-        gap: 14px;
-        align-items: flex-start;
-        justify-content: space-between;
-        padding: 16px;
-        margin-bottom: 12px;
-        border: 1px solid #e5e7eb;
-        border-radius: 16px;
-        background: #fff;
-        box-shadow: 0 3px 12px rgba(15, 23, 42, .05);
-      }
-      .agenda-item-main { flex: 1; min-width: 0; }
-      .agenda-item-title-row {
-        display: flex;
-        gap: 10px;
-        align-items: flex-start;
-        justify-content: space-between;
-        margin-bottom: 7px;
-      }
-      .agenda-item-title-row strong {
-        font-size: 17px;
-        line-height: 1.4;
-        color: #173f6f;
-      }
-      .agenda-status, .agenda-decision-status {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 5px 9px;
-        border-radius: 999px;
-        font-size: 11px;
-        font-weight: 700;
-        white-space: nowrap;
-      }
-      .agenda-status-upcoming { background:#e8f2ff; color:#165a9e; }
-      .agenda-status-discussion { background:#fff4d8; color:#996600; }
-      .agenda-status-decision { background:#e6f7ed; color:#177245; }
-      .agenda-status-postponed { background:#f1f3f5; color:#5f6368; }
-      .agenda-status-cancelled { background:#fdebec; color:#b42318; }
+      .agenda-item { margin:0;border:0;border-bottom:1px solid #e8eee9;background:#fff; }
+      .agenda-item summary { list-style:none; }
+      .agenda-item summary::-webkit-details-marker { display:none; }
+      .agenda-item-summary { display:grid;grid-template-columns:minmax(0,1fr) auto 18px;align-items:center;gap:8px;padding:6px 2px;cursor:pointer; }
+      .agenda-item-title { min-width:0;color:#173f6f;font-size:13px;font-weight:700;line-height:1.25; }
+      .agenda-item-summary small,.agenda-item-details small { color:#7b887f;font-size:10px;white-space:nowrap; }
+      .agenda-chevron { color:#829087;font-size:11px;transition:transform .18s ease; }
+      .agenda-item[open] .agenda-chevron { transform:rotate(180deg); }
+      .agenda-item-details { padding:0 2px 12px;color:#4b5563;font-size:13px;line-height:1.5; }
+      .agenda-item-details p { margin:4px 0 8px;white-space:pre-wrap; }
+      .agenda-no-description { color:#89958d;font-style:italic; }
 
-      .agenda-item p {
-        margin: 6px 0 9px;
-        color: #4b5563;
-        line-height: 1.6;
-        white-space: pre-wrap;
-      }
-      .agenda-item small { color:#6b7280; }
-      .agenda-decision {
-        margin-top: 12px;
-        padding: 11px 13px;
-        border-left: 4px solid #2e8b57;
-        background: #f4fbf6;
-        border-radius: 9px;
-        color: #334155;
-        line-height: 1.6;
-      }
-      .agenda-decision-actions {
-        display:flex;
-        align-items:center;
-        justify-content:space-between;
-        gap:10px;
-        margin-top:12px;
-        flex-wrap:wrap;
-      }
       .agenda-item-actions {
         display:flex;
         gap:7px;
         flex-wrap:wrap;
-        justify-content:flex-end;
-        flex-shrink:0;
+        justify-content:flex-start;
+        margin-top:8px;
       }
-      .agenda-item-actions button,
-      .agenda-decision-add-btn {
+      .agenda-item-actions button {
         border:0;
         border-radius:10px;
-        padding:9px 11px;
+        padding:6px 9px;
         cursor:pointer;
         font-weight:700;
-        font-size:12px;
+        font-size:11px;
         display:inline-flex;
         align-items:center;
         gap:6px;
       }
       .agenda-edit-btn { background:#edf4ff; color:#175ea8; }
       .agenda-delete-btn { background:#fff0f0; color:#b42318; }
-      .agenda-decision-add-btn { background:#e8f7ef; color:#177245; }
       .agenda-discussed-btn { background:#e8f2ff; color:#165a9e; }
+      .agenda-back-btn { background:#f1f3f5;color:#46544b; }
       .agenda-complete-btn { background:#e6f7ed; color:#177245; }
-      .agenda-completed { display:inline-flex;align-items:center;gap:5px;padding:6px 10px;border-radius:999px;background:#e6f7ed;color:#177245;font-size:12px;font-weight:800; }
-      .agenda-decision-status-pending { background:#fff4d8; color:#996600; }
-      .agenda-decision-status-progress { background:#e8f2ff; color:#165a9e; }
-      .agenda-decision-status-completed { background:#e6f7ed; color:#177245; }
-      .agenda-decision-status-not-started { background:#f1f3f5; color:#5f6368; }
+      .agenda-completed { display:inline-flex;align-items:center;margin-left:5px;padding:3px 6px;border-radius:999px;background:#e6f7ed;color:#177245;font-size:9px;font-weight:800;vertical-align:middle; }
 
-      @media (max-width: 640px) {
-        .agenda-item { padding:13px; gap:9px; flex-direction:column; }
-        .agenda-item-title-row { flex-direction:column; gap:7px; }
-        .agenda-item-title-row strong { font-size:16px; }
-        .agenda-item-actions { width:100%; justify-content:flex-start; }
-        .agenda-item-actions button,
-        .agenda-decision-add-btn,
-        .agenda-discussed-btn,
-        .agenda-complete-btn { min-height:44px;flex:1;justify-content:center;font-size:13px; }
-        .agenda-simple-sections { gap:10px; }
-        .agenda-panel { padding:13px; }
-        .agenda-decision-actions { align-items:flex-start; }
-      }
+      @media (max-width: 640px) { .agenda-item-summary { grid-template-columns:minmax(0,1fr) auto 16px;gap:5px;padding:5px 1px; }.agenda-item-title { font-size:12px; }.agenda-item-summary small { font-size:9px; }.agenda-item-actions button { min-height:28px; } }
     </style>
   `);
 }
@@ -205,42 +92,34 @@ function agendaItemHTML(item) {
   const status = agendaStatus(item);
   const isDecision = ["Decision Taken", "Under Action", "Completed"].includes(status);
   const isCompleted = status === "Completed" || item.decisionStatus === "Completed";
-
-  const decisionBlock = isDecision ? `
-    <div class="agenda-decision">
-      <b>ನಿರ್ಣಯ:</b> ${escapeHTML(item.decision || "ನಿರ್ಣಯದ ವಿವರ ಸೇರಿಸಿಲ್ಲ.")}
-      ${isCompleted && item.implementedDate ? `<br><b>ಜಾರಿಯಾದ ದಿನಾಂಕ:</b> ${escapeHTML(item.implementedDate)}` : ""}
-      <div class="agenda-decision-actions">
-        ${isCompleted ? `<span class="agenda-completed"><i class="fa-solid fa-circle-check"></i> ಪೂರ್ಣಗೊಂಡಿದೆ</span>` : (isSupervisorLoggedIn() ? `<button type="button" class="agenda-complete-btn" onclick="completeAgenda('${item.id}')"><i class="fa-solid fa-check"></i><span>ಕಾರ್ಯಗತಗೊಳಿಸಲಾಗಿದೆ</span></button>` : `<span class="agenda-decision-status">ಕಾರ್ಯಗತಗೊಳಿಸುವಿಕೆ ಬಾಕಿ</span>`)}
-      </div>
-    </div>
-  ` : "";
-
-  const moveButton = isSupervisorLoggedIn() && !isDecision && status !== "Cancelled" ? `
-    <button type="button" class="agenda-discussed-btn" onclick="moveAgendaToDecision('${item.id}')">
-      <i class="fa-solid fa-comments"></i><span>ಚರ್ಚಿಸಲಾಗಿದೆ</span>
-    </button>
-  ` : "";
-
-  return `
-    <div class="agenda-item">
-      <div class="agenda-item-main">
-        <div class="agenda-item-title-row">
-          <strong>${escapeHTML(item.title || "—")}</strong>
-          ${isCompleted ? `<span class="agenda-completed"><i class="fa-solid fa-circle-check"></i> ಪೂರ್ಣಗೊಂಡಿದೆ</span>` : ""}
-        </div>
-        ${item.description ? `<p>${escapeHTML(item.description)}</p>` : ""}
-        <small>
-          <i class="fa-regular fa-calendar"></i>
-          ${escapeHTML(item.meetingDate || "—")}
-          ${item.priority ? ` · ${escapeHTML(item.priority)}` : ""}
-        </small>
-        ${decisionBlock}
-      </div>
-
-      <div class="agenda-item-actions">${moveButton}${isSupervisorLoggedIn() && !isDecision ? `<button type="button" class="agenda-delete-btn" onclick="deleteAgenda('${item.id}')" title="Delete"><i class="fa-solid fa-trash"></i><span>ಡಿಲೀಟ್</span></button>` : ""}</div>
-    </div>
+  const dateLabel = isCompleted ? "Completed" : isDecision ? "Discussed" : "Added";
+  const summaryTitle = `${escapeHTML(item.title || "—")}${isCompleted ? ` <span class="agenda-completed">Completed</span>` : ""}`;
+  const actions = `
+    ${isSupervisorLoggedIn() ? `<button type="button" class="agenda-edit-btn" onclick="event.stopPropagation();editAgenda('${item.id}')"><i class="fa-solid fa-pen"></i><span>Edit</span></button>` : ""}
+    ${isSupervisorLoggedIn() && !isDecision && status !== "Cancelled" ? `<button type="button" class="agenda-discussed-btn" onclick="event.stopPropagation();moveAgendaToDecision('${item.id}')">Discussed</button>` : ""}
+    ${isSupervisorLoggedIn() && isDecision && !isCompleted ? `<button type="button" class="agenda-complete-btn" onclick="event.stopPropagation();completeAgenda('${item.id}')">Implemented</button>` : ""}
+    ${isSupervisorLoggedIn() && isCompleted ? `<button type="button" class="agenda-discussed-btn" onclick="event.stopPropagation();moveAgendaToDecision('${item.id}')">Move back to Topics Discussed</button>` : ""}
+    ${isSupervisorLoggedIn() && isDecision ? `<button type="button" class="agenda-back-btn" onclick="event.stopPropagation();moveAgendaBackToAgenda('${item.id}')">Move back to Meeting Agenda</button>` : ""}
+    ${isSupervisorLoggedIn() ? `<button type="button" class="agenda-delete-btn" onclick="event.stopPropagation();deleteAgenda('${item.id}')"><i class="fa-solid fa-trash"></i> Delete</button>` : ""}
   `;
+  return `
+    <details class="agenda-item">
+      <summary class="agenda-item-summary"><span class="agenda-item-title">${summaryTitle}</span><small>${dateLabel}: ${escapeHTML(agendaStageDate(item, isCompleted))}</small><i class="fa-solid fa-chevron-down agenda-chevron"></i></summary>
+      <div class="agenda-item-details">
+        ${item.description ? `<p>${escapeHTML(item.description)}</p>` : `<p class="agenda-no-description">No additional details.</p>`}
+        ${isDecision && item.decision ? `<p><b>Decision:</b> ${escapeHTML(item.decision)}</p>` : ""}
+        ${isDecision ? `<small>Added: ${escapeHTML(item.createdAt?.slice(0, 10) || item.meetingDate || "—")}</small>` : ""}
+        ${isCompleted ? `<small> · Implemented: ${escapeHTML(item.implementedDate || agendaStageDate(item, true))}</small>` : ""}
+        <div class="agenda-item-actions">${actions}</div>
+      </div>
+    </details>
+  `;
+}
+
+function agendaStageDate(item, completed = false) {
+  if (completed) return item.implementedDate || item.updatedAt?.slice(0, 10) || item.meetingDate || "—";
+  if (["Decision Taken", "Under Action"].includes(agendaStatus(item))) return item.discussedDate || item.updatedAt?.slice(0, 10) || item.meetingDate || "—";
+  return item.createdAt?.slice(0, 10) || item.meetingDate || "—";
 }
 
 function renderAgendas() { agendaInjectStyles(); const b=document.querySelector("#agendaView .agenda-add-button"); if(b)b.style.display=isSupervisorLoggedIn()?"inline-flex":"none";
@@ -258,23 +137,19 @@ function renderAgendas() { agendaInjectStyles(); const b=document.querySelector(
     }
   };
 
-  put("allAgendaList", allAgendas, "ಇನ್ನೂ ಅಜೆಂಡಾ ಸೇರಿಸಿಲ್ಲ.");
-  put("actionAgendaList", underAction, "ಚರ್ಚಿಸಿದ ವಿಷಯಗಳು ಇಲ್ಲಿಲ್ಲ.");
-  put("completedAgendaList", completed, "ಪೂರ್ಣಗೊಂಡ ನಿರ್ಣಯಗಳು ಇಲ್ಲಿಲ್ಲ.");
+  put("allAgendaList", allAgendas, "No agenda items yet.");
+  put("actionAgendaList", underAction, "No topics discussed yet.");
+  put("completedAgendaList", completed, "No decisions taken yet.");
 }
 
-function openAgendaForm(editId = "", decisionMode = false) { if(!requireSupervisor())return; const existing = editId ? agendaState.items.find(item => item.id === editId) : null;
+function openAgendaForm(editId = "") { if(!requireSupervisor())return; const existing = editId ? agendaState.items.find(item => item.id === editId) : null;
   const isEdit = !!existing;
 
   document.getElementById("agendaModal")?.remove();
 
-  const title = decisionMode
-    ? "ಅಜೆಂಡಾವನ್ನು ನಿರ್ಣಯಕ್ಕೆ ಸೇರಿಸಿ"
-    : (isEdit ? "ಅಜೆಂಡಾ ತಿದ್ದುಪಡಿ" : "ಹೊಸ ಅಜೆಂಡಾ");
+  const title = isEdit ? "Edit agenda item" : "Add new agenda";
 
-  const subtitle = decisionMode
-    ? "ಸಭೆಯಲ್ಲಿ ಚರ್ಚಿಸಿದ ನಂತರದ ನಿರ್ಣಯ ಮತ್ತು ಅದರ ಕಾರ್ಯಸ್ಥಿತಿಯನ್ನು ದಾಖಲಿಸಿ."
-    : (isEdit ? "ಅಗತ್ಯವಿರುವ ವಿವರಗಳನ್ನು ಬದಲಾಯಿಸಿ." : "ಮುಂದಿನ ಸಭೆಯಲ್ಲಿ ಚರ್ಚಿಸಬೇಕಾದ ವಿಷಯ ಸೇರಿಸಿ.");
+  const subtitle = isEdit ? "Update the title or details." : "Add a topic for a meeting.";
 
   document.body.insertAdjacentHTML(
     "beforeend",
@@ -291,44 +166,28 @@ function openAgendaForm(editId = "", decisionMode = false) { if(!requireSupervis
           </button>
         </div>
 
-        <form class="program-report-form" onsubmit="saveAgenda(event, '${editId}', ${decisionMode})">
+        <form class="program-report-form" onsubmit="saveAgenda(event, '${editId}')">
 
-          ${decisionMode ? `
-            <div style="padding:12px 14px;border-radius:12px;background:#f3f8ff;color:#234d7d;margin-bottom:4px;">
-              <div style="font-size:11px;font-weight:700;color:#6b7280;">ಅಜೆಂಡಾ</div>
-              <div style="font-size:17px;font-weight:800;margin-top:3px;">${escapeHTML(existing?.title || "—")}</div>
-            </div>
-          ` : `
-            <label>
-              Agenda / ವಿಷಯ *
-              <input name="title" required value="${escapeHTML(existing?.title || "")}" placeholder="ಉದಾ: ರಕ್ತದಾನ ಕಾರ್ಯಕ್ರಮ">
-            </label>
+          <label>
+            Title *
+            <input name="title" required value="${escapeHTML(existing?.title || "")}" placeholder="e.g. Book release">
+          </label>
 
-            <label>
-              ವಿವರ / Description
-              <textarea name="description" placeholder="ಮುಂದಿನ ಸಭೆಯಲ್ಲಿ ಚರ್ಚಿಸಬೇಕಾದ ವಿಷಯ">${escapeHTML(existing?.description || "")}</textarea>
-            </label>
+          <label>
+            Details
+            <textarea name="description" placeholder="Optional details">${escapeHTML(existing?.description || "")}</textarea>
+          </label>
 
-            <label>
-              ಸಭೆಯ ದಿನಾಂಕ *
-              <input name="meetingDate" type="date" required value="${escapeHTML(existing?.meetingDate || "")}">
-            </label>
-
-          `}
-
-          ${decisionMode || isEdit ? `
-            <label>
-              ನಿರ್ಣಯ / Decision ${decisionMode ? "*" : ""}
-              <textarea name="decision" ${decisionMode ? "required" : ""} placeholder="ಸಭೆಯಲ್ಲಿ ತೆಗೆದುಕೊಂಡ ನಿರ್ಣಯವನ್ನು ಇಲ್ಲಿ ಬರೆಯಿರಿ">${escapeHTML(existing?.decision || "")}</textarea>
-            </label>
-
-          ` : ""}
+          <label>
+            Meeting date *
+            <input name="meetingDate" type="date" required value="${escapeHTML(existing?.meetingDate || "")}">
+          </label>
 
           <div class="program-form-actions">
-            <button type="button" class="program-cancel" onclick="document.getElementById('agendaModal').remove()">ರದ್ದು</button>
+            <button type="button" class="program-cancel" onclick="document.getElementById('agendaModal').remove()">Cancel</button>
             <button class="program-submit" type="submit">
               <i class="fa-solid fa-check"></i>
-              ${decisionMode ? "ನಿರ್ಣಯ ಉಳಿಸಿ" : (isEdit ? "ಬದಲಾವಣೆ ಉಳಿಸಿ" : "ಅಜೆಂಡಾ ಉಳಿಸಿ")}
+              ${isEdit ? "Save changes" : "Add agenda"}
             </button>
           </div>
         </form>
@@ -339,18 +198,18 @@ function openAgendaForm(editId = "", decisionMode = false) { if(!requireSupervis
 }
 
 function editAgenda(id) {
-  openAgendaForm(id, false);
+  openAgendaForm(id);
 }
 
 function moveAgendaToDecision(id) {
-  openAgendaForm(id, true);
+  updateAgendaStage(id, "Under Action");
 }
 
-function editDecision(id) {
-  openAgendaForm(id, true);
+function moveAgendaBackToAgenda(id) {
+  updateAgendaStage(id, "Upcoming");
 }
 
-async function saveAgenda(event, editId = "", decisionMode = false) {
+async function saveAgenda(event, editId = "") {
   event.preventDefault(); if(!requireSupervisor())return;
 
   const values = Object.fromEntries(new FormData(event.target).entries());
@@ -361,8 +220,10 @@ async function saveAgenda(event, editId = "", decisionMode = false) {
     description: String(values.description || oldItem.description || "").trim(),
     meetingDate: values.meetingDate || oldItem.meetingDate || "",
     priority: values.priority || oldItem.priority || "Normal",
-    status: decisionMode ? "Under Action" : (oldItem.status === "Completed" ? "Completed" : (oldItem.status === "Decision Taken" || oldItem.status === "Under Action" ? oldItem.status : "Upcoming")),
-    decision: decisionMode ? String(values.decision || oldItem.decision || "").trim() : String(oldItem.decision || "").trim(),
+    status: oldItem.status === "Completed" ? "Completed" : (oldItem.status === "Decision Taken" || oldItem.status === "Under Action" ? oldItem.status : "Upcoming"),
+    discussedDate: oldItem.discussedDate || "",
+    implementedDate: oldItem.implementedDate || "",
+    decision: String(oldItem.decision || "").trim(),
     decisionStatus: oldItem.decisionStatus || "Pending",
     responsible: String(values.responsible || oldItem.responsible || "").trim(),
     targetDate: values.targetDate || oldItem.targetDate || "",
@@ -370,12 +231,7 @@ async function saveAgenda(event, editId = "", decisionMode = false) {
   };
 
   if (!payload.title || !payload.meetingDate) {
-    alert("Agenda title ಮತ್ತು meeting date ಕಡ್ಡಾಯ.");
-    return;
-  }
-
-  if (decisionMode && !payload.decision) {
-    alert("ಸಭೆಯಲ್ಲಿ ತೆಗೆದುಕೊಂಡ ನಿರ್ಣಯವನ್ನು ಬರೆಯಿರಿ.");
+    alert("Title and meeting date are required.");
     return;
   }
 
@@ -406,31 +262,39 @@ async function saveAgenda(event, editId = "", decisionMode = false) {
 
   } catch (error) {
     console.error("Agenda save error:", error);
-    alert("ಅಜೆಂಡಾ / ನಿರ್ಣಯ save ಆಗಲಿಲ್ಲ. Firebase connection ಪರಿಶೀಲಿಸಿ.");
+    alert("Agenda could not be saved. Please check the connection.");
   }
 }
 
 async function completeAgenda(id) {
+  return updateAgendaStage(id, "Completed");
+}
+
+async function updateAgendaStage(id, status) {
   if (!requireSupervisor()) return;
   const item = agendaState.items.find(entry => entry.id === id);
   if (!item) return;
-  const now = new Date().toISOString().slice(0, 10);
-  const payload = { ...item, id, status: "Completed", decisionStatus: "Completed", implementedDate: now, updatedAt: new Date().toISOString() };
+  const now = new Date().toISOString();
+  const payload = { ...item, id, status, decisionStatus: status === "Completed" ? "Completed" : (item.decisionStatus || "Pending"), updatedAt: now };
+  if (status === "Under Action") payload.discussedDate = now;
+  if (status === "Upcoming") { payload.discussedDate = ""; payload.implementedDate = ""; payload.decisionStatus = "Pending"; }
+  if (status === "Under Action" && item.status === "Completed") payload.implementedDate = "";
+  if (status === "Completed") payload.implementedDate = now;
   try {
     await window.firebaseReady;
     await window.firebaseDb.ref(`meetingAgendas/${id}`).update(payload);
     await agendaSheetRequest({ action: "saveAgenda", agenda: payload });
     await openAgendaManagement();
-  } catch (error) { console.error("Agenda completion error:", error); alert("ನಿರ್ಣಯ ಪೂರ್ಣಗೊಳಿಸಲು ಆಗಲಿಲ್ಲ. ಸಂಪರ್ಕ ಪರಿಶೀಲಿಸಿ."); }
+  } catch (error) { console.error("Agenda stage update error:", error); alert("Update failed. Please check the connection."); }
 }
 
 async function deleteAgenda(id) { if(!requireSupervisor())return; const item = agendaState.items.find(entry => entry.id === id);
   if (!item) return;
-  if (!confirm(`"${item.title}" ಅನ್ನು ಅಳಿಸಲು ಖಚಿತವೇ?\n\nಅಳಿಸಿದ ನಂತರ ಈ record ಅನ್ನು ಮರಳಿ ಪಡೆಯಲು ಸಾಧ್ಯವಾಗುವುದಿಲ್ಲ.`)) return;
+  if (!confirm(`Delete "${item.title}"? This cannot be undone.`)) return;
   try {
     await window.firebaseReady;
     await window.firebaseDb.ref(`meetingAgendas/${id}`).remove();
     await agendaSheetRequest({ action: "deleteAgenda", id });
     await openAgendaManagement();
-  } catch (error) { console.error("Agenda delete error:", error); alert("ಅಜೆಂಡಾ delete ಆಗಲಿಲ್ಲ. Firebase connection ಪರಿಶೀಲಿಸಿ."); }
+  } catch (error) { console.error("Agenda delete error:", error); alert("Agenda could not be deleted. Please check the connection."); }
 }
