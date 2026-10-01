@@ -717,6 +717,20 @@ input {
   color: #333;
 }
 
+.blood-history-trigger{display:inline-flex;align-items:center;min-height:32px;margin-top:3px;padding:0 9px;border:1px solid #cfe5d8;border-radius:7px;background:#eff8f2;color:#176b50;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.blood-history-page-button{min-height:36px;padding:0 11px;border:1px solid #cfe5d8;border-radius:8px;background:#eff8f2;color:#176b50;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.blood-donation-modal{position:fixed;inset:0;z-index:1300;display:grid;place-items:center;padding:16px;background:rgba(13,35,25,.48)}
+.blood-donation-modal.hidden{display:none}
+.blood-donation-card{width:min(100%,560px);max-height:min(90dvh,780px);overflow:auto;border-radius:16px;background:#fff;box-shadow:0 18px 55px rgba(0,0,0,.22)}
+.blood-donation-header{position:sticky;top:0;z-index:1;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px;border-bottom:1px solid #e8eee9;background:#fff}
+.blood-donation-header h2{margin:0;color:#174c37;font-size:19px}.blood-donation-header p{margin:5px 0 0;color:#63756a;font-size:12px}
+.blood-modal-close{width:34px;height:34px;min-height:34px;border:0;border-radius:8px;background:#f0f5f1;color:#365445;cursor:pointer}
+.blood-donation-member{display:grid;grid-template-columns:80px 1fr 30px auto;gap:7px;padding:12px 16px;background:#f6faf7;font-size:13px}.blood-donation-member span{color:#74847a}.blood-donation-member strong{color:#294a39}
+.blood-donation-history{display:grid;gap:0;padding:4px 16px}.donation-history-row{position:relative;padding:10px 30px 10px 0;border-bottom:1px solid #edf1ee;font-size:13px}.donation-history-row:last-child{border-bottom:0}.donation-history-row strong,.donation-history-row small{display:block}.donation-history-row small{margin-top:3px;color:#738278;font-size:11px}.donation-history-row p{margin:5px 0 0;color:#4f6357}.donation-delete{position:absolute;right:0;top:12px;width:30px;height:30px;min-height:30px;border:0;border-radius:7px;background:#fff1ef;color:#b42318;cursor:pointer}
+.annual-donation-content{padding:12px 16px}.annual-donation-year{margin-bottom:12px;overflow:hidden;border:1px solid #e1ebe4;border-radius:11px}.annual-donation-year>header{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:10px 12px;background:#edf6f0}.annual-donation-year>header h3{margin:0;color:#174c37;font-size:16px}.annual-donation-year>header span{color:#63756a;font-size:11px;text-align:right}.annual-donation-row{padding:10px 12px;border-top:1px solid #edf1ee;font-size:12px}.annual-donation-member{display:flex;justify-content:space-between;gap:8px}.annual-donation-member strong{color:#244735;font-size:14px}.annual-donation-member span{color:#8b2d38;font-size:11px;font-weight:700}.annual-donation-row time{display:block;margin:3px 0 6px;color:#77867c;font-size:11px}.annual-donation-row p{margin:3px 0;color:#4f6357;line-height:1.4}
+.blood-donation-footer{position:sticky;bottom:0;padding:12px 16px;border-top:1px solid #e8eee9;background:#fff}.blood-donation-add{min-height:38px;padding:0 12px;border:0;border-radius:8px;background:#176b50;color:#fff;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.blood-donation-form{display:grid;grid-template-columns:1fr 1fr;gap:11px;padding:16px}.blood-donation-form label{display:grid;gap:5px;color:#496154;font-size:12px;font-weight:700}.blood-donation-form input,.blood-donation-form textarea{width:100%;min-height:40px;padding:8px 10px;border:1px solid #dbe6de;border-radius:8px;color:#253f32;font:inherit;font-size:15px}.blood-donation-form input[readonly]{background:#f5f8f6;color:#65766b}.blood-donation-form textarea{resize:vertical}.blood-donation-form .donation-remarks,.donation-form-error,.blood-donation-form-actions{grid-column:1/-1}.blood-donation-form-actions{display:flex;justify-content:flex-end;gap:8px;padding-top:5px}.blood-donation-form-actions button{min-width:90px}
+
 .blood-donor-actions {
   display: flex;
   flex-direction: column;
@@ -1025,6 +1039,8 @@ input {
   .blood-donor-actions .btn-disabled {
     flex: 1;
   }
+
+  .blood-donation-modal{align-items:end;padding:0}.blood-donation-card{width:100%;max-height:92dvh;border-radius:18px 18px 0 0}.blood-donation-form{grid-template-columns:1fr;gap:9px;padding:13px}.blood-donation-form .donation-remarks,.donation-form-error,.blood-donation-form-actions{grid-column:auto}.blood-donation-form-actions{position:sticky;bottom:-13px;margin:0 -13px -13px;padding:10px 13px;background:#fff;border-top:1px solid #e8eee9}.blood-donation-form-actions button{flex:1}.blood-donation-member{grid-template-columns:65px 1fr 20px auto;padding:10px 13px}.blood-donation-history{padding-inline:13px}
 
 }
 

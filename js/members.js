@@ -131,6 +131,13 @@ async function renderBloodDonors() {
     await fetchMembersFromFirebase();
 
     const members = fullMembersList.filter(m => String(m.name || "").trim());
+    await waitForFirebase();
+    const donationSnapshot = await window.firebaseDb.ref("bloodDonations").once("value");
+    const donationData = donationSnapshot.val() || {};
+    members.forEach(member => {
+      const records = Object.values(donationData[String(member.id)] || {});
+      member.bloodDonationCount = records.length;
+    });
     if (countEl) countEl.textContent = members.length;
     renderBloodDonorCards(members);
   } catch (error) {
@@ -160,7 +167,7 @@ function renderBloodDonorCards(members) {
 
   container.innerHTML = members.map(m => {
     const displayGroup = m.bloodGroup || "Not Updated";
-    const donated = String(m.bloodCount ?? "").trim() || "0";
+    const donationCount = Number(m.bloodDonationCount ?? m.bloodCount ?? 0);
     const phone = String(m.mobile || "").trim().replace(/[^0-9+]/g, "");
     const whatsapp = normalizePhoneForLinks(m.mobile);
 
@@ -174,7 +181,7 @@ function renderBloodDonorCards(members) {
           <h3>${escapeHTML(m.name)}</h3>
           <p><span>Member ID</span> <strong>${escapeHTML(m.id || "-")}</strong></p>
           <p><span>Blood Group</span> <strong>${escapeHTML(displayGroup)}</strong></p>
-          <p><span>Blood Donated</span> <strong>${escapeHTML(donated)} ${donated === "1" ? "time" : "times"}</strong></p>
+          <button type="button" class="blood-history-trigger" onclick="openBloodDonationHistory('${escapeHTML(m.id)}')">Blood Donated · ${donationCount} ${donationCount === 1 ? "time" : "times"}</button>
         </div>
         <div class="blood-donor-actions">
           ${phone ? `<a class="btn-call" href="tel:${escapeHTML(phone)}" aria-label="Call ${escapeHTML(m.name)}"><i class="fa-solid fa-phone"></i><span>Call</span></a>` : `<span class="btn-disabled">No Phone</span>`}
@@ -182,6 +189,159 @@ function renderBloodDonorCards(members) {
         </div>
       </div>`;
   }).join("");
+}
+
+function getMemberById(memberId) {
+  return fullMembersList.find(member => String(member.id) === String(memberId));
+}
+
+async function openBloodDonationHistory(memberId) {
+  const member = getMemberById(memberId);
+  if (!member) return;
+  const modal = document.getElementById("bloodDonationModal");
+  if (!modal) return;
+  modal.dataset.memberId = String(member.id);
+  document.getElementById("bloodDonationMemberName").textContent = member.name;
+  document.getElementById("bloodDonationMemberId").textContent = member.id || "—";
+  document.getElementById("bloodDonationTitle").textContent = `${member.name} · Donation History`;
+  document.getElementById("bloodDonationHistory").innerHTML = `<p class="loading-message">Loading donation history...</p>`;
+  modal.classList.remove("hidden");
+  try {
+    await waitForFirebase();
+    const snapshot = await window.firebaseDb.ref(`bloodDonations/${member.id}`).once("value");
+    const records = Object.entries(snapshot.val() || {}).map(([id, record]) => ({ id, ...record }))
+      .sort((a, b) => String(b.donationDate || b.createdAt || "").localeCompare(String(a.donationDate || a.createdAt || "")));
+    const units = records.reduce((total, record) => total + (Number(record.units) || 1), 0);
+    member.bloodDonationCount = records.length;
+    document.getElementById("bloodDonationMemberCount").textContent = `${records.length} ${records.length === 1 ? "donation" : "donations"} · ${units} ${units === 1 ? "unit" : "units"} total`;
+    document.getElementById("bloodDonationHistory").innerHTML = records.length ? records.map(record => `
+      <article class="donation-history-row">
+        <div><strong>${escapeHTML(record.patientName || "Patient not recorded")}</strong><small>${escapeHTML(record.donationDate || "Date not recorded")} · ${escapeHTML(record.units || 1)} unit(s)</small></div>
+        <p>${escapeHTML([record.place, record.hospital].filter(Boolean).join(" · "))}</p>
+        ${record.remarks ? `<p>${escapeHTML(record.remarks)}</p>` : ""}
+        <button type="button" class="donation-delete" onclick="deleteBloodDonation('${escapeHTML(member.id)}','${escapeHTML(record.id)}')" aria-label="Delete donation record"><i class="fa-solid fa-trash"></i></button>
+      </article>`).join("") : `<p class="empty-message">No donation records yet.</p>`;
+  } catch (error) {
+    console.error("Blood donation history error:", error);
+    document.getElementById("bloodDonationHistory").innerHTML = `<p class="error-message">Could not load donation history. Please try again.</p>`;
+  }
+}
+
+function closeBloodDonationModal() {
+  document.getElementById("bloodDonationModal")?.classList.add("hidden");
+}
+
+async function openAnnualBloodDonationHistory() {
+  const modal = document.getElementById("annualDonationModal");
+  const content = document.getElementById("annualDonationContent");
+  if (!modal || !content) return;
+  modal.classList.remove("hidden");
+  content.innerHTML = `<p class="loading-message">Loading donation records...</p>`;
+  try {
+    await fetchMembersFromFirebase();
+    await waitForFirebase();
+    const snapshot = await window.firebaseDb.ref("bloodDonations").once("value");
+    const data = snapshot.val() || {};
+    const memberById = new Map(fullMembersList.map(member => [String(member.id), member]));
+    const byYear = {};
+    Object.entries(data).forEach(([memberId, records]) => {
+      Object.entries(records || {}).forEach(([recordId, record]) => {
+        const date = String(record?.donationDate || "");
+        const year = /^\d{4}-\d{2}-\d{2}$/.test(date) ? date.slice(0, 4) : "Date not recorded";
+        const member = memberById.get(String(memberId));
+        (byYear[year] ||= []).push({
+          ...record, recordId, memberId,
+          memberName: member?.name || record?.memberName || "Unknown member",
+          bloodGroup: member?.bloodGroup || ""
+        });
+      });
+    });
+    const years = Object.keys(byYear).sort((a, b) => b.localeCompare(a));
+    if (!years.length) {
+      content.innerHTML = `<p class="empty-message">No blood donation records yet.</p>`;
+      return;
+    }
+    content.innerHTML = years.map(year => {
+      const records = byYear[year].sort((a, b) => String(b.donationDate || "").localeCompare(String(a.donationDate || "")) || a.memberName.localeCompare(b.memberName));
+      const members = new Set(records.map(record => String(record.memberId))).size;
+      const units = records.reduce((sum, record) => sum + (Number(record.units) || 1), 0);
+      return `<section class="annual-donation-year">
+        <header><h3>${escapeHTML(year)}</h3><span>${members} ${members === 1 ? "member" : "members"} · ${records.length} ${records.length === 1 ? "donation" : "donations"} · ${units} ${units === 1 ? "unit" : "units"}</span></header>
+        <div class="annual-donation-list">${records.map(record => `<article class="annual-donation-row">
+          <div class="annual-donation-member"><strong>${escapeHTML(record.memberName)}</strong>${record.bloodGroup ? `<span>${escapeHTML(record.bloodGroup)}</span>` : ""}</div>
+          <time>${escapeHTML(record.donationDate || "Date not recorded")}</time>
+          <p><b>Patient:</b> ${escapeHTML(record.patientName || "—")}</p>
+          <p><b>Place:</b> ${escapeHTML(record.place || "—")}</p>
+          <p><b>Hospital:</b> ${escapeHTML(record.hospital || "—")} · <b>Units:</b> ${escapeHTML(record.units || 1)}</p>
+        </article>`).join("")}</div>
+      </section>`;
+    }).join("");
+  } catch (error) {
+    console.error("Annual blood donation history error:", error);
+    content.innerHTML = `<p class="error-message">Could not load donation history. Please try again.</p>`;
+  }
+}
+
+function closeAnnualBloodDonationHistory() {
+  document.getElementById("annualDonationModal")?.classList.add("hidden");
+}
+
+function openBloodDonationForm() {
+  const memberId = document.getElementById("bloodDonationModal")?.dataset.memberId;
+  const member = getMemberById(memberId);
+  if (!member) return;
+  const form = document.getElementById("bloodDonationForm");
+  form.reset();
+  form.elements.donationDate.value = new Date().toISOString().slice(0, 10);
+  document.getElementById("bloodDonationMemberNameInput").value = member.name;
+  document.getElementById("bloodDonationMemberIdInput").value = member.id || "";
+  document.getElementById("bloodDonationFormError").textContent = "";
+  document.getElementById("bloodDonationFormView").classList.remove("hidden");
+}
+
+function closeBloodDonationForm() {
+  document.getElementById("bloodDonationFormView")?.classList.add("hidden");
+}
+
+async function saveBloodDonation(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const memberId = document.getElementById("bloodDonationModal")?.dataset.memberId;
+  const member = getMemberById(memberId);
+  if (!member) return;
+  const values = Object.fromEntries(new FormData(form).entries());
+  const record = {
+    memberId: String(member.id), memberName: member.name,
+    patientName: String(values.patientName || "").trim(),
+    place: String(values.place || "").trim(), hospital: String(values.hospital || "").trim(),
+    donationDate: String(values.donationDate || ""), units: Number(values.units),
+    remarks: String(values.remarks || "").trim(), createdAt: new Date().toISOString()
+  };
+  const error = document.getElementById("bloodDonationFormError");
+  error.textContent = "";
+  try {
+    await waitForFirebase();
+    await window.firebaseDb.ref(`bloodDonations/${member.id}`).push(record);
+    closeBloodDonationForm();
+    await openBloodDonationHistory(member.id);
+    renderBloodDonorCards(fullMembersList);
+  } catch (saveError) {
+    console.error("Blood donation save error:", saveError);
+    error.textContent = "Could not save this record. Check your connection and try again.";
+  }
+}
+
+async function deleteBloodDonation(memberId, recordId) {
+  if (!confirm("Delete this blood donation record?")) return;
+  try {
+    await waitForFirebase();
+    await window.firebaseDb.ref(`bloodDonations/${memberId}/${recordId}`).remove();
+    await openBloodDonationHistory(memberId);
+    renderBloodDonorCards(fullMembersList);
+  } catch (error) {
+    console.error("Blood donation delete error:", error);
+    alert("Could not delete this record. Please try again.");
+  }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
