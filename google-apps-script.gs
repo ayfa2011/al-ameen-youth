@@ -146,7 +146,10 @@ function uploadDrivePhoto(data) {
       success: true,
       fileId: file.getId(),
       fileName: file.getName(),
-      folderUrl: folder.getUrl()
+      folderUrl: folder.getUrl(),
+      imageUrl: "https://drive.google.com/uc?export=view&id=" + file.getId(),
+      thumbnailUrl: "https://drive.google.com/thumbnail?id=" + file.getId() + "&sz=w1200",
+      webViewLink: file.getUrl()
     };
   } catch (error) {
     return {

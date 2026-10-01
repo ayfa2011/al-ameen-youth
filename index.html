@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="kn">
+<html lang="en">
 
 <head>
 
@@ -19,7 +19,6 @@
     rel="stylesheet"
     href="css/style.css"
   >
-  <link rel="stylesheet" href="css/quiz.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Kannada:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -933,11 +932,6 @@
         <i class="fa-solid fa-arrow-right quick-action-arrow" aria-hidden="true"></i>
       </button>
 
-      <button type="button" class="quiz-entry-button" onclick="openQuiz()">
-        <i class="fa-solid fa-circle-question" aria-hidden="true"></i>
-        <span>ಕ್ವಿಝ್ ಪೇಜಿಗೆ ಪ್ರವೇಶಿಸಿ</span>
-        <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
-      </button>
 
     </nav>
 
@@ -1052,7 +1046,7 @@
           <i class="fa-solid fa-clipboard-list card-icon"></i>
 
           <span>
-            ಸಭಾ ಅಜೆಂಡಾ
+            Meeting Agenda
           </span>
 
         </div>
@@ -1145,11 +1139,6 @@
 
     </div>
 
-    <section id="quizView" class="view-section hidden quiz-view">
-      <div class="quiz-topbar"><button class="btn-back" onclick="showDashboard()"><i class="fa-solid fa-arrow-left"></i> ಮುಖ್ಯಪುಟ</button><span class="quiz-brand"><i class="fa-solid fa-bolt"></i> AL-AMEEN QUIZ</span></div>
-      <main id="quizRoot" class="quiz-root"></main>
-    </section>
-
 
 
     <!-- =======================================================
@@ -1195,7 +1184,7 @@
       </section>
 
       <section class="program-reports-section">
-        <div class="ayfa-supervisor-bar"><span class="ayfa-supervisor-note">🔒 Activity Reports: view-only for members. Add / Edit / Delete = Supervisor only.</span><span data-supervisor-login></span></div>
+        <div class="ayfa-supervisor-bar"><span data-supervisor-login></span></div>
         <div class="program-reports-toolbar">
           <div><p class="program-reports-kicker">AYFA ACTIVITIES &amp; PROGRAMS</p><h3 id="programReportsTitle">Activities</h3></div>
           <div class="program-reports-actions"><select id="programReportYear" onchange="renderProgramReports()" aria-label="Select report year"></select><button type="button" class="program-report-submit" onclick="openProgramReportForm()"><i class="fa-solid fa-plus"></i> Submit Activity Report</button></div>
@@ -1503,7 +1492,7 @@
       <section id="finance" class="finance-section">
         <div class="container">
           <div class="section-card">
-            <h2 class="section-title">💰 ಆರ್ಥಿಕ ವರದಿ (Finance Report 2022-2026)</h2>
+            <h2 class="section-title">💰 Finance Report 2022-2026</h2>
             <p class="section-desc">ಸಂಸ್ಥೆಯ ವರ್ಷಾವಾರು ಆದಾಯ ಮತ್ತು ವೆಚ್ಚದ ವಿವರಗಳು:</p>
 
             <div class="finance-tabs" id="financeYearTabs">
@@ -2249,9 +2238,7 @@
   <script src="js/rentals.js"></script>
   <script src="js/activity-reports.js"></script>
   <script src="js/agenda.js"></script>
-  <script>document.addEventListener("DOMContentLoaded", () => { if (typeof openAgendaManagement === "function") openAgendaManagement(); });</script>
-  <script src="js/quiz-config.js"></script>
-  <script src="js/quiz.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", () => { if (typeof showDashboard === "function") showDashboard(); });</script>
 
 
 
