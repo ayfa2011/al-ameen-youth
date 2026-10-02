@@ -44,17 +44,17 @@ function agendaStatus(item) {
 function agendaInjectStyles() {
   if (document.getElementById("agendaEnhancedStyles")) return;
   document.head.insertAdjacentHTML("beforeend", `<style id="agendaEnhancedStyles">
-    .agenda-item{display:grid;grid-template-columns:30px minmax(0,1fr) auto;align-items:center;gap:8px;margin:0;padding:7px 0;border:0;border-bottom:1px solid #e8eee9;background:#fff}
+    .agenda-item{display:grid;grid-template-columns:30px minmax(0,1fr) auto;align-items:center;gap:8px;margin:0;padding:9px 14px;border:0;border-bottom:1px solid #e1e7ed;background:#fff}
     .agenda-item:last-child{border-bottom:0}
     .agenda-item-number{align-self:start;padding-top:1px;color:#263b31;font-size:14px;font-weight:700}
-    .agenda-item-title{min-width:0;color:#173f6f;font-size:14px;font-weight:600;line-height:1.35;overflow-wrap:anywhere}
+    .agenda-item-title{min-width:0;color:#263b31;font-size:14px;font-weight:600;line-height:1.4;overflow-wrap:anywhere}
     .agenda-item-date{color:#53665b;font-size:12px;white-space:nowrap}
-    .agenda-item-actions{display:flex;grid-column:2/-1;gap:6px;flex-wrap:wrap;margin-top:3px}
-    .agenda-item-actions button{border:0;border-radius:7px;padding:4px 7px;min-height:30px;cursor:pointer;font-weight:700;font-size:11px;display:inline-flex;align-items:center;gap:5px}
-    .agenda-edit-btn{background:#edf4ff;color:#175ea8}.agenda-delete-btn{background:#fff0f0;color:#b42318}
-    .agenda-discussed-btn{background:#e8f2ff;color:#165a9e}.agenda-back-btn{background:#f1f3f5;color:#46544b}.agenda-complete-btn{background:#e6f7ed;color:#177245}
+    .agenda-item-actions{display:flex;grid-column:2/-1;gap:8px;flex-wrap:wrap;margin-top:2px}
+    .agenda-item-actions button{border:0;border-radius:0;padding:3px 4px;min-height:27px;background:transparent;cursor:pointer;font-weight:700;font-size:11px;display:inline-flex;align-items:center;gap:5px}
+    .agenda-edit-btn{color:#175ea8}.agenda-delete-btn{color:#b42318}
+    .agenda-discussed-btn{color:#165a9e}.agenda-back-btn{color:#46544b}.agenda-complete-btn{color:#177245}
     .agenda-completed{display:inline-flex;align-items:center;margin-left:5px;padding:3px 6px;border-radius:999px;background:#e6f7ed;color:#177245;font-size:10px;font-weight:800;vertical-align:middle}
-    @media(max-width:640px){.agenda-item{grid-template-columns:25px minmax(0,1fr) auto;gap:6px;padding:6px 0}.agenda-item-title{font-size:14px}.agenda-item-date{font-size:11px}.agenda-item-actions button{min-height:32px}}
+    @media(max-width:640px){.agenda-item{grid-template-columns:24px minmax(0,1fr);gap:5px;padding:9px 10px}.agenda-item-date{grid-column:2;white-space:normal;font-size:11px}.agenda-item-actions{grid-column:2}.agenda-item-title{font-size:14px}.agenda-item-actions button{min-height:30px}}
   </style>`);
 }
 
@@ -74,7 +74,7 @@ function agendaItemHTML(item, index) {
   return `<article class="agenda-item">
     <span class="agenda-item-number">${index + 1}.</span>
     <span class="agenda-item-title">${escapeHTML(item.title || "—")}${isCompleted ? ` <span class="agenda-completed">Completed</span>` : ""}</span>
-    <time class="agenda-item-date" datetime="${escapeHTML(addedDate)}">Added: ${escapeHTML(addedDate)}</time>
+    <time class="agenda-item-date" datetime="${escapeHTML(addedDate)}">${escapeHTML(addedDate)}</time>
     ${isSupervisorLoggedIn() ? `<div class="agenda-item-actions">${actions}</div>` : ""}
   </article>`;
 }

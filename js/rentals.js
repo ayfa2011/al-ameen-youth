@@ -8,12 +8,15 @@ const RENTAL_PIN_HASHES = {
   speaker: "7b66a6e307824a78144b1e7afea4675a919e513ac331fdd48cdf553b9eaa2519"
 };
 
+const RENTAL_CURRENT_FINANCIAL_YEAR = "2027";
+
 const rentalState = {
   rentals: [],
   role: "viewer",
   category: "",
   filter: "all",
-  search: ""
+  search: "",
+  reportYear: RENTAL_CURRENT_FINANCIAL_YEAR
 };
 
 const RENTAL_CATEGORY = {
@@ -26,6 +29,7 @@ const RENTAL_CATEGORY = {
 const SPEAKER_REPORT_2026 = {
   rentalCount: 19,
   revenue: 15100,
+  collected: 15100,
   maintenance: 0,
   netRevenue: 15100,
   pendingDues: 0,
@@ -52,10 +56,53 @@ const SPEAKER_REPORT_2026 = {
   ]
 };
 
+const CHAIR_TABLE_REPORT_2026 = {
+  rentalCount: 21,
+  revenue: 15887,
+  collected: 15887,
+  maintenance: null,
+  netRevenue: null,
+  pendingDues: 0,
+  details: [
+    { customerName: "Miraz", amount: 100 },
+    { customerName: "Biliyar", amount: 1500 },
+    { customerName: "Sullia", amount: 100 },
+    { customerName: "S.A.S.", amount: 1500 },
+    { customerName: "No Name", amount: 420 },
+    { customerName: "Akka", amount: 75 },
+    { customerName: "Arambooor", amount: 165 },
+    { customerName: "Sullia", amount: 902 },
+    { customerName: "Sullia", amount: 125 },
+    { customerName: "Gafoor", amount: 740 },
+    { customerName: "T.U.A.", amount: 210 },
+    { customerName: "Gafoor", amount: 150 },
+    { customerName: "Sullia", amount: 330 },
+    { customerName: "Aramboor", amount: 1180 },
+    { customerName: "Sullia", amount: 1720 },
+    { customerName: "Aramboor", amount: 125 },
+    { customerName: "Aramboor", amount: 550 },
+    { customerName: "Aramboor", amount: 1195 },
+    { customerName: "A.S.", amount: 900 },
+    { customerName: "Safwan mambli", amount: 900 },
+    { customerName: "Abdulla", amount: 3000 }
+  ]
+};
+
+function importedRentalReport(category, year) {
+  if (year !== "2026") return null;
+  if (category === "speaker") return SPEAKER_REPORT_2026;
+  if (category === "chairTable") return CHAIR_TABLE_REPORT_2026;
+  return null;
+}
+
 function rentalCurrency(value) {
   return new Intl.NumberFormat("en-IN", {
     style: "currency", currency: "INR", maximumFractionDigits: 0
   }).format(Number(value) || 0);
+}
+
+function rentalCurrencyOrDash(value) {
+  return value == null ? "—" : rentalCurrency(value);
 }
 
 function rentalDate(value) {
@@ -106,12 +153,12 @@ function rentalTotals(rentals) {
 }
 
 function rentalReportYearOptions() {
-  const years = new Set([String(new Date().getFullYear())]);
+  const years = new Set([RENTAL_CURRENT_FINANCIAL_YEAR]);
   years.add("2026");
   rentalState.rentals.forEach(rental => {
     if (/^\d{4}/.test(String(rental.startDate || ""))) years.add(String(rental.startDate).slice(0, 4));
   });
-  return Array.from(years).sort((a, b) => b.localeCompare(a)).map(year => `<option value="${year}">${year}</option>`).join("");
+  return Array.from(years).sort((a, b) => b.localeCompare(a)).map(year => `<option value="${year}" ${year === rentalState.reportYear ? "selected" : ""}>${year}</option>`).join("");
 }
 
 function openRentalManagement() {
@@ -156,21 +203,65 @@ function renderRentalDashboard() {
     </div>`;
     return;
   }
+
   const category = rentalState.category;
   const rentals = rentalState.rentals.filter(rental => rental.category === category);
-  const totals = rentalTotals(rentals);
+  const selectedYear = rentalState.reportYear || RENTAL_CURRENT_FINANCIAL_YEAR;
+  const historicalReport = importedRentalReport(category, selectedYear);
+  const yearRentals = historicalReport
+    ? []
+    : rentals.filter(rental => String(rental.startDate || "").startsWith(selectedYear));
+  const totals = rentalTotals(yearRentals);
   const today = new Date().toISOString().slice(0, 10);
-  const upcoming = rentals.filter(rental => String(rental.returnDate || rental.startDate || "") >= today).sort((a,b) => String(a.startDate).localeCompare(String(b.startDate)));
-  const history = rentals.filter(rental => !upcoming.includes(rental));
+  const upcoming = yearRentals
+    .filter(rental => String(rental.returnDate || rental.startDate || "") >= today)
+    .sort((a, b) => String(a.startDate).localeCompare(String(b.startDate)));
+  const history = historicalReport
+    ? historicalReport.details.map((detail, index) => ({
+      id: `speaker-report-2026-${index}`,
+      customerName: detail.customerName,
+      item: "Speaker",
+      totalAmount: detail.amount,
+      paidAmount: detail.status === "Received" ? detail.amount : 0,
+      balance: detail.status === "Pending" ? null : 0,
+      importedHistoric: true,
+      reportPaymentStatus: detail.status || ""
+    }))
+    : yearRentals.filter(rental => !upcoming.includes(rental));
   const categoryLabel = RENTAL_CATEGORY[category].label;
   const canManage = rentalCanManage(category);
-  const bookingList = (items, empty) => items.length ? `<div class="rental-order-list">${items.map(rental => `<article class="rental-order-card"><div class="rental-order-heading"><strong>${escapeHTML(rental.customerName)}</strong><span class="rental-status ${rentalStatus(rental)}">${rentalStatusLabel(rentalStatus(rental))}</span></div><p>${escapeHTML(rental.item || categoryLabel)} · ${escapeHTML(rental.quantity || "—")}</p><div class="rental-order-meta"><span>${rentalDate(rental.startDate)}${rental.returnDate ? ` – ${rentalDate(rental.returnDate)}` : ""}</span><strong>Total ${rentalCurrency(rental.totalAmount)}</strong></div><div class="rental-order-meta"><span>Advance ${rentalCurrency(rental.advanceAmount ?? rental.paidAmount)}</span><strong class="${Number(rental.balance) ? "rental-due" : ""}">Due ${rentalCurrency(rental.balance)}</strong></div>${rental.equipmentProvided?.length ? `<p class="rental-equipment-summary">Equipment: ${rental.equipmentProvided.map(escapeHTML).join(", ")}</p>` : ""}${canManage ? `<div class="rental-order-actions"><button class="rental-secondary-button" type="button" onclick="openRentalEntry('${rental.id}')">Edit</button><button class="rental-secondary-button" type="button" onclick="openPaymentModal('${rental.id}')">Add payment</button><button class="rental-delete-button" type="button" onclick="deleteRental('${rental.id}')">Delete</button></div>` : ""}</article>`).join("")}</div>` : `<div class="rental-empty">${empty}</div>`;
+
+  const bookingList = (items, empty) => items.length
+    ? `<div class="rental-order-list">${items.map(rental => {
+      const status = rental.importedHistoric
+        ? (rental.reportPaymentStatus === "Received" ? "paid" : rental.reportPaymentStatus === "Pending" ? "pending" : "")
+        : rentalStatus(rental);
+      const statusText = rental.importedHistoric ? rental.reportPaymentStatus : rentalStatusLabel(status);
+      const details = rental.importedHistoric
+        ? `<p>${escapeHTML(rental.item)}</p>`
+        : `<p>${escapeHTML(rental.item || categoryLabel)} · ${escapeHTML(rental.quantity || "—")}<small>${rentalDate(rental.startDate)}${rental.returnDate ? ` – ${rentalDate(rental.returnDate)}` : ""}</small></p>${rental.equipmentProvided?.length ? `<small class="rental-equipment-summary">Equipment: ${rental.equipmentProvided.map(escapeHTML).join(", ")}</small>` : ""}`;
+      const amount = rental.importedHistoric
+        ? `<div class="rental-order-value"><span>Amount</span><strong>${rental.totalAmount == null ? "—" : rentalCurrency(rental.totalAmount)}</strong></div>`
+        : `<div class="rental-order-value"><strong>Total ${rentalCurrency(rental.totalAmount)}</strong><span>Paid ${rentalCurrency(rental.paidAmount)} · Due ${rentalCurrency(rental.balance)}</span></div>`;
+      const actions = canManage && !rental.importedHistoric
+        ? `<div class="rental-order-actions"><button class="rental-secondary-button" type="button" onclick="openRentalEntry('${rental.id}')"><i class="fa-solid fa-pen"></i> Edit</button><button class="rental-secondary-button" type="button" onclick="openPaymentModal('${rental.id}')"><i class="fa-solid fa-money-bill-wave"></i> Payment</button><button class="rental-delete-button" type="button" onclick="deleteRental('${rental.id}')"><i class="fa-solid fa-trash"></i> Delete</button></div>`
+        : "";
+      const statusBadge = statusText ? `<span class="rental-status ${status}">${escapeHTML(statusText)}</span>` : "";
+      return `<article class="rental-order-card"><div class="rental-order-person"><div class="rental-order-heading"><strong>${escapeHTML(rental.customerName)}</strong>${statusBadge}</div>${details}</div>${amount}${actions}</article>`;
+    }).join("")}</div>`
+    : `<div class="rental-empty">${empty}</div>`;
+
+  const displayedTotals = historicalReport
+    ? { count: historicalReport.rentalCount, revenue: historicalReport.revenue, collected: historicalReport.collected, pending: historicalReport.pendingDues }
+    : { count: yearRentals.length, revenue: totals.total, collected: totals.paid, pending: totals.balance };
+
   target.innerHTML = `<div class="rental-department-toolbar"><button class="rental-secondary-button" type="button" onclick="setRentalCategory('')"><i class="fa-solid fa-arrow-left"></i> Categories</button><h3><i class="fa-solid ${RENTAL_CATEGORY[category].icon}"></i> ${categoryLabel}</h3>${rentalState.role === category ? `<button class="rental-secondary-button" type="button" onclick="openRentalLogin()">Log out</button>` : `<button class="rental-secondary-button" type="button" onclick="openRentalLogin('${category}')"><i class="fa-solid fa-lock"></i> Supervisor Login</button>`}</div>
-    <div class="rental-summary-grid rental-simple-summary"><div class="rental-stat-card"><span>Total Rentals</span><strong>${rentals.length}</strong></div><div class="rental-stat-card"><span>Total Revenue</span><strong>${rentalCurrency(totals.total)}</strong></div><div class="rental-stat-card"><span>Total Collected</span><strong>${rentalCurrency(totals.paid)}</strong></div><div class="rental-stat-card pending"><span>Pending Dues</span><strong>${rentalCurrency(totals.balance)}</strong></div></div>
+    <div class="rental-year-filter"><label for="rentalReportYear">Year</label><select id="rentalReportYear" aria-label="Select year" onchange="setRentalReportYear(this.value)">${rentalReportYearOptions()}</select></div>
+    <div class="rental-summary-grid rental-simple-summary"><div class="rental-stat-card"><span>Total Rentals</span><strong>${displayedTotals.count}</strong></div><div class="rental-stat-card"><span>Total Revenue</span><strong>${rentalCurrencyOrDash(displayedTotals.revenue)}</strong></div><div class="rental-stat-card"><span>Total Collected</span><strong>${rentalCurrencyOrDash(displayedTotals.collected)}</strong></div><div class="rental-stat-card pending"><span>Pending Dues</span><strong>${rentalCurrencyOrDash(displayedTotals.pending)}</strong></div></div>
     ${canManage ? `<button class="rental-primary-button rental-new-booking" type="button" onclick="openRentalEntry()"><i class="fa-solid fa-plus"></i> Add Rental</button>` : ""}
     <section class="rental-panel rental-order-section"><h3><i class="fa-regular fa-calendar-check"></i> Upcoming <span>${upcoming.length}</span></h3>${bookingList(upcoming,"No upcoming rentals.")}</section>
     <section class="rental-panel rental-order-section"><h3><i class="fa-solid fa-clock-rotate-left"></i> Rental History <span>${history.length}</span></h3>${bookingList(history,"No past rentals.")}</section>
-    <div class="rental-report-action"><select id="rentalReportYear" class="rental-secondary-button" aria-label="Report year">${rentalReportYearOptions()}</select><button class="rental-secondary-button" type="button" onclick="downloadRentalPDFReport('${category}', document.getElementById('rentalReportYear').value)"><i class="fa-solid fa-file-pdf"></i> Export PDF</button><button class="rental-secondary-button" type="button" onclick="downloadRentalReport('${category}', document.getElementById('rentalReportYear').value)"><i class="fa-solid fa-file-excel"></i> Excel</button></div>`;
+    <div class="rental-report-action"><button class="rental-secondary-button" type="button" onclick="downloadRentalPDFReport('${category}', document.getElementById('rentalReportYear').value)"><i class="fa-solid fa-file-pdf"></i> Export PDF</button><button class="rental-secondary-button" type="button" onclick="downloadRentalReport('${category}', document.getElementById('rentalReportYear').value)"><i class="fa-solid fa-file-excel"></i> Excel</button></div>`;
 
 }
 
@@ -178,6 +269,11 @@ function setRentalCategory(category) {
   rentalState.category = category;
   rentalState.filter = category || "all";
   rentalState.search = "";
+  renderRentalDashboard();
+}
+
+function setRentalReportYear(year) {
+  rentalState.reportYear = String(year || RENTAL_CURRENT_FINANCIAL_YEAR);
   renderRentalDashboard();
 }
 
@@ -352,16 +448,25 @@ async function saveRentalPayment(event, id) {
 function downloadRentalReport(category, selectedYear) {
   if (typeof XLSX === "undefined") { alert("Excel report library load ಆಗಿಲ್ಲ. Internet connection ಪರಿಶೀಲಿಸಿ."); return; }
   const year = selectedYear || String(new Date().getFullYear());
-  const isImportedSpeakerReport = category === "speaker" && year === "2026";
-  const rentals = isImportedSpeakerReport ? [] : rentalState.rentals.filter(rental => rental.category === category && String(rental.startDate || "").startsWith(String(year)));
+  const historicalReport = importedRentalReport(category, String(year));
+  const rentals = historicalReport ? [] : rentalState.rentals.filter(rental => rental.category === category && String(rental.startDate || "").startsWith(String(year)));
   const totals = rentalTotals(rentals);
   const maintenance = rentals.reduce((sum, rental) => sum + (Number(rental.maintenanceCost) || 0), 0);
   const title = category === "chairTable" ? "Chair & Table Rental Report" : "Speaker Rental Report";
-  const summary = [[title], ["Year", year], ["Report generated", new Date().toLocaleDateString("en-IN")], [], ["Financial summary", "Amount (INR)"], ["Total rentals", isImportedSpeakerReport ? SPEAKER_REPORT_2026.rentalCount : rentals.length], [isImportedSpeakerReport ? "Total revenue collected" : "Total rental amount", isImportedSpeakerReport ? SPEAKER_REPORT_2026.revenue : totals.total], ["Total collected", isImportedSpeakerReport ? SPEAKER_REPORT_2026.revenue : totals.paid], ...(!isImportedSpeakerReport ? [["Advance collected", totals.advance]] : []), ["Maintenance / repair cost", isImportedSpeakerReport ? SPEAKER_REPORT_2026.maintenance : rentals.reduce((sum, rental) => sum + (Number(rental.maintenanceCost) || 0), 0)], ["Net revenue", isImportedSpeakerReport ? SPEAKER_REPORT_2026.netRevenue : totals.paid - rentals.reduce((sum, rental) => sum + (Number(rental.maintenanceCost) || 0), 0)], ["Pending dues", isImportedSpeakerReport ? SPEAKER_REPORT_2026.pendingDues : totals.balance], [], ["Payment details"], ["Customer", "Amount", "Status"]];
-  if (isImportedSpeakerReport) SPEAKER_REPORT_2026.details.forEach(detail => summary.push([detail.customerName, detail.amount ?? "", detail.status]));
-  else rentals.filter(rental => (Number(rental.balance) || 0) > 0).forEach(rental => summary.push([rental.customerName, rental.place || "", rental.item || "", Number(rental.balance) || 0]));
-  const details = [isImportedSpeakerReport ? ["Customer / Event", "Amount (INR)", "Payment Status"] : ["Customer", "Mobile", "Place", "Item", "Quantity", "Start date", "Return date", "Rent amount", "Advance", "Paid", "Balance", "Status", "Note"]];
-  if (isImportedSpeakerReport) SPEAKER_REPORT_2026.details.forEach(detail => details.push([detail.customerName, detail.amount ?? "", detail.status]));
+  const summary = [[title], ["Year", year], ["Report generated", new Date().toLocaleDateString("en-IN")], [], ["Financial summary", "Amount (INR)"], ["Total rentals", historicalReport?.rentalCount ?? rentals.length], [historicalReport ? "Total revenue" : "Total rental amount", historicalReport?.revenue ?? totals.total]];
+  if (historicalReport) {
+    if (historicalReport.collected != null) summary.push(["Total collected", historicalReport.collected]);
+    if (historicalReport === SPEAKER_REPORT_2026) summary.push(["Maintenance / repair cost", historicalReport.maintenance], ["Net revenue", historicalReport.netRevenue]);
+    if (historicalReport.pendingDues != null) summary.push(["Pending dues", historicalReport.pendingDues]);
+    summary.push([], ["Rental details"], historicalReport.details.some(detail => detail.status) ? ["Name", "Amount (INR)", "Status"] : ["Name", "Amount (INR)"]);
+    historicalReport.details.forEach(detail => summary.push(historicalReport.details.some(item => item.status) ? [detail.customerName, detail.amount ?? "", detail.status] : [detail.customerName, detail.amount ?? ""]));
+  } else {
+    summary.push(["Total collected", totals.paid], ["Advance collected", totals.advance], ["Maintenance / repair cost", maintenance], ["Net revenue", totals.paid - maintenance], ["Pending dues", totals.balance], [], ["Pending payment details"], ["Customer", "Place", "Item", "Balance"]);
+    rentals.filter(rental => (Number(rental.balance) || 0) > 0).forEach(rental => summary.push([rental.customerName, rental.place || "", rental.item || "", Number(rental.balance) || 0]));
+  }
+  const hasPaymentStatuses = historicalReport?.details.some(detail => detail.status);
+  const details = [historicalReport ? (hasPaymentStatuses ? ["Name", "Amount (INR)", "Status"] : ["Name", "Amount (INR)"]) : ["Customer", "Mobile", "Place", "Item", "Quantity", "Start date", "Return date", "Rent amount", "Advance", "Paid", "Balance", "Status", "Note"]];
+  if (historicalReport) historicalReport.details.forEach(detail => details.push(hasPaymentStatuses ? [detail.customerName, detail.amount ?? "", detail.status] : [detail.customerName, detail.amount ?? ""]));
   else rentals.forEach(rental => details.push([rental.customerName, rental.mobile || "", rental.place || "", rental.item || "", rental.quantity || "", rental.startDate || "", rental.returnDate || "", Number(rental.totalAmount) || 0, Number(rental.advanceAmount ?? rental.paidAmount) || 0, Number(rental.paidAmount) || 0, Number(rental.balance) || 0, rentalStatusLabel(rentalStatus(rental)), rental.note || ""]));
   const workbook = XLSX.utils.book_new();
   const summarySheet = XLSX.utils.aoa_to_sheet(summary);
@@ -377,8 +482,8 @@ function downloadRentalPDFReport(category, selectedYear) {
   const PDF = window.jspdf?.jsPDF;
   if (!PDF) { alert("PDF report library is unavailable. Please try again."); return; }
   const year = String(selectedYear || new Date().getFullYear());
-  const isImportedSpeakerReport = category === "speaker" && year === "2026";
-  const rentals = isImportedSpeakerReport ? [] : rentalState.rentals.filter(rental => rental.category === category && String(rental.startDate || "").startsWith(year));
+  const historicalReport = importedRentalReport(category, year);
+  const rentals = historicalReport ? [] : rentalState.rentals.filter(rental => rental.category === category && String(rental.startDate || "").startsWith(year));
   const totals = rentalTotals(rentals);
   const pdf = new PDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = pdf.internal.pageSize.getWidth();
@@ -389,15 +494,16 @@ function downloadRentalPDFReport(category, selectedYear) {
   pdf.text(`${RENTAL_CATEGORY[category]?.label || "Rental"} Report`, margin, y); y += 7;
   pdf.setFontSize(10); pdf.setTextColor(90, 105, 96);
   pdf.text(`Year ${year} · Generated ${new Date().toLocaleDateString("en-IN")}`, margin, y); y += 9;
-  const metrics = isImportedSpeakerReport
-    ? [["Total rentals", String(SPEAKER_REPORT_2026.rentalCount)], ["Total revenue collected", rentalCurrency(SPEAKER_REPORT_2026.revenue)], ["Maintenance / repair cost", rentalCurrency(SPEAKER_REPORT_2026.maintenance)], ["Net revenue", rentalCurrency(SPEAKER_REPORT_2026.netRevenue)], ["Pending dues", rentalCurrency(SPEAKER_REPORT_2026.pendingDues)]]
+  const metrics = historicalReport
+    ? [["Total rentals", String(historicalReport.rentalCount)], ["Total revenue", rentalCurrencyOrDash(historicalReport.revenue)], ...(historicalReport.collected != null ? [["Total collected", rentalCurrency(historicalReport.collected)]] : []), ...(historicalReport === SPEAKER_REPORT_2026 ? [["Maintenance / repair cost", rentalCurrency(historicalReport.maintenance)], ["Net revenue", rentalCurrency(historicalReport.netRevenue)]] : []), ...(historicalReport.pendingDues != null ? [["Pending dues", rentalCurrency(historicalReport.pendingDues)]] : [])]
     : [["Total rentals", String(rentals.length)], ["Total collected", rentalCurrency(totals.paid)], ["Advance collected", rentalCurrency(totals.advance)], ["Pending dues", rentalCurrency(totals.balance)]];
   metrics.forEach(([label, value]) => { pdf.setFontSize(9); pdf.setTextColor(90, 105, 96); pdf.text(label, margin, y); pdf.setFontSize(11); pdf.setTextColor(23, 62, 45); pdf.text(value, margin + width, y, { align: "right" }); y += 6; });
   y += 3;
-  const reportDetails = isImportedSpeakerReport ? SPEAKER_REPORT_2026.details : rentals;
+  const reportDetails = historicalReport ? historicalReport.details : rentals;
   reportDetails.forEach((rental, index) => {
-    if (isImportedSpeakerReport) {
-      const lines = [`${index + 1}. ${rental.customerName} · ${rental.status}`, `Amount ${rental.amount == null ? "—" : rentalCurrency(rental.amount)}`];
+    if (historicalReport) {
+      const status = rental.status ? ` · ${rental.status}` : "";
+      const lines = [`${index + 1}. ${rental.customerName}${status}`, `Amount ${rental.amount == null ? "—" : rentalCurrency(rental.amount)}`];
       const blockHeight = lines.length * 4.5 + 5;
       if (y + blockHeight > 282) { pdf.addPage(); y = 15; }
       pdf.setDrawColor(220, 232, 224); pdf.line(margin, y, pageWidth - margin, y); y += 4;
