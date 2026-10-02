@@ -123,6 +123,44 @@ const bearers2027Data = [
 
 ];
 
+const bearers2026Data = [
+  ["Honorary President", "Kabeer Limra"],
+  ["President", "Asif Panne"],
+  ["General Secretary", "Nizar Shine"],
+  ["Treasurer", "Nasir Paladka"],
+  ["Vice President", "Abdul Kunjhi"],
+  ["Vice President", "Safwan Mambli"],
+  ["Joint Secretary", "Rameez Shine"],
+  ["Joint Secretary", "Rauf Mambli"],
+  ["Assistant Treasurer", "Ashik Star"],
+  ["Assistant Treasurer", "Ashpak PR"],
+  ["Media Wing", "Muneer Shine"],
+  ["Social Media Handle", "Nasir Mambli"],
+  ["Chair & Table In-Charge", "Javid Sheikh"],
+  ["Academic In-Charge", "Miraz Mambli"],
+  ["Medical In-Charge", "Rishad Paladka"],
+  ["Felicitation In-Charge", "Samshuddin Mambli"]
+].map(([designation, name], index) => ({ sl: index + 1, designation, name }));
+
+const bearers2025Data = [
+  ["Hon. President", "Kabeer Limra"],
+  ["President", "Abdullah Kunjhi"],
+  ["Vice President", "Shareef Mambli"],
+  ["Gen. Secretary", "Asif Panne"],
+  ["Joint Secretary", "Samsuddin Mambli"],
+  ["Joint Secretary", "Sharafuddin Sheik"],
+  ["Treasury", "Nasir Paladka"],
+  ["Assistant", "Safwan Mambli"],
+  ["Assistant", "Muhammad Mambli"],
+  ["Chair & Table Incharge", "Javid Sheik"],
+  ["Chair & Table Incharge", "Sharafuddin Sheik"],
+  ["Praising Team", "Rauf Mambli"],
+  ["Praising Team", "Mukthar Mambli"],
+  ...["Nasir Mambli", "Nizar Paladka", "Kabeer Limra", "Faris Mambli"].map(name => ["Media Wing", name]),
+  ...["Basheer Aramboor", "Asif Panne", "Azeez Mambli", "Nizar Paladka", "Hafeez Paladka"].map(name => ["Academic Wing", name]),
+  ...["Moosa Haris Makdoomi", "Moinuddin Faizy", "Kalandar Aramboor", "Kabeer Panne", "Ashik Star", "Muneer Shine", "Rasheed Mambli", "Niyaz Mambli"].map(name => ["Director", name])
+].map(([designation, name], index) => ({ sl: index + 1, designation, name }));
+
 
 // ============================================================
 // SECURITY / HTML HELPERS
@@ -473,7 +511,14 @@ function loadBearers(year) {
   tbody.innerHTML = "";
 
 
-  if (year !== "2027") {
+  const yearRosters = {
+    "2027": bearers2027Data,
+    "2026": bearers2026Data,
+    "2025": bearers2025Data
+  };
+  const roster = yearRosters[year];
+
+  if (!roster) {
 
     tbody.innerHTML = `
 
@@ -499,7 +544,7 @@ function loadBearers(year) {
   }
 
 
-  bearers2027Data.forEach(item => {
+  roster.forEach(item => {
 
     tbody.insertAdjacentHTML(
 

@@ -5,10 +5,39 @@
 let fullMembersList = [];
 window.fullMembersList = fullMembersList;
 
-function normalizeBloodGroup(value) {
-  const v = String(value ?? "").trim().toUpperCase();
-  return v === "0+" ? "O+" : v === "0-" ? "O-" : v;
+function bloodMemberKey(value) {
+  return String(value ?? "").replace(/\([^)]*\)/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
 }
+
+function memberDisplayId(member) {
+  const index = fullMembersList.findIndex(item => String(item.id) === String(member?.id));
+  return `AYF${String(index >= 0 ? index + 1 : 0).padStart(2, "0")}`;
+}
+
+const VERIFIED_MEMBER_BLOOD_GROUPS = new Map([
+  ["Safwan Mambli", ""], ["Rasheed Mambli", ""], ["Abdulla Kunji", "O+"],
+  ["Anshif Mambli", "A-"], ["Sharafuddeen Shaik", ""], ["Anas Mambli", ""],
+  ["Rafeeq Mambli", "O+"], ["Faris Mambli", "O+"], ["Hashir PR", ""],
+  ["Basith mambli", ""], ["Azaruddin Mambli", ""], ["Miraz Mambli", ""],
+  ["Niyaz Mambli", ""], ["Naushad Egu", ""], ["Shareef Mambli", "O+"],
+  ["Kabeer Panne", "AB+"], ["Kareem Star", ""], ["Kalandar Aramboor", ""],
+  ["Sabith Mambli", "B+"], ["Fazan mambli", ""], ["Raashid Paladka", "O+"],
+  ["Razik PG Aramboor", "O+"], ["Mukthar Mambli", ""], ["Shareef A. S", ""],
+  ["Ashiq Aramboor", "AB+"], ["Yaser Shaik", ""], ["Shafeeq Shaik", ""],
+  ["Thwaha Shaik", ""], ["Khaleed Kocchi", "O+"], ["Rishaad Paladka", "B+"],
+  ["Sabir Mambli", "B+"], ["Khasim Paladka", "B+"], ["Javed Shaik", ""],
+  ["Sadiq Mambli", ""], ["Muhsin Panne", "O+"], ["Kabeer Limra", "B+"],
+  ["Niyaz JR", ""], ["Nizar Shine", ""], ["Badruddeen Mambli", "A-"],
+  ["Samshuddin Mambli", "B+"], ["Nadeem Shaik", ""], ["Asif Panne", "O+"],
+  ["Shaheer Star", ""], ["Thajuddeen Paladka", "AB+"], ["Rauf Mambli", "O+"],
+  ["Sinan Panne", ""], ["Ashfaq PR", "O+"], ["Shamal Mambli", ""],
+  ["Rameez Shine", ""], ["Mujthaba Mambli", "AB+"], ["Nizam Mambli", "O+"],
+  ["Fayiz Mambli", ""], ["Mohammed Adnan", ""], ["Ehan Basheer", "A+"],
+  ["Hafeez PR", "O+"], ["Nasir Mambli", "B+"], ["Javad Mambli", "A+"],
+  ["Nasir Paladka", "B+"], ["Mohammad Mambli", "O+"], ["Muneer Shine", ""]
+].map(([name, group]) => [bloodMemberKey(name), group]));
+VERIFIED_MEMBER_BLOOD_GROUPS.set(bloodMemberKey("Ashphak PR"), "O+");
+VERIFIED_MEMBER_BLOOD_GROUPS.set(bloodMemberKey("Ashphak P.R."), "O+");
 
 function normalizeMember(row) {
   return {
@@ -20,7 +49,7 @@ function normalizeMember(row) {
     mobile: row.mobile ?? row["Mobile"] ?? "",
     contribution: row.contribution ?? row["Monthy Contribution Amount"] ?? row["Monthly Contribution Amount"] ?? "",
     location: row.location ?? row["Location"] ?? "",
-    bloodGroup: normalizeBloodGroup(row.bloodGroup ?? row["Blood Group"] ?? ""),
+    bloodGroup: VERIFIED_MEMBER_BLOOD_GROUPS.get(bloodMemberKey(row.name ?? row["Name"] ?? "")) ?? "",
     bloodCount: row.bloodCount ?? row["How Many Times Blood Donated :"] ?? row["How Many Times Blood Donated"] ?? 0
   };
 }
@@ -166,28 +195,29 @@ function renderBloodDonorCards(members) {
   }
 
   container.innerHTML = members.map(m => {
-    const displayGroup = m.bloodGroup || "Not Updated";
+    const displayGroup = m.bloodGroup || "";
     const donationCount = Number(m.bloodDonationCount ?? m.bloodCount ?? 0);
+    const displayedCount = String(donationCount).padStart(2, "0");
     const phone = String(m.mobile || "").trim().replace(/[^0-9+]/g, "");
     const whatsapp = normalizePhoneForLinks(m.mobile);
 
     return `
-      <div class="blood-donor-card" data-search="${escapeHTML(`${m.name} ${displayGroup} ${m.id}`.toLowerCase())}">
-        <div class="blood-group-badge ${m.bloodGroup ? "has-group" : "missing-group"}">
-          <i class="fa-solid fa-droplet"></i>
-          <span>${escapeHTML(displayGroup)}</span>
-        </div>
+      <article class="blood-donor-card" data-search="${escapeHTML(`${m.name} ${displayGroup} ${m.id} ${memberDisplayId(m)}`.toLowerCase())}">
+        <div class="blood-member-avatar" aria-hidden="true"><i class="fa-solid fa-user"></i></div>
         <div class="blood-donor-info">
           <h3>${escapeHTML(m.name)}</h3>
-          <p><span>Member ID</span> <strong>${escapeHTML(m.id || "-")}</strong></p>
-          <p><span>Blood Group</span> <strong>${escapeHTML(displayGroup)}</strong></p>
-          <button type="button" class="blood-history-trigger" onclick="openBloodDonationHistory('${escapeHTML(m.id)}')">Blood Donated · ${donationCount} ${donationCount === 1 ? "time" : "times"}</button>
+          <div class="blood-donor-meta">ID : ${escapeHTML(memberDisplayId(m))} <span>|</span> ${displayedCount} ${donationCount === 1 ? "Time" : "Times"} Donated</div>
+        </div>
+        <div class="blood-group-badge ${m.bloodGroup ? "has-group" : "missing-group"}" aria-label="Blood group ${escapeHTML(displayGroup || "not provided")}">
+          ${displayGroup ? `<i class="fa-solid fa-droplet"></i><span>${escapeHTML(displayGroup)}</span>` : ""}
         </div>
         <div class="blood-donor-actions">
-          ${phone ? `<a class="btn-call" href="tel:${escapeHTML(phone)}" aria-label="Call ${escapeHTML(m.name)}"><i class="fa-solid fa-phone"></i><span>Call</span></a>` : `<span class="btn-disabled">No Phone</span>`}
-          ${whatsapp ? `<a class="btn-wa" href="https://wa.me/${escapeHTML(whatsapp)}" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i><span>WhatsApp</span></a>` : ""}
+          ${phone ? `<a class="btn-call" href="tel:${escapeHTML(phone)}" aria-label="Call ${escapeHTML(m.name)}" title="Call"><i class="fa-solid fa-phone"></i></a>` : ""}
+          ${whatsapp ? `<a class="btn-wa" href="https://wa.me/${escapeHTML(whatsapp)}" target="_blank" rel="noopener" aria-label="WhatsApp ${escapeHTML(m.name)}" title="WhatsApp"><i class="fa-brands fa-whatsapp"></i></a>` : ""}
         </div>
-      </div>`;
+        <span class="blood-row-divider" aria-hidden="true"></span>
+        <button type="button" class="blood-history-open" onclick="openBloodDonationHistory('${escapeHTML(m.id)}')" aria-label="Open ${escapeHTML(m.name)} donation history"><i class="fa-solid fa-chevron-right"></i></button>
+      </article>`;
   }).join("");
 }
 
@@ -202,7 +232,7 @@ async function openBloodDonationHistory(memberId) {
   if (!modal) return;
   modal.dataset.memberId = String(member.id);
   document.getElementById("bloodDonationMemberName").textContent = member.name;
-  document.getElementById("bloodDonationMemberId").textContent = member.id || "—";
+  document.getElementById("bloodDonationMemberId").textContent = memberDisplayId(member);
   document.getElementById("bloodDonationTitle").textContent = `${member.name} · Donation History`;
   document.getElementById("bloodDonationHistory").innerHTML = `<p class="loading-message">Loading donation history...</p>`;
   modal.classList.remove("hidden");
@@ -294,7 +324,7 @@ function openBloodDonationForm() {
   form.reset();
   form.elements.donationDate.value = new Date().toISOString().slice(0, 10);
   document.getElementById("bloodDonationMemberNameInput").value = member.name;
-  document.getElementById("bloodDonationMemberIdInput").value = member.id || "";
+  document.getElementById("bloodDonationMemberIdInput").value = memberDisplayId(member);
   document.getElementById("bloodDonationFormError").textContent = "";
   document.getElementById("bloodDonationFormView").classList.remove("hidden");
 }
