@@ -4,12 +4,17 @@
 
 let fullMembersList = [];
 window.fullMembersList = fullMembersList;
+let memberDatabaseKeyById = new Map();
 
 function bloodMemberKey(value) {
   return String(value ?? "").replace(/\([^)]*\)/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
 function memberDisplayId(member) {
+  const savedCode = String(member?.memberCode || member?.displayId || "").trim().toUpperCase();
+  if (/^AYF\d+$/.test(savedCode)) return savedCode;
+  const numericId = Number(member?.id);
+  if (Number.isInteger(numericId) && numericId > 0) return `AYF${String(numericId).padStart(2, "0")}`;
   const index = fullMembersList.findIndex(item => String(item.id) === String(member?.id));
   return `AYF${String(index >= 0 ? index + 1 : 0).padStart(2, "0")}`;
 }
@@ -40,6 +45,7 @@ VERIFIED_MEMBER_BLOOD_GROUPS.set(bloodMemberKey("Ashphak PR"), "O+");
 VERIFIED_MEMBER_BLOOD_GROUPS.set(bloodMemberKey("Ashphak P.R."), "O+");
 
 function normalizeMember(row) {
+  const bloodGroupOverride = row.bloodGroupOverride;
   return {
     id: row.id ?? row["Member ID"] ?? "",
     name: row.name ?? row["Name"] ?? "",
@@ -49,7 +55,7 @@ function normalizeMember(row) {
     mobile: row.mobile ?? row["Mobile"] ?? "",
     contribution: row.contribution ?? row["Monthy Contribution Amount"] ?? row["Monthly Contribution Amount"] ?? "",
     location: row.location ?? row["Location"] ?? "",
-    bloodGroup: VERIFIED_MEMBER_BLOOD_GROUPS.get(bloodMemberKey(row.name ?? row["Name"] ?? "")) ?? "",
+    bloodGroup: bloodGroupOverride !== undefined ? String(bloodGroupOverride || "") : (VERIFIED_MEMBER_BLOOD_GROUPS.get(bloodMemberKey(row.name ?? row["Name"] ?? "")) ?? ""),
     bloodCount: row.bloodCount ?? row["How Many Times Blood Donated :"] ?? row["How Many Times Blood Donated"] ?? 0
   };
 }
@@ -67,8 +73,14 @@ async function fetchMembersFromFirebase(force = false) {
   const snapshot = await window.firebaseDb.ref("members").once("value");
   const data = snapshot.val() || {};
 
-  fullMembersList = Object.values(data)
-    .map(normalizeMember)
+  memberDatabaseKeyById = new Map();
+  fullMembersList = Object.entries(data)
+    .map(([databaseKey, row]) => {
+      const member = normalizeMember(row || {});
+      member.id = String(member.id || databaseKey);
+      memberDatabaseKeyById.set(String(member.id), databaseKey);
+      return member;
+    })
     .filter(m => String(m.name || "").trim());
 
   fullMembersList.sort((a, b) => Number(a.id) - Number(b.id));
@@ -85,27 +97,35 @@ function memberCardHTML(m) {
   const phone = String(m.mobile || "").replace(/[^0-9+]/g, "");
   const whatsapp = normalizePhoneForLinks(m.mobile);
   const attendanceCount = Number(m.attendanceCount || 0);
+  const details = [
+    ["Education", m.education, "fa-graduation-cap"],
+    ["Father", m.fatherName, "fa-user"],
+    ["Location", m.location, "fa-location-dot"],
+    ["Blood", m.bloodGroup, "fa-droplet"],
+    ["Contribution", m.contribution === "" ? "" : `₹${m.contribution}`, "fa-coins"],
+    ["Attendance", `${attendanceCount} ${attendanceCount === 1 ? "Program" : "Programs"}`, "fa-people-group"]
+  ].filter(([, value]) => value !== null && value !== undefined && String(value).trim() !== "");
+  const supervisorActions = isSupervisorLoggedIn()
+    ? `<div class="member-card-admin-actions"><button type="button" onclick="openMemberEdit('${escapeHTML(m.id)}')" aria-label="Edit ${escapeHTML(m.name)}"><i class="fa-solid fa-pen"></i> Edit</button><button type="button" class="member-card-delete" onclick="deleteMember('${escapeHTML(m.id)}')" aria-label="Delete ${escapeHTML(m.name)}"><i class="fa-solid fa-trash"></i> Delete</button></div>`
+    : "";
 
   return `
-    <div class="member-card">
-      <div class="member-info">
-        <h3>${escapeHTML(m.name)}</h3>
-        <div class="member-info-details">
-          <p><strong>ID:</strong> ${escapeHTML(m.id || "-")}</p>
-          <p><strong>Designation:</strong> ${escapeHTML(m.designation || "Member")}</p>
-          ${m.education ? `<p><strong>Education:</strong> ${escapeHTML(m.education)}</p>` : ""}
-          ${m.fatherName ? `<p><strong>Father:</strong> ${escapeHTML(m.fatherName)}</p>` : ""}
-          ${m.location ? `<p><strong>Location:</strong> ${escapeHTML(m.location)}</p>` : ""}
-          ${m.bloodGroup ? `<p><strong>Blood:</strong> <span class="badge blood-badge">${escapeHTML(m.bloodGroup)}</span></p>` : ""}
-          ${m.contribution !== "" ? `<p><strong>Contribution:</strong> ₹${escapeHTML(m.contribution)}</p>` : ""}
-          <p class="member-attendance"><strong>Attendance:</strong> ${attendanceCount} ${attendanceCount === 1 ? "Program" : "Programs"}</p>
-        </div>
+    <article class="member-card">
+      <header class="member-card-header">
+        <div class="member-card-avatar" aria-hidden="true"><i class="fa-solid fa-user"></i></div>
+        <div class="member-card-identity"><h3>${escapeHTML(m.name)}</h3><span class="member-id-badge">ID: ${escapeHTML(memberDisplayId(m))}</span></div>
+        <span class="member-role-badge"><i class="fa-regular fa-user"></i>${escapeHTML(m.designation || "Member")}</span>
+      </header>
+      <div class="member-card-divider"><span></span></div>
+      <div class="member-info-details">
+        ${details.map(([label, value, icon]) => `<div class="member-detail"><i class="fa-solid ${icon}" aria-hidden="true"></i><div><span>${label}</span><strong>${escapeHTML(value)}</strong></div></div>`).join("")}
       </div>
-      <div class="card-actions">
+      ${phone || whatsapp ? `<div class="card-actions">
         ${phone ? `<a class="btn-call" href="tel:${escapeHTML(phone)}" aria-label="Call ${escapeHTML(m.name)}" title="Call"></a>` : ""}
         ${whatsapp ? `<a class="btn-wa" href="https://wa.me/${escapeHTML(whatsapp)}" target="_blank" rel="noopener" aria-label="WhatsApp ${escapeHTML(m.name)}" title="WhatsApp"></a>` : ""}
-      </div>
-    </div>`;
+      </div>` : ""}
+      ${supervisorActions}
+    </article>`;
 }
 
 let attendanceCountsByMemberId = {};
@@ -146,6 +166,81 @@ async function renderMemberCards() {
   } catch (error) {
     console.error(error);
     container.innerHTML = `<p class="error-message">Members data load ಆಗಲಿಲ್ಲ. Firebase connection ಪರಿಶೀಲಿಸಿ.</p>`;
+  }
+}
+
+function openMemberEdit(memberId) {
+  if (!requireSupervisor()) return;
+  const member = getMemberById(memberId);
+  if (!member) return;
+  const field = (name, label, value, type = "text") => `<label class="member-edit-field">${label}<input name="${name}" type="${type}" value="${escapeHTML(String(value ?? ""))}" ${name === "name" ? "required" : ""}></label>`;
+  document.getElementById("memberEditModal")?.remove();
+  document.body.insertAdjacentHTML("beforeend", `<div class="member-edit-overlay" id="memberEditModal" role="dialog" aria-modal="true" aria-labelledby="memberEditTitle">
+    <section class="member-edit-card"><header><div><h3 id="memberEditTitle">Edit Member</h3><p>${escapeHTML(memberDisplayId(member))}</p></div><button type="button" onclick="closeMemberEdit()" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></header>
+      <form class="member-edit-form" onsubmit="saveMemberEdit(event, '${escapeHTML(member.id)}')">
+        <div class="member-edit-grid">
+          ${field("name", "Member Name", member.name)}
+          ${field("designation", "Designation", member.designation)}
+          ${field("fatherName", "Father Name", member.fatherName)}
+          ${field("education", "Education", member.education)}
+          ${field("location", "Location", member.location)}
+          ${field("bloodGroup", "Blood Group", member.bloodGroup)}
+          ${field("mobile", "Mobile Number", member.mobile, "tel")}
+          ${field("contribution", "Contribution (₹)", member.contribution, "number")}
+        </div>
+        <footer><button type="button" class="member-edit-cancel" onclick="closeMemberEdit()">Cancel</button><button type="submit" class="member-edit-save">Save Changes</button></footer>
+      </form>
+    </section>
+  </div>`);
+}
+
+function closeMemberEdit() { document.getElementById("memberEditModal")?.remove(); }
+
+async function saveMemberEdit(event, memberId) {
+  event.preventDefault();
+  if (!requireSupervisor()) return;
+  const member = getMemberById(memberId);
+  if (!member) return;
+  const values = Object.fromEntries(new FormData(event.currentTarget).entries());
+  const databaseKey = memberDatabaseKeyById.get(String(memberId)) || String(memberId);
+  const update = {
+    name: String(values.name || "").trim(),
+    designation: String(values.designation || "").trim(),
+    fatherName: String(values.fatherName || "").trim(),
+    education: String(values.education || "").trim(),
+    location: String(values.location || "").trim(),
+    bloodGroupOverride: String(values.bloodGroup || "").trim().toUpperCase(),
+    mobile: String(values.mobile || "").trim(),
+    contribution: String(values.contribution || "").trim()
+  };
+  if (!update.name) { alert("Member name is required."); return; }
+  try {
+    await waitForFirebase();
+    await window.firebaseDb.ref(`members/${databaseKey}`).update(update);
+    closeMemberEdit();
+    await fetchMembersFromFirebase(true);
+    await renderMemberCards();
+  } catch (error) {
+    console.error("Member update error:", error);
+    alert("Member details could not be updated. Check the connection and try again.");
+  }
+}
+
+async function deleteMember(memberId) {
+  if (!requireSupervisor()) return;
+  const member = getMemberById(memberId);
+  if (!member) return;
+  if (!confirm(`Delete ${member.name} from the member list? This cannot be undone.`)) return;
+  const databaseKey = memberDatabaseKeyById.get(String(memberId)) || String(memberId);
+  try {
+    await waitForFirebase();
+    await window.firebaseDb.ref(`members/${databaseKey}`).remove();
+    memberDatabaseKeyById.delete(String(memberId));
+    await fetchMembersFromFirebase(true);
+    await renderMemberCards();
+  } catch (error) {
+    console.error("Member delete error:", error);
+    alert("Member could not be deleted. Check the connection and try again.");
   }
 }
 
