@@ -21,6 +21,37 @@ const RENTAL_CATEGORY = {
   speaker: { label: "Speaker", icon: "fa-volume-high" }
 };
 
+// Closed-year Speaker report supplied for FY 2025-2026. Keep it in the
+// existing report/export flow; source entries do not include booking dates.
+const SPEAKER_REPORT_2026 = {
+  rentalCount: 19,
+  revenue: 15100,
+  maintenance: 0,
+  netRevenue: 15100,
+  pendingDues: 0,
+  details: [
+    { customerName: "Mambli pullo", amount: 2000, status: "Received" },
+    { customerName: "Nasir mambli", amount: 1000, status: "Received" },
+    { customerName: "Fayaz mambli", amount: 1000, status: "Received" },
+    { customerName: "Aranthod", amount: 600, status: "Received" },
+    { customerName: "Aranthod (2nd time)", amount: 600, status: "Received" },
+    { customerName: "Abdulla", amount: 1600, status: "Received" },
+    { customerName: "Nasir ground", amount: 600, status: "Received" },
+    { customerName: "Siddik ambulance", amount: 1200, status: "Received" },
+    { customerName: "Nizam", amount: 600, status: "Received" },
+    { customerName: "Hasianar ajjavara", amount: 500, status: "Received" },
+    { customerName: "Hafeez", amount: 600, status: "Received" },
+    { customerName: "Khalid", amount: 600, status: "Received" },
+    { customerName: "Rishad", amount: 600, status: "Received" },
+    { customerName: "Hafeez (2nd time)", amount: 600, status: "Received" },
+    { customerName: "PR gate (2 programs)", amount: 1200, status: "Received" },
+    { customerName: "Abbas fish", amount: 600, status: "Received" },
+    { customerName: "PR gate", amount: 600, status: "Received" },
+    { customerName: "Kabeer mambli", amount: 600, status: "Received" },
+    { customerName: "F3 shoe", amount: null, status: "Pending" }
+  ]
+};
+
 function rentalCurrency(value) {
   return new Intl.NumberFormat("en-IN", {
     style: "currency", currency: "INR", maximumFractionDigits: 0
@@ -76,6 +107,7 @@ function rentalTotals(rentals) {
 
 function rentalReportYearOptions() {
   const years = new Set([String(new Date().getFullYear())]);
+  years.add("2026");
   rentalState.rentals.forEach(rental => {
     if (/^\d{4}/.test(String(rental.startDate || ""))) years.add(String(rental.startDate).slice(0, 4));
   });
@@ -320,14 +352,17 @@ async function saveRentalPayment(event, id) {
 function downloadRentalReport(category, selectedYear) {
   if (typeof XLSX === "undefined") { alert("Excel report library load ಆಗಿಲ್ಲ. Internet connection ಪರಿಶೀಲಿಸಿ."); return; }
   const year = selectedYear || String(new Date().getFullYear());
-  const rentals = rentalState.rentals.filter(rental => rental.category === category && String(rental.startDate || "").startsWith(String(year)));
+  const isImportedSpeakerReport = category === "speaker" && year === "2026";
+  const rentals = isImportedSpeakerReport ? [] : rentalState.rentals.filter(rental => rental.category === category && String(rental.startDate || "").startsWith(String(year)));
   const totals = rentalTotals(rentals);
   const maintenance = rentals.reduce((sum, rental) => sum + (Number(rental.maintenanceCost) || 0), 0);
   const title = category === "chairTable" ? "Chair & Table Rental Report" : "Speaker Rental Report";
-  const summary = [[title], ["Year", year], ["Report generated", new Date().toLocaleDateString("en-IN")], [], ["Financial summary", "Amount (INR)"], ["Total rentals", rentals.length], ["Total rental amount", totals.total], ["Total collected", totals.paid], ["Advance collected", totals.advance], ["Pending dues", totals.balance], [], ["Pending payment details"], ["Customer", "Place", "Item", "Balance"]];
-  rentals.filter(rental => (Number(rental.balance) || 0) > 0).forEach(rental => summary.push([rental.customerName, rental.place || "", rental.item || "", Number(rental.balance) || 0]));
-  const details = [["Customer", "Mobile", "Place", "Item", "Quantity", "Start date", "Return date", "Rent amount", "Advance", "Paid", "Balance", "Status", "Note"]];
-  rentals.forEach(rental => details.push([rental.customerName, rental.mobile || "", rental.place || "", rental.item || "", rental.quantity || "", rental.startDate || "", rental.returnDate || "", Number(rental.totalAmount) || 0, Number(rental.advanceAmount ?? rental.paidAmount) || 0, Number(rental.paidAmount) || 0, Number(rental.balance) || 0, rentalStatusLabel(rentalStatus(rental)), rental.note || ""]));
+  const summary = [[title], ["Year", year], ["Report generated", new Date().toLocaleDateString("en-IN")], [], ["Financial summary", "Amount (INR)"], ["Total rentals", isImportedSpeakerReport ? SPEAKER_REPORT_2026.rentalCount : rentals.length], [isImportedSpeakerReport ? "Total revenue collected" : "Total rental amount", isImportedSpeakerReport ? SPEAKER_REPORT_2026.revenue : totals.total], ["Total collected", isImportedSpeakerReport ? SPEAKER_REPORT_2026.revenue : totals.paid], ...(!isImportedSpeakerReport ? [["Advance collected", totals.advance]] : []), ["Maintenance / repair cost", isImportedSpeakerReport ? SPEAKER_REPORT_2026.maintenance : rentals.reduce((sum, rental) => sum + (Number(rental.maintenanceCost) || 0), 0)], ["Net revenue", isImportedSpeakerReport ? SPEAKER_REPORT_2026.netRevenue : totals.paid - rentals.reduce((sum, rental) => sum + (Number(rental.maintenanceCost) || 0), 0)], ["Pending dues", isImportedSpeakerReport ? SPEAKER_REPORT_2026.pendingDues : totals.balance], [], ["Payment details"], ["Customer", "Amount", "Status"]];
+  if (isImportedSpeakerReport) SPEAKER_REPORT_2026.details.forEach(detail => summary.push([detail.customerName, detail.amount ?? "", detail.status]));
+  else rentals.filter(rental => (Number(rental.balance) || 0) > 0).forEach(rental => summary.push([rental.customerName, rental.place || "", rental.item || "", Number(rental.balance) || 0]));
+  const details = [isImportedSpeakerReport ? ["Customer / Event", "Amount (INR)", "Payment Status"] : ["Customer", "Mobile", "Place", "Item", "Quantity", "Start date", "Return date", "Rent amount", "Advance", "Paid", "Balance", "Status", "Note"]];
+  if (isImportedSpeakerReport) SPEAKER_REPORT_2026.details.forEach(detail => details.push([detail.customerName, detail.amount ?? "", detail.status]));
+  else rentals.forEach(rental => details.push([rental.customerName, rental.mobile || "", rental.place || "", rental.item || "", rental.quantity || "", rental.startDate || "", rental.returnDate || "", Number(rental.totalAmount) || 0, Number(rental.advanceAmount ?? rental.paidAmount) || 0, Number(rental.paidAmount) || 0, Number(rental.balance) || 0, rentalStatusLabel(rentalStatus(rental)), rental.note || ""]));
   const workbook = XLSX.utils.book_new();
   const summarySheet = XLSX.utils.aoa_to_sheet(summary);
   const detailSheet = XLSX.utils.aoa_to_sheet(details);
@@ -342,7 +377,8 @@ function downloadRentalPDFReport(category, selectedYear) {
   const PDF = window.jspdf?.jsPDF;
   if (!PDF) { alert("PDF report library is unavailable. Please try again."); return; }
   const year = String(selectedYear || new Date().getFullYear());
-  const rentals = rentalState.rentals.filter(rental => rental.category === category && String(rental.startDate || "").startsWith(year));
+  const isImportedSpeakerReport = category === "speaker" && year === "2026";
+  const rentals = isImportedSpeakerReport ? [] : rentalState.rentals.filter(rental => rental.category === category && String(rental.startDate || "").startsWith(year));
   const totals = rentalTotals(rentals);
   const pdf = new PDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = pdf.internal.pageSize.getWidth();
@@ -353,10 +389,22 @@ function downloadRentalPDFReport(category, selectedYear) {
   pdf.text(`${RENTAL_CATEGORY[category]?.label || "Rental"} Report`, margin, y); y += 7;
   pdf.setFontSize(10); pdf.setTextColor(90, 105, 96);
   pdf.text(`Year ${year} · Generated ${new Date().toLocaleDateString("en-IN")}`, margin, y); y += 9;
-  const metrics = [["Total rentals", String(rentals.length)], ["Total collected", rentalCurrency(totals.paid)], ["Advance collected", rentalCurrency(totals.advance)], ["Pending dues", rentalCurrency(totals.balance)]];
+  const metrics = isImportedSpeakerReport
+    ? [["Total rentals", String(SPEAKER_REPORT_2026.rentalCount)], ["Total revenue collected", rentalCurrency(SPEAKER_REPORT_2026.revenue)], ["Maintenance / repair cost", rentalCurrency(SPEAKER_REPORT_2026.maintenance)], ["Net revenue", rentalCurrency(SPEAKER_REPORT_2026.netRevenue)], ["Pending dues", rentalCurrency(SPEAKER_REPORT_2026.pendingDues)]]
+    : [["Total rentals", String(rentals.length)], ["Total collected", rentalCurrency(totals.paid)], ["Advance collected", rentalCurrency(totals.advance)], ["Pending dues", rentalCurrency(totals.balance)]];
   metrics.forEach(([label, value]) => { pdf.setFontSize(9); pdf.setTextColor(90, 105, 96); pdf.text(label, margin, y); pdf.setFontSize(11); pdf.setTextColor(23, 62, 45); pdf.text(value, margin + width, y, { align: "right" }); y += 6; });
   y += 3;
-  rentals.forEach((rental, index) => {
+  const reportDetails = isImportedSpeakerReport ? SPEAKER_REPORT_2026.details : rentals;
+  reportDetails.forEach((rental, index) => {
+    if (isImportedSpeakerReport) {
+      const lines = [`${index + 1}. ${rental.customerName} · ${rental.status}`, `Amount ${rental.amount == null ? "—" : rentalCurrency(rental.amount)}`];
+      const blockHeight = lines.length * 4.5 + 5;
+      if (y + blockHeight > 282) { pdf.addPage(); y = 15; }
+      pdf.setDrawColor(220, 232, 224); pdf.line(margin, y, pageWidth - margin, y); y += 4;
+      lines.forEach((line, lineIndex) => { pdf.setFontSize(lineIndex === 0 ? 10 : 8.5); pdf.setTextColor(lineIndex === 0 ? 23 : 70, lineIndex === 0 ? 62 : 88, lineIndex === 0 ? 45 : 77); pdf.text(line, margin, y); y += 4.5; });
+      y += 2;
+      return;
+    }
     const lines = [
       `${index + 1}. ${rental.customerName || "Customer"} · ${rentalStatusLabel(rentalStatus(rental))}`,
       `${rental.item || RENTAL_CATEGORY[category]?.label} · ${rental.quantity || "—"}`,
@@ -375,6 +423,6 @@ function downloadRentalPDFReport(category, selectedYear) {
     });
     y += 2;
   });
-  if (!rentals.length) { pdf.setFontSize(10); pdf.text("No rental records for this year.", margin, y); }
+  if (!reportDetails.length) { pdf.setFontSize(10); pdf.text("No rental records for this year.", margin, y); }
   pdf.save(`AYFA_${category === "chairTable" ? "Chair_Table" : "Speaker"}_Report_${year}.pdf`);
 }
