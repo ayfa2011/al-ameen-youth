@@ -202,11 +202,11 @@ function renderBloodDonorCards(members) {
     const whatsapp = normalizePhoneForLinks(m.mobile);
 
     return `
-      <article class="blood-donor-card" data-search="${escapeHTML(`${m.name} ${displayGroup} ${m.id} ${memberDisplayId(m)}`.toLowerCase())}">
+      <article class="blood-donor-card ${phone || whatsapp ? "has-contact-actions" : "no-contact-actions"}" data-search="${escapeHTML(`${m.name} ${displayGroup} ${m.id} ${memberDisplayId(m)}`.toLowerCase())}">
         <div class="blood-member-avatar" aria-hidden="true"><i class="fa-solid fa-user"></i></div>
         <div class="blood-donor-info">
           <h3>${escapeHTML(m.name)}</h3>
-          <div class="blood-donor-meta">ID : ${escapeHTML(memberDisplayId(m))} <span>|</span> ${displayedCount} ${donationCount === 1 ? "Time" : "Times"} Donated</div>
+          <div class="blood-donor-meta"><span class="blood-donor-id">ID : ${escapeHTML(memberDisplayId(m))}</span><span class="blood-donor-separator">|</span><span class="blood-donor-count">${displayedCount} ${donationCount === 1 ? "Time" : "Times"} Donated</span></div>
         </div>
         <div class="blood-group-badge ${m.bloodGroup ? "has-group" : "missing-group"}" aria-label="Blood group ${escapeHTML(displayGroup || "not provided")}">
           ${displayGroup ? `<i class="fa-solid fa-droplet"></i><span>${escapeHTML(displayGroup)}</span>` : ""}
