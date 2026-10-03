@@ -237,11 +237,11 @@ async function deleteMember(memberId) {
   if (!requireSupervisor()) return;
   const member = getMemberById(memberId);
   if (!member) return;
-  if (!confirm(`Delete ${member.name} from the member list? This cannot be undone.`)) return;
+  if (!confirm(`Deactivate ${member.name}? This removes them from the active member list. Historical attendance records will remain.`)) return;
   const databaseKey = memberDatabaseKeyById.get(String(memberId)) || String(memberId);
   try {
     await waitForFirebase();
-    await window.firebaseDb.ref(`members/${databaseKey}`).remove();
+    await window.firebaseDb.ref(`members/${databaseKey}`).update({ active: false, deactivatedAt: new Date().toISOString() });
     memberDatabaseKeyById.delete(String(memberId));
     await fetchMembersFromFirebase(true);
     await renderMemberCards();

@@ -1,6 +1,6 @@
 // ============================================================
 // AL-AMEEN GOOGLE APPS SCRIPT BACKEND
-// Google Sheet -> Firebase near-real-time sync
+// Firebase is the live website database; Sheets are backup/export sources.
 // ============================================================
 //
 // SHEETS:
@@ -16,7 +16,7 @@
 //    website or GitHub.
 // 2) Store SERVICE_ACCOUNT_PRIVATE_KEY and SERVICE_ACCOUNT_EMAIL
 //    in Apps Script > Project Settings > Script properties.
-// 3) Install the onEdit trigger once using setupFirebaseSyncTrigger().
+// 3) Sheet edits do not sync to Firebase automatically. Import deliberately.
 // ============================================================
 
 const FIREBASE_DATABASE_URL =
@@ -128,9 +128,6 @@ function doPost(e) {
 
     if (body.action === "saveAttendance") {
       const result = saveAttendance(body);
-      // Keep Firebase in sync when attendance is added through the website.
-      syncProgramsToFirebase_();
-      syncAttendanceToFirebase_();
       return jsonOutput(result);
     }
 
@@ -477,64 +474,80 @@ function firebasePut_(path, data) {
   return body;
 }
 
+function firebaseMergePut_(path, data) {
+  const token = getFirebaseAccessToken_();
+  const url = FIREBASE_DATABASE_URL.replace(/\/$/, "") + "/" + path.replace(/^\/|\/$/g, "") + ".json?access_token=" + encodeURIComponent(token);
+  const response = UrlFetchApp.fetch(url, {
+    method: "patch",
+    contentType: "application/json",
+    payload: JSON.stringify(data),
+    muteHttpExceptions: true
+  });
+  const code = response.getResponseCode();
+  if (code < 200 || code >= 300) throw new Error("Firebase import failed (" + code + ") at /" + path + ": " + response.getContentText());
+  return response.getContentText();
+}
+
 // ============================================================
 // SHEET -> FIREBASE SYNC
 // ============================================================
 
 function syncMembersToFirebase_() {
   const members = rowsAsObjects("Members");
-
-  // Use the same numeric row keys as the imported Firebase data:
-  // members/1, members/2, members/3, ...
   const data = {};
-
-  members.forEach((member, index) => {
-    data[String(index + 1)] = member;
+  members.forEach(member => {
+    const id = String(member.memberId || member.MemberID || member["Member ID"] || "").trim();
+    if (!id) throw new Error("Every member row must have a permanent MemberID before import. No data was written.");
+    member.memberId = id;
+    data[id] = member;
   });
-
-  firebasePut_("members", data);
+  firebaseMergePut_("members", data);
 }
 
 function syncProgramsToFirebase_() {
   const programs = rowsAsObjects("Programs");
   const data = {};
 
-  programs.forEach((program, index) => {
-    const id = String(
-      program["ProgramID"] ||
-      program["programId"] ||
-      ("P" + (index + 1))
-    ).trim();
+  programs.forEach(program => {
+    const id = String(program["ProgramID"] || program["programId"] || "").trim();
+    if (!id) throw new Error("Every program row must have a permanent ProgramID before import. No data was written.");
 
     data[id] = program;
   });
 
-  firebasePut_("programs", data);
+  firebaseMergePut_("programs", data);
 }
 
 function syncAttendanceToFirebase_() {
   const attendance = rowsAsObjects("Attendance");
   const data = {};
-
-  // Keep each attendance record as a stable numeric key.
-  attendance.forEach((row, index) => {
-    data[String(index + 1)] = row;
+  attendance.forEach(row => {
+    const programId = String(row.programId || row.ProgramID || "").trim();
+    const memberId = String(row.memberId || row.MemberID || row["Member ID"] || "").trim();
+    if (!programId || !memberId) throw new Error("Attendance rows must include ProgramID and permanent MemberID before import. No data was written.");
+    data[programId] = data[programId] || {};
+    data[programId][memberId] = {
+      ...row,
+      programId: programId,
+      memberId: memberId,
+      status: String(row.status || row.Status || "").trim()
+    };
   });
-
-  firebasePut_("attendanceRecords", data);
+  firebaseMergePut_("attendance", data);
 }
 
-// Full sync: run this once after credentials are configured.
+// Explicit import only. Refuses missing permanent IDs and merges keys to
+// preserve Firebase-only website records; never installs an automatic trigger.
 function syncAllToFirebase() {
   syncMembersToFirebase_();
   syncProgramsToFirebase_();
   syncAttendanceToFirebase_();
 
-  return "Firebase sync completed successfully.";
+  return "Sheet rows with permanent IDs were imported into Firebase. Existing Firebase-only records were preserved.";
 }
 
 // ============================================================
-// NEAR-REAL-TIME SHEET EDIT TRIGGER
+// SHEET EDIT NOTICE TRIGGER (no Firebase writes)
 // ============================================================
 //
 // IMPORTANT:
@@ -549,15 +562,9 @@ function syncAllToFirebase() {
 function onSheetEditFirebase(e) {
   try {
     if (!e || !e.range) return;
-
     const sheetName = e.range.getSheet().getName();
-
-    if (sheetName === "Members") {
-      syncMembersToFirebase_();
-    } else if (sheetName === "Programs") {
-      syncProgramsToFirebase_();
-    } else if (sheetName === "Attendance") {
-      syncAttendanceToFirebase_();
+    if (["Members", "Programs", "Attendance"].includes(sheetName)) {
+      console.log("Sheet backup changed in " + sheetName + ". Review and explicitly import to Firebase if appropriate.");
     }
   } catch (error) {
     console.error("Firebase sync error: " + error.message);
@@ -565,17 +572,17 @@ function onSheetEditFirebase(e) {
 }
 
 function setupFirebaseSyncTrigger() {
-  // Remove duplicate triggers created by previous setup attempts.
+  // Install the real handler once. It only logs backup changes; Firebase
+  // remains the website master and cannot be overwritten by stale sheet rows.
   ScriptApp.getProjectTriggers().forEach(trigger => {
-    if (trigger.getHandlerFunction() === "onSheetEditInstalled_") {
+    if (trigger.getHandlerFunction() === "onSheetEditInstalled_" || trigger.getHandlerFunction() === "onSheetEditFirebase") {
       ScriptApp.deleteTrigger(trigger);
     }
   });
-
-  ScriptApp.newTrigger("onSheetEditInstalled_")
+  ScriptApp.newTrigger("onSheetEditFirebase")
     .forSpreadsheet(SpreadsheetApp.getActive())
     .onEdit()
     .create();
 
-  return "Firebase Sheet edit trigger installed.";
+  return "Sheet-change notice trigger installed. Firebase writes remain explicit imports.";
 }

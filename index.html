@@ -735,6 +735,9 @@
     .finance-table td.amount,.finance-table th.amount{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;}
     .finance-table tr.total-row td{font-weight:700;background:#f7fafc;color:#17324d;}
     .finance-note{padding:12px 14px;color:#777;font-size:12px;line-height:1.5;background:#fafafa;border-top:1px solid #edf0f3;}
+    .finance-search-label{display:block;margin:0 0 6px;color:#43564d;font-size:13px;font-weight:700;}
+    .finance-search-input{display:block;width:100%;max-width:520px;box-sizing:border-box;margin:0 0 16px;padding:11px 13px;border:1px solid #cbd8d1;border-radius:9px;font:inherit;background:#fff;}
+    .finance-search-input:focus{outline:3px solid rgba(39,121,83,.18);border-color:#277953;}
     .finance-action{display:flex;justify-content:center;margin-top:18px;}
     .btn-finance-pdf{border:0;border-radius:9px;background:#174f91;color:#fff;padding:11px 18px;font-size:13px;font-weight:600;cursor:pointer;transition:.2s;}
     .btn-finance-pdf:hover{background:#0f3e73;transform:translateY(-1px);}
@@ -1439,6 +1442,9 @@
             </div>
 
             <div id="financeYearTitle" class="finance-note" style="margin-bottom:16px;"></div>
+
+            <label class="finance-search-label" for="financeSearch">Search finance entries</label>
+            <input id="financeSearch" class="finance-search-input" type="search" placeholder="Search income, expenses or details" oninput="filterFinanceRows(this.value)" aria-label="Search finance entries">
 
             <div class="finance-details">
               <div class="finance-panel">

@@ -3,6 +3,7 @@
 // ============================================================
 
 const attendanceSelectedMemberIds = new Set();
+let attendanceSubmitting = false;
 
 async function apiGet(action) {
   if (action === "getReports") return getFirebaseAttendanceReports();
@@ -27,8 +28,14 @@ async function getFirebaseAttendanceReports() {
 
   return Object.entries(programs)
     .map(([programId, program]) => {
-      const records = Object.values(attendance[programId] || {});
-      const present = records.filter(r => String(r?.status || "").toLowerCase() === "present");
+      const records = Object.entries(attendance[programId] || {});
+      const presentIds = new Set();
+      const present = records.filter(([memberId, r]) => {
+        const id = String(r?.memberId || memberId);
+        if (String(r?.status || "").toLowerCase() !== "present" || presentIds.has(id)) return false;
+        presentIds.add(id);
+        return true;
+      }).map(([, record]) => record);
       return {
         slNo: program.slNo ?? "",
         programId,
@@ -92,6 +99,15 @@ function renderAttendanceSelected() {
   target.innerHTML = selected.length ? selected.map(member => `<span class="attendance-selected-chip">${escapeHTML(member.name)}<button type="button" onclick="removeAttendanceMember('${escapeHTML(member.id)}')" aria-label="Remove ${escapeHTML(member.name)}">×</button></span>`).join("") : '<span class="attendance-selection-hint">Search and select members marked Present.</span>';
 }
 
+function resetAttendanceForm() {
+  const name = document.getElementById("progName");
+  const date = document.getElementById("progDate");
+  if (name) name.value = "";
+  if (date) date.value = "";
+  attendanceSelectedMemberIds.clear();
+  renderAttendanceSelected();
+}
+
 async function loadAttendanceReports() {
   const tbody = document.getElementById("reportsTableBody");
   if (!tbody) return;
@@ -125,6 +141,10 @@ async function submitAttendance() {
     alert("ದಯವಿಟ್ಟು ಕಾರ್ಯಕ್ರಮದ ಹೆಸರು ಮತ್ತು ದಿನಾಂಕ ನಮೂದಿಸಿ!");
     return;
   }
+  if (Number.isNaN(new Date(`${progDate}T00:00:00`).getTime())) {
+    alert("Please enter a valid program date.");
+    return;
+  }
 
   const selected = fullMembersList.filter(member => attendanceSelectedMemberIds.has(String(member.id)));
   if (!selected.length) {
@@ -132,6 +152,11 @@ async function submitAttendance() {
     return;
   }
 
+  if (attendanceSubmitting) return;
+  const button = document.querySelector(".save-attendance-btn");
+  const originalLabel = button?.innerHTML;
+  attendanceSubmitting = true;
+  if (button) { button.disabled = true; button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving…'; }
   try {
     await waitForFirebase();
 
@@ -159,14 +184,18 @@ async function submitAttendance() {
     });
 
     await window.firebaseDb.ref().update(updates);
+    await loadAttendanceReports();
 
-    alert("Attendance ಯಶಸ್ವಿಯಾಗಿ Firebaseನಲ್ಲಿ Save ಆಗಿದೆ!");
-    progNameEl.value = "";
-    attendanceSelectedMemberIds.clear();
-    renderAttendanceSelected();
+    if (typeof showToast === "function") showToast("Attendance saved successfully.", "success");
+    else alert("Attendance ಯಶಸ್ವಿಯಾಗಿ Firebaseನಲ್ಲಿ Save ಆಗಿದೆ!");
+    resetAttendanceForm();
   } catch (error) {
     console.error(error);
-    alert("Attendance save ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. Firebase connection ಪರಿಶೀಲಿಸಿ.");
+    if (typeof showToast === "function") showToast("Attendance save failed. Check the Firebase connection.", "error");
+    else alert("Attendance save ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. Firebase connection ಪರಿಶೀಲಿಸಿ.");
+  } finally {
+    attendanceSubmitting = false;
+    if (button) { button.disabled = false; button.innerHTML = originalLabel || "Save Attendance"; }
   }
 }
 

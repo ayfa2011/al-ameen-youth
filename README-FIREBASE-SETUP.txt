@@ -46,7 +46,7 @@ restrictions.
 4) Google Apps Script deployment
 ---------------------------------
 The Apps Script now checks Firebase ID tokens and role claims for the website's
-protected read/write endpoints, including Agenda sync and activity-photo
+protected endpoints, including Agenda compatibility and activity-photo
 uploads. Deploy the updated script version before publishing the new website.
 When ready to switch over, publish the website and these Realtime Database
 rules together so the existing open rules do not remain active. The existing
@@ -85,6 +85,8 @@ IMPORTANT
 ---------
 - Do NOT share Firebase Service Account JSON/private keys.
 - The Web App config used here is the browser config.
-- Google Sheet can remain as your master/back-up source. This update does not automatically sync future Sheet edits to Firebase.
-- If you edit Member details in Google Sheet later, Firebase will need a sync process or a manual import/update.
-- The first Firebase migration is intentionally separated from the Google Sheet so website reads are fast.
+- Firebase is the live website master database. Google Sheets are backup/export copies; edits to Sheets do not update Firebase automatically.
+- `setupFirebaseSyncTrigger()` installs a sheet-change notice trigger only. It never overwrites Firebase.
+- `syncAllToFirebase()` is an explicit import for reviewed rows only. Every member must have an immutable `MemberID`/`memberId`, and every attendance row must have both `ProgramID` and `MemberID`. It merges by those IDs and refuses missing IDs. Back up Firebase before any import.
+- Attendance records use the website's canonical `/attendance/{programId}/{memberId}` path.
+- The old row-position member IDs cannot be safely mapped to permanent IDs from code alone. Assign permanent IDs and reconcile existing references before importing or migrating legacy records.

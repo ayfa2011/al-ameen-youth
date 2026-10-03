@@ -269,7 +269,7 @@ async function submitProgramReport(event, editId = "") {
     const detail = String(error?.message || "");
     message.textContent = `Report could not be saved: ${detail || code || "Check the Firebase connection."}`;
     submit.disabled = false;
-    submit.textContent = "Submit report";
+    submit.textContent = editId ? "Save changes" : "Submit report";
     delete form.dataset.submitting;
   }
 }

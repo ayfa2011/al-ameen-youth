@@ -646,6 +646,7 @@ const AYFA_FINANCE_DATA = {
 };
 
 let currentFinanceYear = "2026";
+let currentFinanceSearch = "";
 
 function financeNumber(value) {
   const n = Number(value);
@@ -780,6 +781,7 @@ function showFinanceYear(year) {
   });
 
   const result = calculateFinance(currentFinanceYear);
+  const matchesFinanceSearch = row => !currentFinanceSearch || String(row.label || "").toLocaleLowerCase().includes(currentFinanceSearch);
 
   const incomeEl = document.getElementById("totalIncome");
   const expenseEl = document.getElementById("totalExpense");
@@ -807,14 +809,16 @@ function showFinanceYear(year) {
   }
 
   if (incomeBody) {
-    incomeBody.innerHTML = result.income.length
-      ? result.income.map(r => financeRowHTML(r)).join("")
+    const rows = result.income.filter(matchesFinanceSearch);
+    incomeBody.innerHTML = rows.length
+      ? rows.map(r => financeRowHTML(r)).join("")
       : `<tr><td colspan="2" class="finance-empty">ಈ ವರ್ಷದ ಆದಾಯದ ವಿವರ ಲಭ್ಯವಿಲ್ಲ.</td></tr>`;
   }
 
   if (expenseBody) {
-    expenseBody.innerHTML = result.expense.length
-      ? result.expense.map(r => financeRowHTML(r)).join("")
+    const rows = result.expense.filter(matchesFinanceSearch);
+    expenseBody.innerHTML = rows.length
+      ? rows.map(r => financeRowHTML(r)).join("")
       : `<tr><td colspan="2" class="finance-empty">ಈ ವರ್ಷದ ವೆಚ್ಚದ ವಿವರ ಲಭ್ಯವಿಲ್ಲ.</td></tr>`;
   }
 
@@ -833,10 +837,16 @@ function showFinanceYear(year) {
       if (!final.some(x => x.label === r.label)) final.push(r);
     });
 
-    finalBody.innerHTML = final.length
-      ? final.map((r, i) => financeRowHTML(r, i < 3 ? "total-row" : "")).join("")
+    const rows = final.filter(matchesFinanceSearch);
+    finalBody.innerHTML = rows.length
+      ? rows.map((r, i) => financeRowHTML(r, i < 3 ? "total-row" : "")).join("")
       : `<tr><td colspan="2" class="finance-empty">ಅಂತಿಮ ಲೆಕ್ಕಾಚಾರ ಲಭ್ಯವಿಲ್ಲ.</td></tr>`;
   }
+}
+
+function filterFinanceRows(query) {
+  currentFinanceSearch = String(query || "").trim().toLocaleLowerCase();
+  showFinanceYear(currentFinanceYear);
 }
 
 function openFinanceReport() {
