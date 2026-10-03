@@ -1151,6 +1151,33 @@ body {
 .agenda-toolbar-actions{display:flex;align-items:center;gap:7px}.agenda-import-button{min-height:36px;padding:0 9px;border:1px solid #dbe6df;border-radius:8px;background:#f6faf7;color:#355d46;font:inherit;font-size:11px;font-weight:600;cursor:pointer}.agenda-import-button[hidden]{display:none}
 .agenda-item-actions[hidden]{display:none}
 
+/* Shared modal shell for activity reports, Drive gallery and agenda forms. */
+.program-modal{position:fixed;z-index:11000;inset:0;display:flex;align-items:center;justify-content:center;padding:12px;background:rgba(12,27,19,.52);overscroll-behavior:contain}
+.program-modal-card{display:flex;flex-direction:column;width:min(100%,430px);max-height:calc(100dvh - 24px);min-width:0;overflow:auto;padding:17px;border:1px solid #dfe8e2;border-radius:18px;background:#fff;color:#26372d;box-shadow:0 22px 65px rgba(12,35,22,.28);-webkit-overflow-scrolling:touch}
+.program-modal-header{position:sticky;top:-17px;z-index:2;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:-17px -17px 14px;padding:16px 17px 12px;border-bottom:1px solid #e8eee9;background:#fff}
+.program-modal-header h3{margin:0;color:#174c37;font-size:18px;line-height:1.3;overflow-wrap:anywhere}
+.program-modal-header p{margin:5px 0 0;color:#68796f;font-size:12px;line-height:1.45}
+.program-close{display:grid;flex:0 0 34px;place-items:center;width:34px;height:34px;min-height:34px;padding:0;border:0;border-radius:9px;background:#f0f5f1;color:#315943;font-size:17px;cursor:pointer}
+.program-report-form{display:grid;gap:12px;min-width:0}
+.program-report-form>label{display:grid;gap:6px;min-width:0;color:#42594a;font-size:13px;font-weight:650;line-height:1.35}
+.program-report-form input:not([type="file"]),.program-report-form textarea,.program-report-form select{display:block;width:100%;min-width:0;min-height:42px;padding:9px 11px;border:1px solid #d4e0d8;border-radius:9px;background:#fbfdfb;color:#1e3025;font:inherit;font-size:14px;line-height:1.4;outline:none}
+.program-report-form textarea{min-height:112px;resize:vertical}
+.program-report-form input:focus,.program-report-form textarea:focus,.program-report-form select:focus{border-color:#5a9472;box-shadow:0 0 0 3px rgba(57,125,83,.12)}
+.program-photo-field>span{color:#77867d;font-size:11px;font-weight:400}
+.program-report-form input[type="file"]{width:100%;max-width:100%;padding:8px;border:1px dashed #cbdacf;border-radius:9px;background:#f8fbf9;color:#5e7064;font:inherit;font-size:12px}
+.program-form-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:2px;padding-top:10px;border-top:1px solid #edf1ee;background:#fff}
+.program-form-actions button,.program-cancel{min-height:38px;padding:8px 12px;border:1px solid #d7e2da;border-radius:9px;background:#f6faf7;color:#355c45;font:inherit;font-size:13px;font-weight:650;cursor:pointer}
+.program-form-actions .program-submit{border-color:#176343;background:#176343;color:#fff}
+.program-form-actions button:disabled{opacity:.6;cursor:wait}
+.program-form-message{margin:0;color:#52675a;font-size:12px;line-height:1.45;overflow-wrap:anywhere}
+.program-photo-preview{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;max-height:180px;overflow:auto}
+.program-photo-gallery{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0}
+.program-detail-content{color:#3d5145;font-size:14px;line-height:1.6;overflow-wrap:anywhere}
+.program-detail-content>p{margin:0 0 12px;white-space:pre-wrap}
+.program-no-photo{display:grid;min-height:85px;place-items:center;padding:12px;border-radius:9px;background:#f4f8f5;color:#738178;font-size:12px;text-align:center}
+.drive-library-modal{gap:0}
+@media(max-width:520px){.program-modal{align-items:flex-end;padding:0}.program-modal-card{width:100%;max-height:92dvh;padding:15px;border-radius:18px 18px 0 0}.program-modal-header{top:-15px;margin:-15px -15px 12px;padding:14px 15px 11px}.program-modal-header h3{font-size:17px}.program-report-form{gap:10px}.program-report-form textarea{min-height:96px}.program-form-actions{position:sticky;bottom:-15px;margin:0 -15px -15px;padding:10px 15px max(10px,env(safe-area-inset-bottom));box-shadow:0 -5px 14px rgba(25,55,37,.06)}.program-form-actions button{flex:1}.program-photo-gallery{gap:6px}}
+
 /* Activity & program reports */
 .annual-activity-reports{margin-bottom:25px;padding:16px;border:1px solid #dfe9e3;border-radius:15px;background:#fff;box-shadow:0 4px 15px rgba(23,76,55,.05)}.annual-activity-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px}.annual-activity-heading p{margin:0 0 3px;color:#a66d10;font-size:10px;font-weight:800;letter-spacing:.1em}.annual-activity-heading h3{margin:0;color:#173e2d;font-size:17px}.annual-activity-heading>i{color:#c84842;font-size:21px}.annual-activity-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}.annual-activity-card{min-height:90px;padding:12px;border:1px solid #e0e9e3;border-radius:11px;background:#f8fbf9;color:#294a39;text-decoration:none;display:grid;gap:5px;align-content:center;position:relative;transition:.18s}.annual-activity-card:hover{transform:translateY(-2px);border-color:#b7d0c0;box-shadow:0 8px 15px rgba(23,76,55,.09)}.annual-activity-card strong{font-size:21px}.annual-activity-card span{color:#6d8075;font-size:10px;line-height:1.25}.annual-activity-card i{position:absolute;right:10px;top:10px;color:#659079;font-size:11px}
 @media(max-width:650px){.annual-activity-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.annual-activity-card{min-height:80px}.annual-activity-reports{padding:13px}.annual-activity-heading h3{font-size:15px}}
@@ -1231,7 +1258,7 @@ html[data-auth-role="member"] .program-report-submit{display:none!important}
 /* Primary shortcuts shown below the banner. */
 .quick-actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   padding: 14px 15px 2px;
 }
