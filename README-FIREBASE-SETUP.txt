@@ -68,6 +68,19 @@ Replace the following in your GitHub website project:
     firebase/firebase-database.rules.json
     google-apps-script.gs
 
+The current website also stores Drive photo gallery metadata at
+Realtime Database path /drivePhotoFolders. Publish the supplied rules before
+using the gallery. The Apps Script now exposes an authenticated
+listDrivePhotoFolders action; redeploy it as a new version so members can
+browse existing folders and officials can cache legacy folder metadata.
+
+Meeting Agenda reads and writes now use /meetingAgendas in Firebase. To bring
+over legacy Sheet-only agenda rows, sign in as an official and use the
+"Import legacy records" action on the Agenda page. It saves the current
+Firebase agenda data under /meetingAgendasMigrationBackups before importing;
+existing Firebase IDs are kept and not overwritten. Leave the original Sheet
+untouched until the imported records are checked in both roles.
+
 IMPORTANT
 ---------
 - Do NOT share Firebase Service Account JSON/private keys.

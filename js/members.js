@@ -113,8 +113,7 @@ function memberCardHTML(m) {
     <article class="member-card">
       <header class="member-card-header">
         <div class="member-card-avatar" aria-hidden="true"><i class="fa-solid fa-user"></i></div>
-        <div class="member-card-identity"><h3>${escapeHTML(m.name)}</h3><span class="member-id-badge">ID: ${escapeHTML(memberDisplayId(m))}</span></div>
-        <span class="member-role-badge"><i class="fa-regular fa-user"></i>${escapeHTML(m.designation || "Member")}</span>
+        <div class="member-card-identity"><div class="member-name-row"><h3>${escapeHTML(m.name)}</h3><span class="member-id-badge">${escapeHTML(memberDisplayId(m))}</span></div><span class="member-role-badge"><i class="fa-regular fa-user"></i>${escapeHTML(m.designation || "Member")}</span></div>
       </header>
       <div class="member-card-divider"><span></span></div>
       <div class="member-info-details">
@@ -126,6 +125,14 @@ function memberCardHTML(m) {
       </div>` : ""}
       ${supervisorActions}
     </article>`;
+}
+
+function filterMemberCards(query = "") {
+  const term = String(query).trim().toLocaleLowerCase();
+  const matches = fullMembersList.filter(member => !term || [member.name, memberDisplayId(member), member.id, member.designation, member.education, member.fatherName, member.location, member.mobile, member.bloodGroup, member.contribution, member.bloodCount].some(value => String(value ?? "").toLocaleLowerCase().includes(term)));
+  const container = document.getElementById("membersContainer");
+  if (!container) return;
+  container.innerHTML = matches.length ? matches.map(memberCardHTML).join("") : '<p class="empty-message">No Members Found</p>';
 }
 
 let attendanceCountsByMemberId = {};
@@ -160,9 +167,9 @@ async function renderMemberCards() {
       member.attendanceCount = attendanceCountsByMemberId[String(member.id)] || 0;
     });
 
-    container.innerHTML = fullMembersList.length
-      ? fullMembersList.map(memberCardHTML).join("")
-      : `<p class="empty-message">Members data ಸಿಗಲಿಲ್ಲ.</p>`;
+    const search = document.getElementById("memberSearchInput")?.value || "";
+    if (!fullMembersList.length) container.innerHTML = `<p class="empty-message">Members data ಸಿಗಲಿಲ್ಲ.</p>`;
+    else filterMemberCards(search);
   } catch (error) {
     console.error(error);
     container.innerHTML = `<p class="error-message">Members data load ಆಗಲಿಲ್ಲ. Firebase connection ಪರಿಶೀಲಿಸಿ.</p>`;

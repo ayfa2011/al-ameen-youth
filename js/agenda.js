@@ -1,24 +1,4 @@
 const agendaState = { items: [] };
-function agendaApiUrl() { return typeof SCRIPT_URL === "string" ? SCRIPT_URL : ""; }
-async function agendaSheetRequest(payload) {
-  const url = agendaApiUrl();
-  if (!url) throw new Error("Spreadsheet connection is not configured.");
-  await window.firebaseReady;
-  const authToken = await window.firebaseAuth.currentUser.getIdToken();
-  const response = await fetch(url, { method: "POST", mode: "cors", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ ...payload, authToken }) });
-  const result = await response.json();
-  if (!response.ok || result.success === false || result.error) throw new Error(result.error || "Spreadsheet save failed.");
-  return result;
-}
-
-async function agendaSheetGet(action) {
-  await window.firebaseReady;
-  const authToken = await window.firebaseAuth.currentUser.getIdToken();
-  const response = await fetch(agendaApiUrl(), { method: "POST", mode: "cors", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action, authToken }) });
-  const result = await response.json();
-  if (!response.ok || result.success === false || result.error) throw new Error(result.error || "Agenda request was rejected.");
-  return result;
-}
 
 async function openAgendaManagement() {
   hideAllViews();
@@ -26,18 +6,8 @@ async function openAgendaManagement() {
   window.scrollTo({ top: 0, behavior: "smooth" });
   try {
     await window.firebaseReady;
-    let data = {};
-    try { data = (await window.firebaseDb.ref("meetingAgendas").once("value")).val() || {}; } catch (error) { console.warn("Agenda Firebase read unavailable:", error); }
+    const data = (await window.firebaseDb.ref("meetingAgendas").once("value")).val() || {};
     agendaState.items = Object.entries(data).map(([id, value]) => ({ id, ...value }));
-    if (isSupervisorLoggedIn() && agendaState.items.length) {
-      try { await agendaSheetRequest({ action: "syncAgendas", agendas: agendaState.items }); }
-      catch (error) { console.warn("Existing agenda migration to spreadsheet failed:", error); }
-    }
-    const sheetItems = await agendaSheetGet("getAgendas");
-    if (!Array.isArray(sheetItems)) throw new Error(sheetItems.error || "Agenda sheet returned an invalid response.");
-    const byId = new Map(agendaState.items.map(item => [item.id, item]));
-    sheetItems.forEach(item => { if (item.id) byId.set(String(item.id), { ...byId.get(String(item.id)), ...item, id: String(item.id) }); });
-    agendaState.items = [...byId.values()];
     agendaState.items.sort((a,b) => String(b.createdAt || b.meetingDate || "").localeCompare(String(a.createdAt || a.meetingDate || "")));
     renderAgendas();
   } catch (error) {
@@ -54,17 +24,20 @@ function agendaStatus(item) {
 function agendaInjectStyles() {
   if (document.getElementById("agendaEnhancedStyles")) return;
   document.head.insertAdjacentHTML("beforeend", `<style id="agendaEnhancedStyles">
-    .agenda-item{display:grid;grid-template-columns:30px minmax(0,1fr) auto;align-items:center;gap:8px;margin:0;padding:9px 14px;border:0;border-bottom:1px solid #e1e7ed;background:#fff}
+    .agenda-item{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:8px;margin:0;padding:9px 14px;border:0;border-bottom:1px solid #e1e7ed;background:#fff}
     .agenda-item:last-child{border-bottom:0}
-    .agenda-item-number{align-self:start;padding-top:1px;color:#263b31;font-size:14px;font-weight:700}
-    .agenda-item-title{min-width:0;color:#263b31;font-size:14px;font-weight:600;line-height:1.4;overflow-wrap:anywhere}
-    .agenda-item-date{color:#53665b;font-size:12px;white-space:nowrap}
-    .agenda-item-actions{display:flex;grid-column:2/-1;gap:8px;flex-wrap:wrap;margin-top:2px}
+    .agenda-item-number{display:none}
+    .agenda-item-title{min-width:0;color:#263b31;font-size:14px;font-weight:600;line-height:1.4;overflow-wrap:anywhere;text-align:left}
+    .agenda-item-date{color:#53665b;font-size:12px;white-space:nowrap;padding-top:2px}
+    .agenda-expand{width:100%;padding:0;border:0;background:transparent;text-align:left;color:inherit;font:inherit;cursor:pointer}
+    .agenda-detail{grid-column:1/-1;width:100%;padding:8px 0 2px;color:#566a5e;font-size:12px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
+    .agenda-detail[hidden]{display:none}
+    .agenda-item-actions{display:flex;grid-column:1/-1;gap:8px;flex-wrap:wrap;margin-top:2px}
     .agenda-item-actions button{border:0;border-radius:0;padding:3px 4px;min-height:27px;background:transparent;cursor:pointer;font-weight:700;font-size:11px;display:inline-flex;align-items:center;gap:5px}
     .agenda-edit-btn{color:#175ea8}.agenda-delete-btn{color:#b42318}
     .agenda-discussed-btn{color:#165a9e}.agenda-back-btn{color:#46544b}.agenda-complete-btn{color:#177245}
     .agenda-completed{display:inline-flex;align-items:center;margin-left:5px;padding:3px 6px;border-radius:999px;background:#e6f7ed;color:#177245;font-size:10px;font-weight:800;vertical-align:middle}
-    @media(max-width:640px){.agenda-item{grid-template-columns:24px minmax(0,1fr);gap:5px;padding:9px 10px}.agenda-item-date{grid-column:2;white-space:normal;font-size:11px}.agenda-item-actions{grid-column:2}.agenda-item-title{font-size:14px}.agenda-item-actions button{min-height:30px}}
+    @media(max-width:640px){.agenda-item{grid-template-columns:minmax(0,1fr) auto;gap:5px;padding:9px 10px}.agenda-item-date{grid-column:2;grid-row:1;white-space:nowrap;font-size:11px}.agenda-item-actions{grid-column:1/-1}.agenda-item-title{font-size:14px}.agenda-item-actions button{min-height:30px}}
   </style>`);
 }
 
@@ -73,23 +46,35 @@ function agendaItemHTML(item, index) {
   const isDecision = ["Decision Taken", "Under Action", "Completed"].includes(status);
   const isCompleted = status === "Completed" || item.decisionStatus === "Completed";
   const actions = `
-    ${isSupervisorLoggedIn() ? `<button type="button" class="agenda-edit-btn" onclick="event.stopPropagation();editAgenda('${item.id}')"><i class="fa-solid fa-pen"></i><span>Edit</span></button>` : ""}
-    ${isSupervisorLoggedIn() && !isDecision && status !== "Cancelled" ? `<button type="button" class="agenda-discussed-btn" onclick="event.stopPropagation();moveAgendaToDecision('${item.id}')">Discussed</button>` : ""}
-    ${isSupervisorLoggedIn() && isDecision && !isCompleted ? `<button type="button" class="agenda-complete-btn" onclick="event.stopPropagation();completeAgenda('${item.id}')">Implemented</button>` : ""}
-    ${isSupervisorLoggedIn() && isCompleted ? `<button type="button" class="agenda-discussed-btn" onclick="event.stopPropagation();moveAgendaToDecision('${item.id}')">Move back to Topics Discussed</button>` : ""}
-    ${isSupervisorLoggedIn() && isDecision ? `<button type="button" class="agenda-back-btn" onclick="event.stopPropagation();moveAgendaBackToAgenda('${item.id}')">Move back to Meeting Agenda</button>` : ""}
-    ${isSupervisorLoggedIn() ? `<button type="button" class="agenda-delete-btn" onclick="event.stopPropagation();deleteAgenda('${item.id}')"><i class="fa-solid fa-trash"></i> Delete</button>` : ""}
+    ${isSupervisorLoggedIn() ? `<button type="button" class="agenda-edit-btn" onclick="editAgenda('${item.id}')"><i class="fa-solid fa-pen"></i><span>Edit</span></button>` : ""}
+    ${isSupervisorLoggedIn() && !isDecision && status !== "Cancelled" ? `<button type="button" class="agenda-discussed-btn" onclick="moveAgendaToDecision('${item.id}')">Discussed</button>` : ""}
+    ${isSupervisorLoggedIn() && isDecision && !isCompleted ? `<button type="button" class="agenda-complete-btn" onclick="completeAgenda('${item.id}')">Implemented</button>` : ""}
+    ${isSupervisorLoggedIn() && isCompleted ? `<button type="button" class="agenda-discussed-btn" onclick="moveAgendaToDecision('${item.id}')">Move back to Topics Discussed</button>` : ""}
+    ${isSupervisorLoggedIn() && isDecision ? `<button type="button" class="agenda-back-btn" onclick="moveAgendaBackToAgenda('${item.id}')">Move back to Meeting Agenda</button>` : ""}
+    ${isSupervisorLoggedIn() ? `<button type="button" class="agenda-delete-btn" onclick="deleteAgenda('${item.id}')"><i class="fa-solid fa-trash"></i> Delete</button>` : ""}
   `;
   const addedDate = String(item.createdAt || item.meetingDate || "—").slice(0, 10);
+  const detail = [item.description, item.decision ? `Decision: ${item.decision}` : "", item.responsible ? `Responsible: ${item.responsible}` : "", item.targetDate ? `Target date: ${item.targetDate}` : ""].filter(Boolean).join("\n") || "No additional details.";
   return `<article class="agenda-item">
-    <span class="agenda-item-number">${index + 1}.</span>
-    <span class="agenda-item-title">${escapeHTML(item.title || "—")}${isCompleted ? ` <span class="agenda-completed">Completed</span>` : ""}</span>
+    <div class="agenda-item-title"><button class="agenda-expand" type="button" aria-expanded="false" onclick="toggleAgendaDetails('${item.id}', this)">${escapeHTML(item.title || "—")}${isCompleted ? ` <span class="agenda-completed">Completed</span>` : ""}</button></div>
     <time class="agenda-item-date" datetime="${escapeHTML(addedDate)}">${escapeHTML(addedDate)}</time>
-    ${isSupervisorLoggedIn() ? `<div class="agenda-item-actions">${actions}</div>` : ""}
+    <div class="agenda-detail" hidden>${escapeHTML(detail)}</div>
+    ${isSupervisorLoggedIn() ? `<div class="agenda-item-actions" hidden>${actions}</div>` : ""}
   </article>`;
 }
 
+function toggleAgendaDetails(id, button) {
+  const card = button.closest(".agenda-item");
+  const expanded = button.getAttribute("aria-expanded") !== "true";
+  button.setAttribute("aria-expanded", String(expanded));
+  const details = card?.querySelector(".agenda-detail");
+  const actions = card?.querySelector(".agenda-item-actions");
+  if (details) details.hidden = !expanded;
+  if (actions) actions.hidden = !expanded;
+}
+
 function renderAgendas() { agendaInjectStyles(); const b=document.querySelector("#agendaView .agenda-add-button"); if(b)b.style.display=isSupervisorLoggedIn()?"inline-flex":"none";
+  const importButton=document.getElementById("agendaImportButton"); if(importButton) importButton.hidden=!isSupervisorLoggedIn();
 
   const allAgendas = agendaState.items.filter(item => !["Decision Taken", "Under Action", "Completed"].includes(agendaStatus(item)));
   const underAction = agendaState.items.filter(item => ["Decision Taken", "Under Action"].includes(agendaStatus(item)) && item.decisionStatus !== "Completed");
@@ -107,6 +92,44 @@ function renderAgendas() { agendaInjectStyles(); const b=document.querySelector(
   put("allAgendaList", allAgendas, "No agenda items yet.");
   put("actionAgendaList", underAction, "No topics discussed yet.");
   put("completedAgendaList", completed, "No decisions taken yet.");
+}
+
+async function importLegacyAgendas() {
+  if (!requireSupervisor()) return;
+  const button = document.getElementById("agendaImportButton");
+  if (!button || button.dataset.importing === "true") return;
+  button.dataset.importing = "true";
+  button.disabled = true;
+  button.textContent = "Backing up and importing…";
+  try {
+    await window.firebaseReady;
+    const firebaseRef = window.firebaseDb.ref("meetingAgendas");
+    const current = (await firebaseRef.once("value")).val() || {};
+    const backupId = new Date().toISOString().replace(/[:.]/g,"-");
+    await window.firebaseDb.ref(`meetingAgendasMigrationBackups/${backupId}`).set({createdAt:new Date().toISOString(),source:"pre-legacy-agenda-import",items:current});
+    const authToken = await window.firebaseAuth.currentUser.getIdToken();
+    const response = await fetch(SCRIPT_URL,{method:"POST",mode:"cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"getAgendas",authToken})});
+    const legacy = await response.json();
+    if (!response.ok || legacy.success === false || legacy.error || !Array.isArray(legacy)) throw new Error(legacy.error || "Legacy agenda source returned invalid data.");
+    const additions = {};
+    legacy.forEach(item => {
+      const id=String(item.id || "").trim();
+      const title=String(item.title || "").trim();
+      const meetingDate=String(item.meetingDate || "").trim();
+      if (!id || !title || !meetingDate || current[id]) return;
+      additions[id]={...item,id,title,meetingDate,createdAt:item.createdAt || new Date().toISOString(),updatedAt:item.updatedAt || new Date().toISOString()};
+    });
+    if (Object.keys(additions).length) await firebaseRef.update(additions);
+    await openAgendaManagement();
+    alert(`${Object.keys(additions).length} legacy agenda record(s) imported. Existing Firebase records were kept. Backup: ${backupId}`);
+  } catch(error) {
+    console.error("Legacy agenda import error:",error);
+    alert(`Legacy agenda import failed: ${error.message || error}. Firebase data was not overwritten; the pre-import backup is retained if it completed.`);
+  } finally {
+    delete button.dataset.importing;
+    button.disabled = false;
+    button.innerHTML = "Import legacy records";
+  }
 }
 
 function openAgendaForm(editId = "") { if(!requireSupervisor())return; const existing = editId ? agendaState.items.find(item => item.id === editId) : null;
@@ -221,17 +244,8 @@ async function saveAgenda(event, editId = "") {
     }
 
     const savedItem = { ...payload, id: savedId, createdAt: payload.createdAt || oldItem.createdAt || new Date().toISOString() };
-    let syncPending = false;
-    try { await agendaSheetRequest({ action: "saveAgenda", agenda: savedItem }); }
-    catch (error) {
-      syncPending = true;
-      await window.firebaseDb.ref(`meetingAgendas/${savedId}`).update({ sheetSyncPending: true });
-      console.warn("Agenda saved to Firebase; spreadsheet sync is pending:", error);
-    }
-
     document.getElementById("agendaModal")?.remove();
     await openAgendaManagement();
-    if (syncPending) alert("Agenda saved. Spreadsheet sync is pending; it will retry when the agenda opens again.");
 
   } catch (error) {
     console.error("Agenda save error:", error);
@@ -256,15 +270,7 @@ async function updateAgendaStage(id, status) {
   try {
     await window.firebaseReady;
     await window.firebaseDb.ref(`meetingAgendas/${id}`).update(payload);
-    let syncPending = false;
-    try { await agendaSheetRequest({ action: "saveAgenda", agenda: payload }); }
-    catch (error) {
-      syncPending = true;
-      await window.firebaseDb.ref(`meetingAgendas/${id}`).update({ sheetSyncPending: true });
-      console.warn("Agenda status updated; spreadsheet sync is pending:", error);
-    }
     await openAgendaManagement();
-    if (syncPending) alert("Agenda updated. Spreadsheet sync is pending; it will retry when the agenda opens again.");
   } catch (error) { console.error("Agenda stage update error:", error); alert("Agenda update failed. Check your connection and try again."); }
 }
 
@@ -274,13 +280,6 @@ async function deleteAgenda(id) { if(!requireSupervisor())return; const item = a
   try {
     await window.firebaseReady;
     await window.firebaseDb.ref(`meetingAgendas/${id}`).remove();
-    let syncPending = false;
-    try { await agendaSheetRequest({ action: "deleteAgenda", id }); }
-    catch (error) {
-      syncPending = true;
-      console.warn("Agenda deleted from Firebase; spreadsheet sync is pending:", error);
-    }
     await openAgendaManagement();
-    if (syncPending) alert("Agenda deleted. The spreadsheet copy may remain until its sync is repaired.");
   } catch (error) { console.error("Agenda delete error:", error); alert("Agenda could not be deleted. Check your connection and try again."); }
 }

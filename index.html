@@ -769,7 +769,7 @@
 .asset-highlight-card{background:#fff;border:1px solid #e2e8ee;border-radius:15px;padding:18px 14px;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,.04);min-height:155px;display:flex;flex-direction:column;align-items:center;justify-content:center;}
 .asset-highlight-icon{width:50px;height:50px;border-radius:14px;background:#eef5f1;color:#1b4332;display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:10px;}
 .asset-highlight-name{font-size:14px;font-weight:700;color:#263238;line-height:1.35;}
-.asset-quantity{margin-top:7px;font-size:24px;font-weight:800;color:#174f91;line-height:1.1;}
+.asset-quantity{margin-top:7px;font-size:19px;font-weight:700;color:#174f91;line-height:1.1;}
 .asset-quantity small{font-size:11px;font-weight:600;color:#77818b;margin-left:3px;}
 .asset-available{margin-top:6px;font-size:11px;color:#5f6b75;}
 .asset-category-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
@@ -789,7 +789,7 @@
   .asset-highlight-card{padding:14px 8px;min-height:145px;}
   .asset-highlight-icon{width:44px;height:44px;font-size:21px;margin-bottom:8px;}
   .asset-highlight-name{font-size:12px;}
-  .asset-quantity{font-size:21px;}
+  .asset-quantity{font-size:17px;}
   .asset-available{font-size:10px;}
 }
 </style>
@@ -857,9 +857,9 @@
         class="header-brand-image"
       >
 
-    </header>
+      <button type="button" class="header-logout" onclick="manualRoleLogout()" aria-label="Logout"><i class="fa-solid fa-arrow-right-from-bracket"></i><span>Logout</span></button>
 
-    <div class="auth-session-bar"><span id="authRoleBadge">Signed in</span><span id="authSessionTimer"></span><button type="button" onclick="manualRoleLogout()">Logout</button></div>
+    </header>
 
 
 
@@ -1123,24 +1123,7 @@
       class="view-section hidden"
     >
 
-      <div class="section-header">
-
-        <button
-          class="btn-back"
-          onclick="showDashboard()"
-        >
-
-          <i class="fa-solid fa-arrow-left"></i>
-
-          Back
-
-        </button>
-
-        <h2>
-          Activity Reports
-        </h2>
-
-      </div>
+      <div class="section-header inner-page-header"><button class="btn-back" onclick="showDashboard()"><i class="fa-solid fa-arrow-left"></i> Back</button></div>
 
 
       <section class="annual-activity-reports">
@@ -1191,9 +1174,7 @@
 
         </button>
 
-        <h2>
-          Attendance Section
-        </h2>
+
 
       </div>
 
@@ -1321,26 +1302,11 @@
       class="view-section hidden"
     >
 
-      <div class="section-header">
-
-        <button
-          class="btn-back"
-          onclick="showDashboard()"
-        >
-
-          <i class="fa-solid fa-arrow-left"></i>
-
-          Back
-
-        </button>
-
-        <h2>
-          Members Profile
-        </h2>
-
-      </div>
+      <div class="section-header inner-page-header"><button class="btn-back" onclick="showDashboard()"><i class="fa-solid fa-arrow-left"></i> Back</button></div>
 
       <div class="ayfa-supervisor-bar member-supervisor-bar"><span data-supervisor-login></span></div>
+
+      <label class="member-search-box" for="memberSearchInput"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><input id="memberSearchInput" type="search" placeholder="Search name, ID, designation, father, education or location" autocomplete="off" oninput="filterMemberCards(this.value)" aria-label="Search members"></label>
 
       <div
         id="membersContainer"
@@ -1358,12 +1324,11 @@
          ASSET & INVENTORY — INTERNAL DIGITAL ASSET REGISTER
     ======================================================== -->
     <div id="assetInventoryView" class="view-section hidden">
-      <div class="section-header">
+      <div class="section-header inner-page-header">
         <button class="btn-back" onclick="showDashboard()">
           <i class="fa-solid fa-arrow-left"></i>
           Back
         </button>
-        <h2>Asset & Inventory</h2>
       </div>
 
       <section class="asset-section">
@@ -1424,25 +1389,16 @@
          RENTAL & PAYMENT MANAGEMENT
     ======================================================== -->
     <div id="rentalView" class="view-section hidden">
-      <div class="section-header rental-header">
-        <button class="btn-back" onclick="showDashboard()">
-          <i class="fa-solid fa-arrow-left"></i>
-          ಹಿಂದೆ
-        </button>
-        <div>
-          <p class="rental-eyebrow">Rental Management</p>
-          <h2>Chair &amp; Table · Speaker</h2>
-        </div>
-      </div>
+      <div class="section-header rental-header inner-page-header"><button class="btn-back" onclick="showDashboard()"><i class="fa-solid fa-arrow-left"></i> Back</button></div>
 
       <div id="rentalContent" class="rental-content" aria-live="polite"></div>
     </div>
 
     <div id="agendaView" class="view-section hidden">
-      <div class="section-header"><button class="btn-back" onclick="showDashboard()"><i class="fa-solid fa-arrow-left"></i> Back</button><h2>Meeting Agenda</h2></div>
+      <div class="section-header inner-page-header"><button class="btn-back" onclick="showDashboard()"><i class="fa-solid fa-arrow-left"></i> Back</button></div>
       <section class="agenda-section">
         <div class="ayfa-supervisor-bar"><span data-supervisor-login></span></div>
-        <div class="agenda-toolbar"><span></span><button class="agenda-add-button" onclick="openAgendaForm()"><i class="fa-solid fa-plus"></i> Add new agenda</button></div>
+        <div class="agenda-toolbar"><span></span><div class="agenda-toolbar-actions"><button id="agendaImportButton" class="agenda-import-button" type="button" onclick="importLegacyAgendas()" hidden>Import legacy records</button><button class="agenda-add-button" onclick="openAgendaForm()"><i class="fa-solid fa-plus"></i> Add new agenda</button></div></div>
         <div class="agenda-simple-sections"><div class="agenda-panel"><h3><i class="fa-solid fa-list-check"></i> Meeting Agenda</h3><div class="agenda-list-head"><span>Agenda Item</span><span>Date Added</span></div><div id="allAgendaList"></div></div><div class="agenda-panel"><h3><i class="fa-solid fa-comments"></i> Topics Discussed</h3><div class="agenda-list-head"><span>Agenda Item</span><span>Date Added</span></div><div id="actionAgendaList"></div></div><div class="agenda-panel"><h3><i class="fa-solid fa-circle-check"></i> Decisions Taken</h3><div class="agenda-list-head"><span>Agenda Item</span><span>Date Added</span></div><div id="completedAgendaList"></div></div></div>
       </section>
     </div>
@@ -1451,16 +1407,7 @@
       id="financeView"
       class="view-section hidden"
     >
-      <div class="section-header">
-        <button
-          class="btn-back"
-          onclick="showDashboard()"
-        >
-          <i class="fa-solid fa-arrow-left"></i>
-          Back
-        </button>
-        <h2>Finance Reports</h2>
-      </div>
+      <div class="section-header inner-page-header"><button class="btn-back" onclick="showDashboard()"><i class="fa-solid fa-arrow-left"></i> Back</button></div>
 
       <section id="finance" class="finance-section">
         <div class="container">
@@ -1547,24 +1494,7 @@
       class="view-section hidden"
     >
 
-      <div class="section-header">
-
-        <button
-          class="btn-back"
-          onclick="showDashboard()"
-        >
-
-          <i class="fa-solid fa-arrow-left"></i>
-
-          Back
-
-        </button>
-
-        <h2>
-          Blood Donors
-        </h2>
-
-      </div>
+      <div class="section-header inner-page-header"><button class="btn-back" onclick="showDashboard()"><i class="fa-solid fa-arrow-left"></i> Back</button></div>
 
 
       <div class="blood-donor-toolbar">
@@ -1693,7 +1623,7 @@
 
         <i class="fa-solid fa-arrow-left"></i>
 
-        Back to Blood Donors
+        Back
 
       </button>
 
@@ -2015,24 +1945,7 @@
       class="view-section hidden"
     >
 
-      <div class="section-header">
-
-        <button
-          class="btn-back"
-          onclick="showDashboard()"
-        >
-
-          <i class="fa-solid fa-arrow-left"></i>
-
-          Back
-
-        </button>
-
-        <h2>
-          Office Bearers
-        </h2>
-
-      </div>
+      <div class="section-header inner-page-header"><button class="btn-back" onclick="showDashboard()"><i class="fa-solid fa-arrow-left"></i> Back</button></div>
 
 
       <p class="select-instruction">
@@ -2099,7 +2012,7 @@
       class="view-section hidden"
     >
 
-      <div class="section-header">
+      <div class="section-header inner-page-header">
 
         <button
           class="btn-back"
@@ -2111,16 +2024,6 @@
           Back
 
         </button>
-
-        <h2>
-
-          Office Bearers -
-
-          <span id="selectedYearTitle">
-            2027
-          </span>
-
-        </h2>
 
       </div>
 

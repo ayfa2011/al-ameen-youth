@@ -20,7 +20,15 @@
       ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
       ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)"
     },
+    "meetingAgendasMigrationBackups": {
+      ".read": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
+      ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)"
+    },
     "programReports": {
+      ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
+      ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)"
+    },
+    "drivePhotoFolders": {
       ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
       ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)"
     },

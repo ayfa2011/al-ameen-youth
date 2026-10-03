@@ -113,6 +113,11 @@ function doPost(e) {
       return jsonOutput(getAgendas_());
     }
 
+    if (body.action === "listDrivePhotoFolders") {
+      authorizeWebUser_(body.authToken, ["member", "official"]);
+      return jsonOutput(listDrivePhotoFolders_());
+    }
+
     if (["uploadDrivePhoto", "saveAttendance", "saveAgenda", "deleteAgenda", "syncAgendas"].includes(body.action)) {
       authorizeWebUser_(body.authToken, ["official"]);
     }
@@ -216,6 +221,7 @@ function uploadDrivePhoto(data) {
       success: true,
       fileId: file.getId(),
       fileName: file.getName(),
+      folderId: folder.getId(),
       folderUrl: folder.getUrl(),
       imageUrl: "https://drive.google.com/uc?export=view&id=" + file.getId(),
       thumbnailUrl: "https://drive.google.com/thumbnail?id=" + file.getId() + "&sz=w1200",
@@ -229,6 +235,33 @@ function uploadDrivePhoto(data) {
       stack: error.stack || ""
     };
   }
+}
+
+function listDrivePhotoFolders_() {
+  const rootName = "AYFA Activity Photos";
+  const roots = DriveApp.getFoldersByName(rootName);
+  if (!roots.hasNext()) return { success: true, folders: [] };
+  const root = roots.next();
+  const folders = [];
+  const iterator = root.getFolders();
+  while (iterator.hasNext()) {
+    const folder = iterator.next();
+    const photoIterator = folder.getFiles();
+    const photos = [];
+    while (photoIterator.hasNext()) {
+      const file = photoIterator.next();
+      if (!String(file.getMimeType() || "").startsWith("image/")) continue;
+      photos.push({
+        fileId: file.getId(),
+        fileName: file.getName(),
+        imageUrl: "https://drive.google.com/uc?export=view&id=" + file.getId(),
+        thumbnailUrl: "https://drive.google.com/thumbnail?id=" + file.getId() + "&sz=w1200",
+        webViewLink: file.getUrl()
+      });
+    }
+    folders.push({ id: folder.getId(), name: folder.getName(), folderUrl: folder.getUrl(), photos: photos });
+  }
+  return { success: true, folders: folders };
 }
 
 function jsonOutput(data) {

@@ -190,16 +190,8 @@ async function manualRoleLogout() {
 }
 
 function updateAuthSessionTimer() {
-  const badge = document.getElementById("authRoleBadge");
-  const timer = document.getElementById("authSessionTimer");
   const active = isRoleAuthenticated();
-  if (badge) badge.textContent = active ? (ayfaAuthContext.role === "official" ? "Officials · Full access" : "Member · Read only") : "";
-  if (!timer) return;
-  if (!active) { timer.textContent = ""; return; }
-  const remaining = Math.max(0, ayfaAuthContext.expiresAt - Date.now());
-  const minutes = Math.ceil(remaining / 60000);
-  timer.textContent = `Session ${minutes} min`;
-  window.setTimeout(updateAuthSessionTimer, 60000);
+  if (active) window.setTimeout(updateAuthSessionTimer, Math.max(0, ayfaAuthContext.expiresAt - Date.now()));
 }
 
 function openSupervisorLogin() {
@@ -217,8 +209,7 @@ function requireSupervisor() {
 
 function supervisorButtonHTML() {
   if (isRoleAuthenticated()) {
-    const label = ayfaAuthContext.role === "official" ? "Officials · Full access" : "Member · Read only";
-    return `<button type="button" class="ayfa-supervisor-btn" onclick="manualRoleLogout()"><i class="fa-solid fa-arrow-right-from-bracket"></i> ${label} · Logout</button>`;
+    return "";
   }
   return `<button type="button" class="ayfa-supervisor-btn" onclick="openSupervisorLogin()"><i class="fa-solid fa-lock"></i> Officials Login</button>`;
 }

@@ -2,6 +2,8 @@
 // ATTENDANCE - FIREBASE CONNECTION
 // ============================================================
 
+const attendanceSelectedMemberIds = new Set();
+
 async function apiGet(action) {
   if (action === "getReports") return getFirebaseAttendanceReports();
   throw new Error(`Unsupported Firebase action: ${action}`);
@@ -50,16 +52,44 @@ async function loadAttendanceSheet() {
     await fetchMembersFromFirebase();
     if (!fullMembersList.length) throw new Error("No members");
 
-    container.innerHTML = fullMembersList.map(m => `
-      <label class="attendance-item">
-        <input type="checkbox" value="${escapeHTML(m.name)}" data-member-id="${escapeHTML(m.id)}" class="att-checkbox">
-        <span><strong>${escapeHTML(m.id)}.</strong> ${escapeHTML(m.name)}</span>
-      </label>
-    `).join("");
+    container.innerHTML = `<input id="attendanceMemberSearch" class="attendance-member-search" type="search" placeholder="Search member name or ID" aria-label="Search member name or ID" oninput="filterAttendanceMembers(this.value)"><div id="attendanceMemberResults" class="attendance-member-results"></div><div id="attendanceSelectedMembers" class="attendance-selected-members"><span class="attendance-selection-hint">Search and select members marked Present.</span></div>`;
+    filterAttendanceMembers("");
   } catch (error) {
     console.error(error);
     container.innerHTML = `<p class="error-message">ಸದಸ್ಯರ ಪಟ್ಟಿ ಸಿಗಲಿಲ್ಲ. Firebase connection ಪರಿಶೀಲಿಸಿ.</p>`;
   }
+}
+
+function filterAttendanceMembers(query = "") {
+  const target = document.getElementById("attendanceMemberResults");
+  if (!target) return;
+  const term = String(query).trim().toLowerCase();
+  const selectedIds = attendanceSelectedMemberIds;
+  const matches = fullMembersList.filter(member => !selectedIds.has(String(member.id)) && (!term || `${member.name} ${memberDisplayId(member)} ${member.id}`.toLowerCase().includes(term))).slice(0, 10);
+  target.innerHTML = matches.map(member => `<button type="button" class="attendance-result" onclick="selectAttendanceMember('${escapeHTML(member.id)}')"><span>${escapeHTML(member.name)}</span><small>${escapeHTML(memberDisplayId(member))}</small></button>`).join("") || `<div class="attendance-search-empty">${term ? "No members found." : "Type a name or member ID to search."}</div>`;
+  renderAttendanceSelected();
+}
+
+function selectAttendanceMember(id) {
+  const member = fullMembersList.find(item => String(item.id) === String(id));
+  const results = document.getElementById("attendanceMemberResults");
+  if (!member || !results) return;
+  attendanceSelectedMemberIds.add(String(member.id));
+  const input = document.getElementById("attendanceMemberSearch");
+  if (input) input.value = "";
+  filterAttendanceMembers("");
+}
+
+function removeAttendanceMember(id) {
+  attendanceSelectedMemberIds.delete(String(id));
+  filterAttendanceMembers(document.getElementById("attendanceMemberSearch")?.value || "");
+}
+
+function renderAttendanceSelected() {
+  const target = document.getElementById("attendanceSelectedMembers");
+  if (!target) return;
+  const selected = fullMembersList.filter(member => attendanceSelectedMemberIds.has(String(member.id)));
+  target.innerHTML = selected.length ? selected.map(member => `<span class="attendance-selected-chip">${escapeHTML(member.name)}<button type="button" onclick="removeAttendanceMember('${escapeHTML(member.id)}')" aria-label="Remove ${escapeHTML(member.name)}">×</button></span>`).join("") : '<span class="attendance-selection-hint">Search and select members marked Present.</span>';
 }
 
 async function loadAttendanceReports() {
@@ -96,7 +126,7 @@ async function submitAttendance() {
     return;
   }
 
-  const selected = [...document.querySelectorAll(".att-checkbox:checked")];
+  const selected = fullMembersList.filter(member => attendanceSelectedMemberIds.has(String(member.id)));
   if (!selected.length) {
     alert("ದಯವಿಟ್ಟು ಕನಿಷ್ಠ ಒಬ್ಬ ಸದಸ್ಯರನ್ನು ಆಯ್ಕೆ ಮಾಡಿ!");
     return;
@@ -118,7 +148,7 @@ async function submitAttendance() {
     updates[`programs/${programId}`] = programData;
 
     // Store a record for every member so Present/Absent history is complete.
-    const selectedIds = new Set(selected.map(cb => String(cb.dataset.memberId || "")));
+    const selectedIds = new Set(selected.map(member => String(member.id)));
     fullMembersList.forEach(member => {
       const memberId = String(member.id);
       updates[`attendance/${programId}/${memberId}`] = {
@@ -132,7 +162,8 @@ async function submitAttendance() {
 
     alert("Attendance ಯಶಸ್ವಿಯಾಗಿ Firebaseನಲ್ಲಿ Save ಆಗಿದೆ!");
     progNameEl.value = "";
-    document.querySelectorAll(".att-checkbox").forEach(cb => cb.checked = false);
+    attendanceSelectedMemberIds.clear();
+    renderAttendanceSelected();
   } catch (error) {
     console.error(error);
     alert("Attendance save ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. Firebase connection ಪರಿಶೀಲಿಸಿ.");
