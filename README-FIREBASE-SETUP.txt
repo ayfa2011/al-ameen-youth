@@ -1,43 +1,72 @@
-AYFA FIREBASE UPDATE
-====================
+AYFA FIREBASE AND ROLE LOGIN SETUP
+==================================
 
 This update moves Members, Blood Donors and Attendance reads/writes from Google Apps Script/Google Sheets to Firebase Realtime Database for faster website loading.
 
-1) Firebase Authentication
+1) Apps Script login setup
 --------------------------
-Firebase Console -> Build -> Authentication -> Sign-in method -> Anonymous -> Enable.
+The website offers two shared-password sign-ins. The passwords are checked in
+Google Apps Script and are not included in the website JavaScript:
 
-2) Import the Excel data
-------------------------
-Firebase Console -> Realtime Database -> Data -> three-dot menu -> Import JSON.
-Select:
-    firebase/ayfa-data.json
+  MEMBER_LOGIN_PASSWORD = [set the agreed member password]
+  OFFICIAL_LOGIN_PASSWORD = [set the agreed officials password]
 
-This JSON contains the 60 Members, 4 Programs and 240 Attendance records from the supplied Excel file.
+In the Apps Script project used by this website, open Project Settings ->
+Script Properties and add those two properties. Keep the existing
+SERVICE_ACCOUNT_EMAIL and SERVICE_ACCOUNT_PRIVATE_KEY properties in place.
+Do not paste service-account private keys or the shared passwords into the
+website source or a public repository.
+
+Deploy the updated Apps Script as a web app, executing as the owner and
+available to anyone so the login screen can request a role token. The script
+checks the selected password server-side, then signs a short-lived Firebase
+custom token. Keep the existing web app URL if possible; otherwise update
+SCRIPT_URL in js/script.js to the new /exec URL. Deploy this backend before
+publishing the website changes.
+
+2) Firebase Authentication
+--------------------------
+The site signs in with Firebase custom tokens. Anonymous sign-in is no longer
+used by the website. You do not need to create separate email/password
+accounts. The Firebase project must remain the same project as the configured
+service account and web app.
 
 3) Database Rules
 -----------------
 The supplied rules file is:
     firebase/firebase-database.rules.json
 
-Use these rules after Anonymous Authentication is enabled. They allow authenticated website users to read/write the database.
+Publish these rules in Firebase Console -> Realtime Database -> Rules when you
+publish the website. Members can read approved website data but cannot write.
+Officials can read and write. Rules also reject requests more than one hour
+after Firebase sign-in, even if a browser keeps an old page open. Do not restore
+a root-level auth-only read/write rule, because that would override these role
+restrictions.
 
-4) Website files
+4) Google Apps Script deployment
+---------------------------------
+The Apps Script now checks Firebase ID tokens and role claims for the website's
+protected read/write endpoints, including Agenda sync and activity-photo
+uploads. Deploy the updated script version before publishing the new website.
+When ready to switch over, publish the website and these Realtime Database
+rules together so the existing open rules do not remain active. The existing
+service-account properties are used to sign login tokens and continue the
+spreadsheet sync.
+
+5) Website files
 ----------------
 Replace the following in your GitHub website project:
     index.html
-    js/members.js
-    js/attendance.js
-    js/firebase-config.js
-    js/finance.js
-
-Keep your existing:
+    js/supervisor.js
     js/script.js
-    css/style.css
-    assets/
-    components/
-
-The index.html included in this package also contains the current Asset & Inventory and Finance integration from the supplied website version.
+    js/rentals.js
+    js/activity-reports.js
+    js/agenda.js
+    js/attendance.js
+    js/members.js
+    js/firebase-config.js
+    firebase/firebase-database.rules.json
+    google-apps-script.gs
 
 IMPORTANT
 ---------

@@ -22,9 +22,66 @@
 const FIREBASE_DATABASE_URL =
   "https://al-ameen-website-e24d0-default-rtdb.asia-southeast1.firebasedatabase.app";
 
+const FIREBASE_WEB_API_KEY = "AIzaSyAdOIktZ41SKFIef68uFl6PbbsrwADnEqI";
+const WEB_ROLE_SESSION_MS = 60 * 60 * 1000;
+
+function authorizeWebUser_(idToken, allowedRoles) {
+  if (!idToken) throw new Error("Sign-in is required.");
+  const tokenParts = String(idToken).split(".");
+  if (tokenParts.length !== 3) throw new Error("Invalid sign-in token.");
+  let claims;
+  try {
+    let payload = tokenParts[1];
+    while (payload.length % 4) payload += "=";
+    claims = JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(payload)).getDataAsString());
+  } catch (_) { throw new Error("Invalid sign-in token."); }
+  if (!claims.sub || !claims.auth_time || Date.now() >= Number(claims.auth_time) * 1000 + WEB_ROLE_SESSION_MS) {
+    throw new Error("Your sign-in session expired. Please log in again.");
+  }
+
+  const verifyResponse = UrlFetchApp.fetch(
+    "https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=" + encodeURIComponent(FIREBASE_WEB_API_KEY),
+    { method: "post", contentType: "application/json", payload: JSON.stringify({ idToken: idToken }), muteHttpExceptions: true }
+  );
+  if (verifyResponse.getResponseCode() !== 200) throw new Error("Sign-in token is invalid or expired.");
+  const account = (JSON.parse(verifyResponse.getContentText()).users || [])[0];
+  if (!account || account.localId !== claims.sub) throw new Error("Sign-in token could not be verified.");
+
+  const role = String(claims.role || "").toLowerCase();
+  if (!allowedRoles.includes(role)) throw new Error("This account is not allowed to perform this action.");
+  return { uid: account.localId, role: role };
+}
+
+function issueRoleCustomToken_(role, password) {
+  if (role !== "member" && role !== "official") throw new Error("Choose a valid login type.");
+  const properties = PropertiesService.getScriptProperties();
+  const expectedPassword = properties.getProperty(role === "member" ? "MEMBER_LOGIN_PASSWORD" : "OFFICIAL_LOGIN_PASSWORD");
+  if (!expectedPassword) throw new Error("Login passwords have not been configured in Apps Script.");
+  if (String(password || "") !== expectedPassword) throw new Error("Incorrect password. Please try again.");
+
+  const email = properties.getProperty("SERVICE_ACCOUNT_EMAIL");
+  const privateKey = properties.getProperty("SERVICE_ACCOUNT_PRIVATE_KEY");
+  if (!email || !privateKey) throw new Error("Firebase service-account credentials are missing in Apps Script.");
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: "RS256", typ: "JWT" };
+  const claims = {
+    iss: email,
+    sub: email,
+    aud: "https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit",
+    iat: now,
+    exp: now + 3600,
+    uid: "ayfa-shared-" + role,
+    claims: { role: role }
+  };
+  const unsignedJwt = base64UrlEncode_(JSON.stringify(header)) + "." + base64UrlEncode_(JSON.stringify(claims));
+  const signature = Utilities.computeRsaSha256Signature(unsignedJwt, privateKey.replace(/\\n/g, "\n"));
+  return unsignedJwt + "." + base64UrlEncodeBytes_(signature);
+}
+
 function doGet(e) {
   try {
     const action = (e && e.parameter && e.parameter.action) || "getMembers";
+    authorizeWebUser_(e && e.parameter && e.parameter.authToken, ["member", "official"]);
 
     switch (action) {
       case "getMembers":
@@ -46,6 +103,19 @@ function doGet(e) {
 function doPost(e) {
   try {
     const body = JSON.parse(e.postData.contents || "{}");
+
+    if (body.action === "createRoleToken") {
+      return jsonOutput({ success: true, customToken: issueRoleCustomToken_(String(body.role || ""), String(body.password || "")) });
+    }
+
+    if (body.action === "getAgendas") {
+      authorizeWebUser_(body.authToken, ["member", "official"]);
+      return jsonOutput(getAgendas_());
+    }
+
+    if (["uploadDrivePhoto", "saveAttendance", "saveAgenda", "deleteAgenda", "syncAgendas"].includes(body.action)) {
+      authorizeWebUser_(body.authToken, ["official"]);
+    }
 
     if (body.action === "uploadDrivePhoto") {
       return jsonOutput(uploadDrivePhoto(body));

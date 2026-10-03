@@ -3,9 +3,20 @@ function agendaApiUrl() { return typeof SCRIPT_URL === "string" ? SCRIPT_URL : "
 async function agendaSheetRequest(payload) {
   const url = agendaApiUrl();
   if (!url) throw new Error("Spreadsheet connection is not configured.");
-  const response = await fetch(url, { method: "POST", mode: "cors", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) });
+  await window.firebaseReady;
+  const authToken = await window.firebaseAuth.currentUser.getIdToken();
+  const response = await fetch(url, { method: "POST", mode: "cors", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ ...payload, authToken }) });
   const result = await response.json();
   if (!response.ok || result.success === false || result.error) throw new Error(result.error || "Spreadsheet save failed.");
+  return result;
+}
+
+async function agendaSheetGet(action) {
+  await window.firebaseReady;
+  const authToken = await window.firebaseAuth.currentUser.getIdToken();
+  const response = await fetch(agendaApiUrl(), { method: "POST", mode: "cors", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action, authToken }) });
+  const result = await response.json();
+  if (!response.ok || result.success === false || result.error) throw new Error(result.error || "Agenda request was rejected.");
   return result;
 }
 
@@ -22,8 +33,7 @@ async function openAgendaManagement() {
       try { await agendaSheetRequest({ action: "syncAgendas", agendas: agendaState.items }); }
       catch (error) { console.warn("Existing agenda migration to spreadsheet failed:", error); }
     }
-    const response = await fetch(`${agendaApiUrl()}?action=getAgendas`);
-    const sheetItems = await response.json();
+    const sheetItems = await agendaSheetGet("getAgendas");
     if (!Array.isArray(sheetItems)) throw new Error(sheetItems.error || "Agenda sheet returned an invalid response.");
     const byId = new Map(agendaState.items.map(item => [item.id, item]));
     sheetItems.forEach(item => { if (item.id) byId.set(String(item.id), { ...byId.get(String(item.id)), ...item, id: String(item.id) }); });

@@ -85,6 +85,7 @@ async function loadAttendanceReports() {
 }
 
 async function submitAttendance() {
+  if (!requireSupervisor()) return;
   const progNameEl = document.getElementById("progName");
   const progDateEl = document.getElementById("progDate");
   const progName = progNameEl?.value.trim();

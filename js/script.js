@@ -13,13 +13,6 @@ const SCRIPT_URL =
 
 
 // ============================================================
-// FRONT-END PIN
-// ============================================================
-
-const CORRECT_PIN = "ayfa";
-
-
-// ============================================================
 // OFFICE BEARERS - 2027
 // ============================================================
 
@@ -236,6 +229,11 @@ function hideAllViews() {
 
 function showDashboard() {
 
+  if (typeof isRoleAuthenticated === "function" && !isRoleAuthenticated()) {
+    showAuthScreen();
+    return;
+  }
+
   hideAllViews();
 
   document.getElementById("appContainer")?.setAttribute("data-active-view", "dashboard");
@@ -393,79 +391,18 @@ function openAttendance() {
 
   }
 
+  if (typeof isSupervisorLoggedIn === "function" && !isSupervisorLoggedIn() && typeof switchAttTab === "function") {
+    switchAttTab("report");
+  }
+
 }
 
 
 // ============================================================
-// PIN LOGIN
+// Legacy entry point retained for any existing page handlers.
 // ============================================================
 
-function checkPin() {
-
-  const input =
-    document.getElementById("pinInput");
-
-  const error =
-    document.getElementById("pinError");
-
-
-  if (!input) {
-
-    return;
-
-  }
-
-
-  if (
-    input.value.trim() === CORRECT_PIN
-  ) {
-
-    const pinScreen =
-      document.getElementById("pinScreen");
-
-    const appContainer =
-      document.getElementById("appContainer");
-
-
-    if (pinScreen) {
-
-      pinScreen.classList.add("hidden");
-
-    }
-
-
-    if (appContainer) {
-
-      appContainer.classList.remove("hidden");
-
-    }
-
-
-    if (error) {
-
-      error.textContent = "";
-
-    }
-
-
-    showDashboard();
-
-  }
-
-  else {
-
-    if (error) {
-
-      error.textContent =
-        "ತಪ್ಪಾದ PIN! ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.";
-
-    }
-
-    input.select();
-
-  }
-
-}
+function checkPin() { showAuthScreen(); }
 
 
 // ============================================================
@@ -609,18 +546,7 @@ function showComingSoon(title) {
 // ============================================================
 
 function openLoginModal(type) {
-
-  alert(
-
-    `${
-      type === "member"
-        ? "Member"
-        : "Official"
-    } Login\n\n` +
-    `Login module ಇನ್ನೂ setup ಮಾಡಲಾಗಿಲ್ಲ.`
-
-  );
-
+  selectLoginRole(type === "member" ? "member" : "official");
 }
 
 
@@ -809,41 +735,6 @@ function searchBloodDonors() {
 }
 
 
-// ============================================================
-// DOM READY
-// ============================================================
-
-document.addEventListener(
-  "DOMContentLoaded",
-  () => {
-
-    const pinInput =
-      document.getElementById(
-        "pinInput"
-      );
-
-
-    if (pinInput) {
-
-      pinInput.addEventListener(
-        "keyup",
-        event => {
-
-          if (
-            event.key === "Enter"
-          ) {
-
-            checkPin();
-
-          }
-
-        }
-      );
-
-    }
-
-  }
-);
 // ============================================================
 // BLOOD DONATION POSTER GENERATOR
 // ============================================================

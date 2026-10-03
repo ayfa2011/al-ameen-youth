@@ -20,14 +20,12 @@ window.firebaseApp = firebase.app();
 window.firebaseDb = firebase.database();
 window.firebaseAuth = firebase.auth();
 
-// Anonymous sign-in keeps the database from being completely public.
-// Enable Authentication > Sign-in method > Anonymous in Firebase Console.
-window.firebaseReady = window.firebaseAuth.signInAnonymously()
-  .then(() => {
-    console.log("Firebase connected successfully.");
-    return true;
-  })
+// Persistent email/password authentication is required before the app can
+// read protected data. Role grants are stored in protected Realtime Database
+// rules and cannot be changed by website users.
+window.firebaseReady = window.firebaseAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+  .then(() => true)
   .catch((error) => {
-    console.error("Firebase authentication failed:", error);
+    console.error("Firebase authentication setup failed:", error);
     throw error;
   });

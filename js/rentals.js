@@ -3,11 +3,6 @@
 // Data is stored in Firebase Realtime Database at /rentals.
 // ============================================================
 
-const RENTAL_PIN_HASHES = {
-  chairTable: "7b66a6e307824a78144b1e7afea4675a919e513ac331fdd48cdf553b9eaa2519",
-  speaker: "7b66a6e307824a78144b1e7afea4675a919e513ac331fdd48cdf553b9eaa2519"
-};
-
 const RENTAL_CURRENT_FINANCIAL_YEAR = "2027";
 
 const rentalState = {
@@ -124,7 +119,12 @@ function rentalStatusLabel(status) {
 }
 
 function rentalCanManage(category) {
-  return rentalState.role === "admin" || rentalState.role === category;
+  return isSupervisorLoggedIn() || rentalState.role === "admin" || rentalState.role === category;
+}
+
+function syncRentalRole() {
+  rentalState.role = isSupervisorLoggedIn() ? "admin" : "viewer";
+  if (document.getElementById("rentalView") && !document.getElementById("rentalView").classList.contains("hidden")) renderRentalDashboard();
 }
 
 async function waitForRentalFirebase() {
@@ -255,7 +255,7 @@ function renderRentalDashboard() {
     ? { count: historicalReport.rentalCount, revenue: historicalReport.revenue, collected: historicalReport.collected, pending: historicalReport.pendingDues }
     : { count: yearRentals.length, revenue: totals.total, collected: totals.paid, pending: totals.balance };
 
-  target.innerHTML = `<div class="rental-department-toolbar"><button class="rental-secondary-button" type="button" onclick="setRentalCategory('')"><i class="fa-solid fa-arrow-left"></i> Categories</button><h3><i class="fa-solid ${RENTAL_CATEGORY[category].icon}"></i> ${categoryLabel}</h3>${rentalState.role === category ? `<button class="rental-secondary-button" type="button" onclick="openRentalLogin()">Log out</button>` : `<button class="rental-secondary-button" type="button" onclick="openRentalLogin('${category}')"><i class="fa-solid fa-lock"></i> Supervisor Login</button>`}</div>
+  target.innerHTML = `<div class="rental-department-toolbar"><button class="rental-secondary-button" type="button" onclick="setRentalCategory('')"><i class="fa-solid fa-arrow-left"></i> Categories</button><h3><i class="fa-solid ${RENTAL_CATEGORY[category].icon}"></i> ${categoryLabel}</h3>${isSupervisorLoggedIn() ? '<span class="rental-role-indicator">Officials access</span>' : ''}</div>
     <div class="rental-year-filter"><label for="rentalReportYear">Year</label><select id="rentalReportYear" aria-label="Select year" onchange="setRentalReportYear(this.value)">${rentalReportYearOptions()}</select></div>
     <div class="rental-summary-grid rental-simple-summary"><div class="rental-stat-card"><span>Total Rentals</span><strong>${displayedTotals.count}</strong></div><div class="rental-stat-card"><span>Total Revenue</span><strong>${rentalCurrencyOrDash(displayedTotals.revenue)}</strong></div><div class="rental-stat-card"><span>Total Collected</span><strong>${rentalCurrencyOrDash(displayedTotals.collected)}</strong></div><div class="rental-stat-card pending"><span>Pending Dues</span><strong>${rentalCurrencyOrDash(displayedTotals.pending)}</strong></div></div>
     ${canManage ? `<button class="rental-primary-button rental-new-booking" type="button" onclick="openRentalEntry()"><i class="fa-solid fa-plus"></i> Add Rental</button>` : ""}
@@ -310,30 +310,17 @@ function rentalModal(content) {
 function closeRentalModal() { document.getElementById("rentalModal")?.remove(); }
 
 function openRentalLogin(category = rentalState.category) {
-  if (!category || !RENTAL_CATEGORY[category]) return;
-  if (rentalState.role === category) { rentalState.role = "viewer"; renderRentalDashboard(); return; }
-  if (rentalState.role !== "viewer") rentalState.role = "viewer";
-  rentalModal(`<div class="rental-modal-card"><div class="rental-modal-head"><div><h3><i class="fa-solid fa-lock"></i> ${RENTAL_CATEGORY[category].label} Supervisor</h3><p>Enter the supervisor PIN for this category.</p></div><button class="rental-icon-button" onclick="closeRentalModal()" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div><form class="rental-form" onsubmit="submitRentalLogin(event)"><input type="hidden" name="rentalRole" value="${category}"><div class="rental-field"><label for="rentalPin">Supervisor PIN</label><input id="rentalPin" type="password" required autocomplete="current-password" inputmode="numeric"></div><p id="rentalLoginError" class="pin-error"></p><div class="rental-form-actions"><button class="rental-secondary-button" type="button" onclick="closeRentalModal()">Cancel</button><button class="rental-primary-button" type="submit">Login</button></div></form></div>`);
-}
-
-async function hashRentalPin(value) {
-  const bytes = new TextEncoder().encode(value);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest)).map(byte => byte.toString(16).padStart(2, "0")).join("");
+  if (isSupervisorLoggedIn()) return;
+  showAuthScreen("official");
 }
 
 async function submitRentalLogin(event) {
-  event.preventDefault();
-  const role = new FormData(event.target).get("rentalRole");
-  const pin = document.getElementById("rentalPin").value;
-  const error = document.getElementById("rentalLoginError");
-  if (await hashRentalPin(pin) !== RENTAL_PIN_HASHES[role]) { error.textContent = "Incorrect PIN. Please try again."; return; }
-  rentalState.role = role;
-  closeRentalModal();
-  renderRentalDashboard();
+  event?.preventDefault();
+  showAuthScreen("official");
 }
 
 function openRentalEntry(id = "") {
+  if (!requireSupervisor()) return;
   const existing = id ? rentalState.rentals.find(rental => rental.id === id) : null;
   const category = existing?.category || rentalState.role;
   if (!rentalCanManage(category)) return;
@@ -382,6 +369,7 @@ function openRentalEntry(id = "") {
 
 async function saveRentalEntry(event, id = "") {
   event.preventDefault();
+  if (!requireSupervisor()) return;
   const values = Object.fromEntries(new FormData(event.target).entries());
   const total = Number(values.totalAmount) || 0;
   const requestedAdvance = Math.max(0, Number(values.advanceAmount) || 0);
@@ -411,6 +399,7 @@ async function saveRentalEntry(event, id = "") {
 }
 
 async function deleteRental(id) {
+  if (!requireSupervisor()) return;
   const rental = rentalState.rentals.find(item => item.id === id);
   if (!rental || !rentalCanManage(rental.category)) return;
   if (!confirm(`Delete the rental record for "${rental.customerName}"? This cannot be undone.`)) return;
@@ -425,6 +414,7 @@ async function deleteRental(id) {
 }
 
 function openPaymentModal(id) {
+  if (!requireSupervisor()) return;
   const rental = rentalState.rentals.find(item => item.id === id);
   if (!rental || !rentalCanManage(rental.category)) return;
   const payments = Object.values(rental.payments || {}).sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
@@ -433,6 +423,7 @@ function openPaymentModal(id) {
 
 async function saveRentalPayment(event, id) {
   event.preventDefault();
+  if (!requireSupervisor()) return;
   const rental = rentalState.rentals.find(item => item.id === id);
   if (!rental) return;
   const values = Object.fromEntries(new FormData(event.target).entries());

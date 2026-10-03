@@ -344,7 +344,7 @@ async function openBloodDonationHistory(memberId) {
         <div><strong>${escapeHTML(record.patientName || "Patient not recorded")}</strong><small>${escapeHTML(record.donationDate || "Date not recorded")} · ${escapeHTML(record.units || 1)} unit(s)</small></div>
         <p>${escapeHTML([record.place, record.hospital].filter(Boolean).join(" · "))}</p>
         ${record.remarks ? `<p>${escapeHTML(record.remarks)}</p>` : ""}
-        <button type="button" class="donation-delete" onclick="deleteBloodDonation('${escapeHTML(member.id)}','${escapeHTML(record.id)}')" aria-label="Delete donation record"><i class="fa-solid fa-trash"></i></button>
+        ${isSupervisorLoggedIn() ? `<button type="button" class="donation-delete" onclick="deleteBloodDonation('${escapeHTML(member.id)}','${escapeHTML(record.id)}')" aria-label="Delete donation record"><i class="fa-solid fa-trash"></i></button>` : ""}
       </article>`).join("") : `<p class="empty-message">No donation records yet.</p>`;
   } catch (error) {
     console.error("Blood donation history error:", error);
@@ -412,6 +412,7 @@ function closeAnnualBloodDonationHistory() {
 }
 
 function openBloodDonationForm() {
+  if (!requireSupervisor()) return;
   const memberId = document.getElementById("bloodDonationModal")?.dataset.memberId;
   const member = getMemberById(memberId);
   if (!member) return;
@@ -430,6 +431,7 @@ function closeBloodDonationForm() {
 
 async function saveBloodDonation(event) {
   event.preventDefault();
+  if (!requireSupervisor()) return;
   const form = event.currentTarget;
   const memberId = document.getElementById("bloodDonationModal")?.dataset.memberId;
   const member = getMemberById(memberId);
@@ -457,6 +459,7 @@ async function saveBloodDonation(event) {
 }
 
 async function deleteBloodDonation(memberId, recordId) {
+  if (!requireSupervisor()) return;
   if (!confirm("Delete this blood donation record?")) return;
   try {
     await waitForFirebase();

@@ -815,31 +815,19 @@
         ಅಲ್‌ ಅಮೀನ್ ಯೂತ್ ಫೆಡರೇಶನ್
       </h2>
 
-      <p>
-        ಆಂತರಿಕ ಲಾಗಿನ್ PIN ನಮೂದಿಸಿ
-      </p>
-
-      <input
-        type="password"
-        id="pinInput"
-        maxlength="20"
-        placeholder="••••"
-        class="pin-input"
-      >
-
-      <button
-        type="button"
-        id="loginBtn"
-        onclick="checkPin()"
-        class="btn-pin"
-      >
-        Login
-      </button>
-
-      <p
-        id="pinError"
-        class="pin-error"
-      ></p>
+      <p id="authScreenMessage" class="auth-screen-message">Choose how you want to sign in.</p>
+      <div id="authRoleChoices" class="auth-role-choices">
+        <button type="button" class="auth-role-choice" onclick="selectLoginRole('member')"><i class="fa-solid fa-user"></i><span><strong>Member Login</strong><small>Read-only access</small></span><i class="fa-solid fa-chevron-right"></i></button>
+        <button type="button" class="auth-role-choice officials" onclick="selectLoginRole('official')"><i class="fa-solid fa-user-shield"></i><span><strong>Officials Login</strong><small>Manage records</small></span><i class="fa-solid fa-chevron-right"></i></button>
+      </div>
+      <form id="roleLoginForm" class="role-login-form hidden" onsubmit="submitRoleLogin(event)">
+        <button type="button" class="auth-back-button" onclick="showAuthScreen()"><i class="fa-solid fa-arrow-left"></i> Change login type</button>
+        <label for="authPassword">Password</label>
+        <div class="auth-password-wrap"><input type="password" id="authPassword" name="password" autocomplete="current-password" required><button type="button" class="auth-password-toggle" onclick="toggleAuthPassword()" aria-label="Show password"><i class="fa-regular fa-eye"></i></button></div>
+        <p id="pinError" class="pin-error" aria-live="polite"></p>
+        <button type="submit" id="loginBtn" class="btn-pin">Login</button>
+      </form>
+      <p id="authRoleHint" class="auth-role-hint hidden"></p>
 
     </div>
 
@@ -870,6 +858,8 @@
       >
 
     </header>
+
+    <div class="auth-session-bar"><span id="authRoleBadge">Signed in</span><span id="authSessionTimer"></span><button type="button" onclick="manualRoleLogout()">Logout</button></div>
 
 
 
@@ -2262,7 +2252,7 @@
   <script src="js/rentals.js"></script>
   <script src="js/activity-reports.js"></script>
   <script src="js/agenda.js"></script>
-  <script>document.addEventListener("DOMContentLoaded", () => { if (typeof showDashboard === "function") showDashboard(); });</script>
+  <script>document.addEventListener("DOMContentLoaded", () => { if (typeof isRoleAuthenticated === "function" && isRoleAuthenticated() && typeof showDashboard === "function") showDashboard(); });</script>
 
 
 

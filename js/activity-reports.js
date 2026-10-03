@@ -86,8 +86,10 @@ function fileToBase64(file) {
 
 async function uploadPhotosToDrive(files, folderName) {
   const results = [];
+  await window.firebaseReady;
+  const authToken = await window.firebaseAuth.currentUser.getIdToken();
   for (const file of files) {
-    const payload = { action: "uploadDrivePhoto", folderName, fileName: file.name, mimeType: file.type, base64: await fileToBase64(file) };
+    const payload = { action: "uploadDrivePhoto", authToken, folderName, fileName: file.name, mimeType: file.type, base64: await fileToBase64(file) };
     try {
       const response = await fetch(SCRIPT_URL, {
         method: "POST",
@@ -110,11 +112,13 @@ async function uploadPhotosToDrive(files, folderName) {
 }
 
 function openDrivePhotoUpload() {
+  if (!requireSupervisor()) return;
   programModal(`<div class="program-modal-card"><div class="program-modal-header"><div><h3>Upload Photos to Drive</h3><p>Selected photos are saved in a new Google Drive folder.</p></div><button type="button" class="program-close" onclick="closeProgramModal()"><i class="fa-solid fa-xmark"></i></button></div><form class="program-report-form" onsubmit="submitDrivePhotoUpload(event)"><label>Folder name *<input name="folderName" placeholder="Example: 2026 Blood Donation Program" required></label><label class="program-photo-field">Select photos *<input name="photos" type="file" accept="image/*" multiple required onchange="previewSelectedProgramPhotos(this.files)"></label><div id="programPhotoPreview" class="program-photo-preview"></div><p id="programFormMessage" class="program-form-message"></p><div class="program-form-actions"><button type="button" class="program-cancel" onclick="closeProgramModal()">Cancel</button><button type="submit" class="program-submit">Upload to Drive</button></div></form></div>`);
 }
 
 async function submitDrivePhotoUpload(event) {
   event.preventDefault();
+  if (!requireSupervisor()) return;
   const form = event.target;
   const files = Array.from(form.querySelector("[name='photos']").files || []);
   const message = document.getElementById("programFormMessage");
