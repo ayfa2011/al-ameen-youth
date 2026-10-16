@@ -44,14 +44,14 @@
       "$rentalId": { ".validate": "!newData.exists() || (newData.hasChildren(['category', 'customerName', 'startDate', 'returnDate', 'totalAmount']) && (newData.child('category').val() == 'chairTable' || newData.child('category').val() == 'speaker') && newData.child('customerName').isString() && newData.child('startDate').isString() && newData.child('returnDate').isString() && newData.child('totalAmount').isNumber())" }
     },
     "officeBearers": {
+      ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
       "$year": {
-        ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
         ".write": false
       }
     },
     "financeReports": {
+      ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
       "$year": {
-        ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
         ".write": false
       }
     },
@@ -60,14 +60,14 @@
       ".write": false
     },
     "historicalRentals": {
+      ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
       "$year": {
-        ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
         ".write": false
       }
     },
     "bloodGroups": {
+      ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
       "$memberName": {
-        ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
         ".write": false
       }
     }
