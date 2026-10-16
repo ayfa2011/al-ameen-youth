@@ -399,7 +399,12 @@ async function loadBearers(year) {
   }
 
 
-  roster.forEach(item => {
+  roster.forEach((item, index) => {
+    // Historical 2025/26 imports may still be [designation, name] pairs.
+    // Normalize those while keeping the newer object-shaped records intact.
+    const bearer = Array.isArray(item)
+      ? { sl: index + 1, designation: item[0], name: item[1] }
+      : (item || {});
 
     tbody.insertAdjacentHTML(
 
@@ -410,15 +415,15 @@ async function loadBearers(year) {
       <tr>
 
         <td>
-          ${item.sl}
+          ${escapeHTML(bearer.sl ?? index + 1)}
         </td>
 
         <td>
-          ${escapeHTML(item.designation)}
+          ${escapeHTML(bearer.designation)}
         </td>
 
         <td>
-          ${escapeHTML(item.name)}
+          ${escapeHTML(bearer.name)}
         </td>
 
       </tr>
