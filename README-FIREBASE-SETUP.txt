@@ -96,11 +96,12 @@ Reference data migration
 The website now reads its read-only reference data from Firebase paths
 `/officeBearers/{year}`, `/financeReports/{year}`, `/assets`,
 `/historicalRentals/{year}`, and `/bloodGroups/{memberName}` after sign-in.
-Populate these paths from the former static values before publishing; the
-client intentionally has no fallback copy. Publish the supplied rules with the
-site. These paths grant authenticated member/official reads and deny client
-writes. Use a trusted Firebase Admin SDK or Console import for the initial
-migration. The unused `components/` HTML fragments are not loaded by the site.
+The former checked-in reference values were restored to these Firebase paths
+using scoped Console imports on 2026-10-16. The import only targeted reference
+paths confirmed empty beforehand; member, attendance, donation, agenda, and
+activity-report collections were left untouched. Publish the supplied rules
+with the site. These paths grant authenticated member/official reads and deny
+client writes. The unused `components/` HTML fragments are not loaded by the site.
 
 Data protection workflow
 ------------------------

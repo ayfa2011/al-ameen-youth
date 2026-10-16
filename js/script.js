@@ -119,6 +119,7 @@ function updateAppTopBar(view = history.state?.appView || "dashboard") {
   const title = document.getElementById("appPageTitle");
   const back = document.getElementById("appBackButton");
   if (title) title.textContent = APP_PAGE_TITLES[view] || APP_PAGE_TITLES.dashboard;
+  if (title) title.classList.toggle("hidden", view === "dashboard");
   if (back) back.classList.toggle("hidden", view === "dashboard");
 }
 

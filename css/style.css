@@ -2016,6 +2016,7 @@ body{display:flex;align-items:center;justify-content:center;background:#eef2f1}
 #appContainer .app-header{padding-top:max(10px,env(safe-area-inset-top))}
 #appContainer .app-header{padding-right:max(12px,env(safe-area-inset-right));padding-left:max(12px,env(safe-area-inset-left))}
 #appContainer .header-brand-image{width:auto;max-width:calc(100% - 82px);height:auto;max-height:64px;object-fit:contain;object-position:left center}
+#appContainer .app-top-bar .header-brand-image{width:130px;max-width:130px;max-height:42px;flex:0 0 auto}
 #appContainer .header-logout{white-space:nowrap}
 #appContainer .view-section{padding-bottom:calc(25px + env(safe-area-inset-bottom))}
 #appContainer img{max-width:100%;height:auto}
