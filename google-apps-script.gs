@@ -474,76 +474,48 @@ function firebasePut_(path, data) {
   return body;
 }
 
-function firebaseMergePut_(path, data) {
-  const token = getFirebaseAccessToken_();
-  const url = FIREBASE_DATABASE_URL.replace(/\/$/, "") + "/" + path.replace(/^\/|\/$/g, "") + ".json?access_token=" + encodeURIComponent(token);
-  const response = UrlFetchApp.fetch(url, {
-    method: "patch",
-    contentType: "application/json",
-    payload: JSON.stringify(data),
-    muteHttpExceptions: true
-  });
-  const code = response.getResponseCode();
-  if (code < 200 || code >= 300) throw new Error("Firebase import failed (" + code + ") at /" + path + ": " + response.getContentText());
-  return response.getContentText();
-}
-
-// ============================================================
-// SHEET -> FIREBASE SYNC
-// ============================================================
-
-function syncMembersToFirebase_() {
-  const members = rowsAsObjects("Members");
-  const data = {};
-  members.forEach(member => {
-    const id = String(member.memberId || member.MemberID || member["Member ID"] || "").trim();
-    if (!id) throw new Error("Every member row must have a permanent MemberID before import. No data was written.");
-    member.memberId = id;
-    data[id] = member;
-  });
-  firebaseMergePut_("members", data);
-}
-
-function syncProgramsToFirebase_() {
-  const programs = rowsAsObjects("Programs");
-  const data = {};
-
-  programs.forEach(program => {
-    const id = String(program["ProgramID"] || program["programId"] || "").trim();
-    if (!id) throw new Error("Every program row must have a permanent ProgramID before import. No data was written.");
-
-    data[id] = program;
-  });
-
-  firebaseMergePut_("programs", data);
-}
-
-function syncAttendanceToFirebase_() {
-  const attendance = rowsAsObjects("Attendance");
-  const data = {};
-  attendance.forEach(row => {
-    const programId = String(row.programId || row.ProgramID || "").trim();
-    const memberId = String(row.memberId || row.MemberID || row["Member ID"] || "").trim();
-    if (!programId || !memberId) throw new Error("Attendance rows must include ProgramID and permanent MemberID before import. No data was written.");
-    data[programId] = data[programId] || {};
-    data[programId][memberId] = {
-      ...row,
-      programId: programId,
-      memberId: memberId,
-      status: String(row.status || row.Status || "").trim()
-    };
-  });
-  firebaseMergePut_("attendance", data);
-}
-
-// Explicit import only. Refuses missing permanent IDs and merges keys to
-// preserve Firebase-only website records; never installs an automatic trigger.
 function syncAllToFirebase() {
-  syncMembersToFirebase_();
-  syncProgramsToFirebase_();
-  syncAttendanceToFirebase_();
+  throw new Error("Sheet-to-Firebase imports are disabled to protect live website data. Review and migrate records with a staged, ID-only process.");
+}
 
-  return "Sheet rows with permanent IDs were imported into Firebase. Existing Firebase-only records were preserved.";
+// Create a read-only full Realtime Database snapshot in Google Drive.
+function backupFirebaseDatabaseToDrive() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) throw new Error("A Firebase backup is already running.");
+  try {
+    const token = getFirebaseAccessToken_();
+    const url = FIREBASE_DATABASE_URL.replace(/\/$/, "") + "/.json?access_token=" + encodeURIComponent(token);
+    const response = UrlFetchApp.fetch(url, { method: "get", muteHttpExceptions: true });
+    const code = response.getResponseCode();
+    if (code < 200 || code >= 300) throw new Error("Firebase backup read failed (" + code + "): " + response.getContentText().slice(0, 500));
+
+    const databaseJson = response.getContentText();
+    if (!databaseJson || databaseJson === "null") throw new Error("Firebase returned an empty database; backup was not created.");
+    JSON.parse(databaseJson);
+
+    const date = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd_HH-mm-ss");
+    const fileName = "al-ameen-firebase-backup-" + date + ".json";
+    const folderId = PropertiesService.getScriptProperties().getProperty("FIREBASE_BACKUP_FOLDER_ID");
+    const file = folderId
+      ? DriveApp.getFolderById(folderId).createFile(fileName, databaseJson, MimeType.JSON)
+      : DriveApp.createFile(fileName, databaseJson, MimeType.JSON);
+    console.log("Firebase backup created: " + file.getName() + " (" + file.getId() + ", " + databaseJson.length + " characters)");
+    return file.getId();
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function setupNightlyFirebaseBackupTrigger() {
+  ScriptApp.getProjectTriggers().forEach(trigger => {
+    if (trigger.getHandlerFunction() === "backupFirebaseDatabaseToDrive") ScriptApp.deleteTrigger(trigger);
+  });
+  ScriptApp.newTrigger("backupFirebaseDatabaseToDrive")
+    .timeBased()
+    .everyDays(1)
+    .atHour(2)
+    .create();
+  return "Nightly Firebase Drive backup scheduled for 2:00 AM in the Apps Script project timezone.";
 }
 
 // ============================================================

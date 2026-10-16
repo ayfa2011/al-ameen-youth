@@ -45,11 +45,11 @@ function showAuthScreen(role = "", message = "") {
   selectedLoginRole = role === "member" || role === "official" ? role : "";
   if (error) error.textContent = selectedLoginRole ? message : "";
   const screenMessage = document.getElementById("authScreenMessage");
-  if (screenMessage) screenMessage.textContent = message || (selectedLoginRole ? "Sign in with your registered account." : "Choose how you want to sign in.");
+  if (screenMessage) screenMessage.textContent = message || (selectedLoginRole ? "Sign in with your registered account." : "");
   choices?.classList.toggle("hidden", Boolean(selectedLoginRole));
   form?.classList.toggle("hidden", !selectedLoginRole);
   hint?.classList.toggle("hidden", !selectedLoginRole);
-  if (hint) hint.textContent = selectedLoginRole === "official" ? "Officials have full record access." : "Members can view records and reports only.";
+  if (hint) hint.textContent = "";
   const title = document.querySelector("#pinScreen .pin-box h2");
   if (title) title.textContent = selectedLoginRole === "official" ? "Officials Login" : selectedLoginRole === "member" ? "Member Login" : "ಅಲ್‌ ಅಮೀನ್ ಯೂತ್ ಫೆಡರೇಶನ್";
   const password = document.getElementById("authPassword");

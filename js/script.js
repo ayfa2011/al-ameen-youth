@@ -13,149 +13,6 @@ const SCRIPT_URL =
 
 
 // ============================================================
-// OFFICE BEARERS - 2027
-// ============================================================
-
-const bearers2027Data = [
-
-  {
-    sl: 1,
-    designation: "Honorary President",
-    name: "Kabeer Limra"
-  },
-
-  {
-    sl: 2,
-    designation: "President",
-    name: "Abdulla Kunji (Abdulla Aramboor)"
-  },
-
-  {
-    sl: 3,
-    designation: "Vice President",
-    name: "Safwan Mambli"
-  },
-
-  {
-    sl: 4,
-    designation: "Vice President",
-    name: "Miraj Mambli"
-  },
-
-  {
-    sl: 5,
-    designation: "General Secretary",
-    name: "Asif Panne"
-  },
-
-  {
-    sl: 6,
-    designation: "Treasurer",
-    name: "Nasir Paladka"
-  },
-
-  {
-    sl: 7,
-    designation: "Joint Secretary",
-    name: "Nizar Paladka"
-  },
-
-  {
-    sl: 8,
-    designation: "Joint Secretary",
-    name: "Ashik Star"
-  },
-
-  {
-    sl: 9,
-    designation: "Joint Treasurer",
-    name: "Ashphak P.R."
-  },
-
-  {
-    sl: 10,
-    designation: "Joint Treasurer",
-    name: "Mahammad Mambli"
-  },
-
-  {
-    sl: 11,
-    designation: "Honorary Advisor",
-    name: "Shamsudheen Mambli"
-  },
-
-  {
-    sl: 12,
-    designation: "Media",
-    name: "Adnan"
-  },
-
-  {
-    sl: 13,
-    designation: "Media",
-    name: "Fazan"
-  },
-
-  {
-    sl: 14,
-    designation: "Academic",
-    name: "Rauf Mambli"
-  },
-
-  {
-    sl: 15,
-    designation: "Medical Wing",
-    name: "Rameez Shine"
-  },
-
-  {
-    sl: 16,
-    designation: "Asset Management",
-    name: "Javed Shaik"
-  }
-
-];
-
-const bearers2026Data = [
-  ["Honorary President", "Kabeer Limra"],
-  ["President", "Asif Panne"],
-  ["General Secretary", "Nizar Shine"],
-  ["Treasurer", "Nasir Paladka"],
-  ["Vice President", "Abdul Kunjhi"],
-  ["Vice President", "Safwan Mambli"],
-  ["Joint Secretary", "Rameez Shine"],
-  ["Joint Secretary", "Rauf Mambli"],
-  ["Assistant Treasurer", "Ashik Star"],
-  ["Assistant Treasurer", "Ashpak PR"],
-  ["Media Wing", "Muneer Shine"],
-  ["Social Media Handle", "Nasir Mambli"],
-  ["Chair & Table In-Charge", "Javid Sheikh"],
-  ["Academic In-Charge", "Miraz Mambli"],
-  ["Medical In-Charge", "Rishad Paladka"],
-  ["Felicitation In-Charge", "Samshuddin Mambli"]
-].map(([designation, name], index) => ({ sl: index + 1, designation, name }));
-
-const bearers2025Data = [
-  ["Hon. President", "Kabeer Limra"],
-  ["President", "Abdullah Kunjhi"],
-  ["Vice President", "Shareef Mambli"],
-  ["Gen. Secretary", "Asif Panne"],
-  ["Joint Secretary", "Samsuddin Mambli"],
-  ["Joint Secretary", "Sharafuddin Sheik"],
-  ["Treasury", "Nasir Paladka"],
-  ["Assistant", "Safwan Mambli"],
-  ["Assistant", "Muhammad Mambli"],
-  ["Chair & Table Incharge", "Javid Sheik"],
-  ["Chair & Table Incharge", "Sharafuddin Sheik"],
-  ["Praising Team", "Rauf Mambli"],
-  ["Praising Team", "Mukthar Mambli"],
-  ...["Nasir Mambli", "Nizar Paladka", "Kabeer Limra", "Faris Mambli"].map(name => ["Media Wing", name]),
-  ...["Basheer Aramboor", "Asif Panne", "Azeez Mambli", "Nizar Paladka", "Hafeez Paladka"].map(name => ["Academic Wing", name]),
-  ...["Moosa Haris Makdoomi", "Moinuddin Faizy", "Kalandar Aramboor", "Kabeer Panne", "Ashik Star", "Muneer Shine", "Rasheed Mambli", "Niyaz Mambli"].map(name => ["Director", name])
-].map(([designation, name], index) => ({ sl: index + 1, designation, name }));
-
-
-// ============================================================
 // SECURITY / HTML HELPERS
 // ============================================================
 
@@ -202,7 +59,13 @@ function hideAllViews() {
     "bearersTableView",
     "attendanceView",
     "membersView",
-    "bloodDonorsView"
+    "bloodDonorsView",
+    "aboutView",
+    "assetInventoryView",
+    "financeView",
+    "posterGeneratorView",
+    "rentalView",
+    "agendaView"
 
   ];
 
@@ -222,6 +85,50 @@ function hideAllViews() {
 
 }
 
+function navigateAppView(viewName, callback) {
+  if (history.state?.appView !== viewName) history.pushState({ appView: viewName }, "", location.pathname + location.search + `#${viewName}`);
+  callback();
+  updateAppTopBar(viewName);
+}
+
+window.addEventListener("popstate", event => {
+  if (!isRoleAuthenticated()) return;
+  const view = event.state?.appView || "dashboard";
+  if (location.hash !== `#${view}` && view !== "dashboard") history.replaceState({ appView: view }, "", location.pathname + location.search + `#${view}`);
+  const routes = {
+    dashboard: showDashboard,
+    members: openMembersProfile,
+    officeBearers: openOfficeBearers,
+    activities: openActivityReports,
+    blood: openBloodDonors,
+    agenda: openAgendaManagement,
+    finance: openFinanceReport,
+    assets: openAssetInventory,
+    attendance: openAttendance,
+    rentals: openRentalManagement,
+    about: openAboutPage,
+    poster: openPosterGenerator
+  };
+  (routes[view] || showDashboard)();
+  updateAppTopBar(view);
+});
+
+const APP_PAGE_TITLES = { dashboard: "ಅಲ್ ಅಮೀನ್ ಯೂತ್ ಫೆಡರೇಶನ್", members: "Members", officeBearers: "Office Bearers", activities: "Activities", blood: "Blood Donors", agenda: "Agenda", finance: "Finance", assets: "Assets", attendance: "Attendance", rentals: "Rentals", poster: "Blood Donation Poster", about: "About" };
+
+function updateAppTopBar(view = history.state?.appView || "dashboard") {
+  const title = document.getElementById("appPageTitle");
+  const back = document.getElementById("appBackButton");
+  if (title) title.textContent = APP_PAGE_TITLES[view] || APP_PAGE_TITLES.dashboard;
+  if (back) back.classList.toggle("hidden", view === "dashboard");
+}
+
+function openAboutPage() {
+  if (history.state?.appView !== "about") history.pushState({ appView: "about" }, "", location.pathname + location.search + "#about");
+  hideAllViews();
+  document.getElementById("aboutView")?.classList.remove("hidden");
+  updateAppTopBar("about");
+}
+
 
 // ============================================================
 // SHOW DASHBOARD
@@ -234,6 +141,7 @@ function showDashboard() {
     return;
   }
 
+  if (history.state?.appView) history.replaceState({ appView: "dashboard" }, "", location.pathname + location.search);
   hideAllViews();
 
   document.getElementById("appContainer")?.setAttribute("data-active-view", "dashboard");
@@ -247,6 +155,7 @@ function showDashboard() {
     dashboard.classList.remove("hidden");
 
   }
+  updateAppTopBar("dashboard");
 
   window.scrollTo({
     top: 0,
@@ -255,13 +164,15 @@ function showDashboard() {
 
 }
 
+if (!history.state?.appView) history.replaceState({ appView: "dashboard" }, "", location.pathname + location.search);
+
 
 // ============================================================
 // ACTIVITY REPORTS
 // ============================================================
 
 function openActivityReports(openForm = false) {
-
+  navigateAppView("activities", () => {
   hideAllViews();
 
   const activityView =
@@ -284,6 +195,8 @@ function openActivityReports(openForm = false) {
     behavior: "smooth"
   });
 
+  });
+
 }
 
 
@@ -292,7 +205,7 @@ function openActivityReports(openForm = false) {
 // ============================================================
 
 function openOfficeBearers() {
-
+  navigateAppView("officeBearers", () => {
   hideAllViews();
 
   const view =
@@ -304,6 +217,8 @@ function openOfficeBearers() {
 
   }
 
+  });
+
 }
 
 
@@ -312,7 +227,7 @@ function openOfficeBearers() {
 // ============================================================
 
 function openMembersProfile() {
-
+  navigateAppView("members", () => {
   hideAllViews();
 
   const view =
@@ -333,6 +248,8 @@ function openMembersProfile() {
 
   }
 
+  });
+
 }
 
 
@@ -341,7 +258,7 @@ function openMembersProfile() {
 // ============================================================
 
 function openBloodDonors() {
-
+  navigateAppView("blood", () => {
   hideAllViews();
 
   const view =
@@ -362,6 +279,8 @@ function openBloodDonors() {
 
   }
 
+  });
+
 }
 
 
@@ -370,7 +289,7 @@ function openBloodDonors() {
 // ============================================================
 
 function openAttendance() {
-
+  navigateAppView("attendance", () => {
   hideAllViews();
 
   const view =
@@ -381,8 +300,6 @@ function openAttendance() {
     view.classList.remove("hidden");
 
   }
-
-
   if (
     typeof loadAttendanceSheet === "function"
   ) {
@@ -394,6 +311,8 @@ function openAttendance() {
   if (typeof isSupervisorLoggedIn === "function" && !isSupervisorLoggedIn() && typeof switchAttTab === "function") {
     switchAttTab("report");
   }
+
+  });
 
 }
 
@@ -409,7 +328,7 @@ function checkPin() { showAuthScreen(); }
 // OFFICE BEARERS TABLE
 // ============================================================
 
-function loadBearers(year) {
+async function loadBearers(year) {
 
   hideAllViews();
 
@@ -448,14 +367,12 @@ function loadBearers(year) {
   tbody.innerHTML = "";
 
 
-  const yearRosters = {
-    "2027": bearers2027Data,
-    "2026": bearers2026Data,
-    "2025": bearers2025Data
-  };
-  const roster = yearRosters[year];
+  let roster;
+  try { roster = await loadReferenceData(`officeBearers/${year}`, "officeBearers"); }
+  catch (error) { console.error("Office bearers read failed:", error); }
+  roster = Array.isArray(roster) ? roster : Object.values(roster || {});
 
-  if (!roster) {
+  if (!roster.length) {
 
     tbody.innerHTML = `
 
@@ -599,34 +516,6 @@ function closePdfReport() {
 
 
 // ============================================================
-// FINANCE PLACEHOLDER
-// ============================================================
-
-function showFinanceYear(year) {
-
-  alert(
-
-    `${year} Finance data ಇನ್ನೂ Google Sheetಗೆ connect ಮಾಡಲಾಗಿಲ್ಲ.`
-
-  );
-
-}
-
-
-// ============================================================
-// FINANCE PDF PLACEHOLDER
-// ============================================================
-
-function downloadFinancePDF() {
-
-  alert(
-    "Finance PDF ಇನ್ನೂ setup ಮಾಡಲಾಗಿಲ್ಲ."
-  );
-
-}
-
-
-// ============================================================
 // OLD BLOOD GROUP SEARCH
 // ============================================================
 
@@ -741,6 +630,10 @@ function searchBloodDonors() {
 
 function openPosterGenerator() {
 
+  if (history.state?.appView !== "poster") history.pushState({ appView: "poster" }, "", location.pathname + location.search + "#poster");
+
+  if (history.state?.appView !== "poster") history.pushState({ appView: "poster" }, "", location.pathname + location.search + "#poster");
+
   hideAllViews();
 
   const view = document.getElementById("posterGeneratorView");
@@ -748,6 +641,8 @@ function openPosterGenerator() {
   if (view) {
     view.classList.remove("hidden");
   }
+  updateAppTopBar("poster");
+  updateAppTopBar("poster");
 
   // Set today's date automatically
   const dateInput = document.getElementById("posterDate");

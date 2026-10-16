@@ -29,3 +29,10 @@ window.firebaseReady = window.firebaseAuth.setPersistence(firebase.auth.Auth.Per
     console.error("Firebase authentication setup failed:", error);
     throw error;
   });
+
+window.firebaseAuth.onAuthStateChanged(user => {
+  if (!user) return;
+  window.firebaseReady.then(async () => {
+    try { await loadVerifiedBloodGroups(); } catch (error) { console.warn(error); }
+  });
+});

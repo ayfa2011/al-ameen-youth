@@ -7,6 +7,7 @@ const RENTAL_CURRENT_FINANCIAL_YEAR = "2027";
 
 const rentalState = {
   rentals: [],
+  deletedRentals: [],
   role: "viewer",
   category: "",
   filter: "all",
@@ -19,75 +20,9 @@ const RENTAL_CATEGORY = {
   speaker: { label: "Speaker", icon: "fa-volume-high" }
 };
 
-// Closed-year Speaker report supplied for FY 2025-2026. Keep it in the
-// existing report/export flow; source entries do not include booking dates.
-const SPEAKER_REPORT_2026 = {
-  rentalCount: 19,
-  revenue: 15100,
-  collected: 15100,
-  maintenance: 0,
-  netRevenue: 15100,
-  pendingDues: 0,
-  details: [
-    { customerName: "Mambli pullo", amount: 2000, status: "Received" },
-    { customerName: "Nasir mambli", amount: 1000, status: "Received" },
-    { customerName: "Fayaz mambli", amount: 1000, status: "Received" },
-    { customerName: "Aranthod", amount: 600, status: "Received" },
-    { customerName: "Aranthod (2nd time)", amount: 600, status: "Received" },
-    { customerName: "Abdulla", amount: 1600, status: "Received" },
-    { customerName: "Nasir ground", amount: 600, status: "Received" },
-    { customerName: "Siddik ambulance", amount: 1200, status: "Received" },
-    { customerName: "Nizam", amount: 600, status: "Received" },
-    { customerName: "Hasianar ajjavara", amount: 500, status: "Received" },
-    { customerName: "Hafeez", amount: 600, status: "Received" },
-    { customerName: "Khalid", amount: 600, status: "Received" },
-    { customerName: "Rishad", amount: 600, status: "Received" },
-    { customerName: "Hafeez (2nd time)", amount: 600, status: "Received" },
-    { customerName: "PR gate (2 programs)", amount: 1200, status: "Received" },
-    { customerName: "Abbas fish", amount: 600, status: "Received" },
-    { customerName: "PR gate", amount: 600, status: "Received" },
-    { customerName: "Kabeer mambli", amount: 600, status: "Received" },
-    { customerName: "F3 shoe", amount: null, status: "Pending" }
-  ]
-};
-
-const CHAIR_TABLE_REPORT_2026 = {
-  rentalCount: 21,
-  revenue: 15887,
-  collected: 15887,
-  maintenance: null,
-  netRevenue: null,
-  pendingDues: 0,
-  details: [
-    { customerName: "Miraz", amount: 100 },
-    { customerName: "Biliyar", amount: 1500 },
-    { customerName: "Sullia", amount: 100 },
-    { customerName: "S.A.S.", amount: 1500 },
-    { customerName: "No Name", amount: 420 },
-    { customerName: "Akka", amount: 75 },
-    { customerName: "Arambooor", amount: 165 },
-    { customerName: "Sullia", amount: 902 },
-    { customerName: "Sullia", amount: 125 },
-    { customerName: "Gafoor", amount: 740 },
-    { customerName: "T.U.A.", amount: 210 },
-    { customerName: "Gafoor", amount: 150 },
-    { customerName: "Sullia", amount: 330 },
-    { customerName: "Aramboor", amount: 1180 },
-    { customerName: "Sullia", amount: 1720 },
-    { customerName: "Aramboor", amount: 125 },
-    { customerName: "Aramboor", amount: 550 },
-    { customerName: "Aramboor", amount: 1195 },
-    { customerName: "A.S.", amount: 900 },
-    { customerName: "Safwan mambli", amount: 900 },
-    { customerName: "Abdulla", amount: 3000 }
-  ]
-};
-
 function importedRentalReport(category, year) {
-  if (year !== "2026") return null;
-  if (category === "speaker") return SPEAKER_REPORT_2026;
-  if (category === "chairTable") return CHAIR_TABLE_REPORT_2026;
-  return null;
+  const reports = referenceDataState.historicalRentals?.[year] || {};
+  return reports[category] || null;
 }
 
 function rentalCurrency(value) {
@@ -134,12 +69,15 @@ async function waitForRentalFirebase() {
 
 async function loadRentals() {
   await waitForRentalFirebase();
+  try { await loadReferenceData("historicalRentals", "historicalRentals"); } catch (error) { console.warn("Historical rental summaries unavailable:", error); }
   const snapshot = await window.firebaseDb.ref("rentals").once("value");
   const data = snapshot.val() || {};
-  rentalState.rentals = Object.entries(data)
+  const records = Object.entries(data)
     .map(([id, value]) => ({ id, ...value }))
     .filter(rental => rental && rental.customerName)
     .sort((a, b) => String(b.createdAt || b.startDate || "").localeCompare(String(a.createdAt || a.startDate || "")));
+  rentalState.deletedRentals = records.filter(rental => rental.deleted === true);
+  rentalState.rentals = records.filter(rental => rental.deleted !== true);
 }
 
 function rentalTotals(rentals) {
@@ -162,6 +100,8 @@ function rentalReportYearOptions() {
 }
 
 function openRentalManagement() {
+  if (typeof navigateAppView === "function" && history.state?.appView !== "rentals") history.pushState({ appView: "rentals" }, "", location.pathname + location.search + "#rentals");
+  updateAppTopBar("rentals");
   rentalState.category = "";
   rentalState.search = "";
   hideAllViews();
@@ -197,9 +137,9 @@ function renderRentalDashboard() {
   const target = document.getElementById("rentalContent");
   if (!target) return;
   if (!rentalState.category) {
-    target.innerHTML = `<div class="rental-simple-intro"><h3>Select Rental Type</h3><p>Choose the equipment category to view bookings and payments.</p></div><div class="rental-category-grid rental-department-grid">
-      <button type="button" class="rental-category-card" onclick="setRentalCategory('chairTable')"><i class="fa-solid fa-chair"></i><h3>Chair &amp; Table</h3><p>Bookings and payments</p></button>
-      <button type="button" class="rental-category-card speaker" onclick="setRentalCategory('speaker')"><i class="fa-solid fa-volume-high"></i><h3>Speaker</h3><p>Bookings and payments</p></button>
+    target.innerHTML = `<div class="rental-category-grid rental-department-grid">
+      <button type="button" class="rental-category-card" onclick="setRentalCategory('chairTable')"><i class="fa-solid fa-chair"></i><h3>Chair &amp; Table</h3></button>
+      <button type="button" class="rental-category-card speaker" onclick="setRentalCategory('speaker')"><i class="fa-solid fa-volume-high"></i><h3>Speaker</h3></button>
     </div>`;
     return;
   }
@@ -244,7 +184,9 @@ function renderRentalDashboard() {
         ? `<div class="rental-order-value"><span>Amount</span><strong>${rental.totalAmount == null ? "—" : rentalCurrency(rental.totalAmount)}</strong></div>`
         : `<div class="rental-order-value"><strong>Total ${rentalCurrency(rental.totalAmount)}</strong><span>Paid ${rentalCurrency(rental.paidAmount)} · Due ${rentalCurrency(rental.balance)}</span></div>`;
       const actions = canManage && !rental.importedHistoric
-        ? `<div class="rental-order-actions"><button class="rental-secondary-button" type="button" onclick="openRentalEntry('${rental.id}')"><i class="fa-solid fa-pen"></i> Edit</button><button class="rental-secondary-button" type="button" onclick="openPaymentModal('${rental.id}')"><i class="fa-solid fa-money-bill-wave"></i> Payment</button><button class="rental-delete-button" type="button" onclick="deleteRental('${rental.id}')"><i class="fa-solid fa-trash"></i> Delete</button></div>`
+        ? rental.trashRecord
+          ? `<div class="rental-order-actions"><button class="rental-secondary-button" type="button" onclick="restoreRental('${rental.id}')"><i class="fa-solid fa-rotate-left"></i> Restore</button></div>`
+          : `<div class="rental-order-actions"><button class="rental-secondary-button" type="button" onclick="openRentalEntry('${rental.id}')"><i class="fa-solid fa-pen"></i> Edit</button><button class="rental-secondary-button" type="button" onclick="openPaymentModal('${rental.id}')"><i class="fa-solid fa-money-bill-wave"></i> Payment</button><button class="rental-delete-button" type="button" onclick="deleteRental('${rental.id}')"><i class="fa-solid fa-trash"></i> Delete</button></div>`
         : "";
       const statusBadge = statusText ? `<span class="rental-status ${status}">${escapeHTML(statusText)}</span>` : "";
       return `<article class="rental-order-card"><div class="rental-order-person"><div class="rental-order-heading"><strong>${escapeHTML(rental.customerName)}</strong>${statusBadge}</div>${details}</div>${amount}${actions}</article>`;
@@ -261,6 +203,7 @@ function renderRentalDashboard() {
     ${canManage ? `<button class="rental-primary-button rental-new-booking" type="button" onclick="openRentalEntry()"><i class="fa-solid fa-plus"></i> Add Rental</button>` : ""}
     <section class="rental-panel rental-order-section"><h3><i class="fa-regular fa-calendar-check"></i> Upcoming <span>${upcoming.length}</span></h3>${bookingList(upcoming,"No upcoming rentals.")}</section>
     <section class="rental-panel rental-order-section"><h3><i class="fa-solid fa-clock-rotate-left"></i> Rental History <span>${history.length}</span></h3>${bookingList(history,"No past rentals.")}</section>
+    ${canManage ? `<section class="rental-panel rental-order-section rental-trash-section"><h3><i class="fa-solid fa-trash-can"></i> Trash <span>${rentalState.deletedRentals.filter(item => item.category === category).length}</span></h3>${bookingList(rentalState.deletedRentals.filter(item => item.category === category).map(item => ({ ...item, trashRecord: true })), "Trash is empty.")}</section>` : ""}
     <div class="rental-report-action"><button class="rental-secondary-button" type="button" onclick="downloadRentalPDFReport('${category}', document.getElementById('rentalReportYear').value)"><i class="fa-solid fa-file-pdf"></i> Export PDF</button><button class="rental-secondary-button" type="button" onclick="downloadRentalReport('${category}', document.getElementById('rentalReportYear').value)"><i class="fa-solid fa-file-excel"></i> Excel</button></div>`;
 
 }
@@ -322,7 +265,7 @@ async function submitRentalLogin(event) {
 function openRentalEntry(id = "") {
   if (!requireSupervisor()) return;
   const existing = id ? rentalState.rentals.find(rental => rental.id === id) : null;
-  const category = existing?.category || rentalState.role;
+  const category = existing?.category || (RENTAL_CATEGORY[rentalState.category] ? rentalState.category : "chairTable");
   if (!rentalCanManage(category)) return;
   const itemOptions = category === "speaker" ? '<option value="Speaker">Speaker</option>' : '<option value="Chair">Chair</option><option value="Table">Table</option><option value="Chair & Table">Chair &amp; Table</option>';
   const value = (name, fallback = "") => escapeHTML(String(existing?.[name] ?? fallback));
@@ -392,24 +335,50 @@ async function saveRentalEntry(event, id = "") {
     initialAdvance: existing ? Number(existing.initialAdvance ?? existing.advanceAmount ?? paid) : requestedAdvance,
     paidAmount: paid, balance: total - paid, status: paid >= total && total ? "paid" : paid ? "partial" : "pending",
     equipmentProvided: equipmentProvided.length ? equipmentProvided : (Array.isArray(existing?.equipmentProvided) ? existing.equipmentProvided : []), paymentDate, collectedBy, maintenanceCost: Number(existing?.maintenanceCost) || 0,
-    createdAt: existing?.createdAt || new Date().toISOString(), createdBy: existing?.createdBy || rentalState.role, payments
+    createdAt: existing?.createdAt || new Date().toISOString(), createdBy: existing?.createdBy || rentalState.role, updatedAt: new Date().toISOString(), payments
   };
-  try { if (id) await window.firebaseDb.ref(`rentals/${id}`).set(record); else await window.firebaseDb.ref("rentals").push(record); closeRentalModal(); await loadRentals(); renderRentalDashboard(); }
-  catch (error) { console.error(error); alert("Rental could not be saved. Check your connection and permissions."); }
+  try {
+    if (id) {
+      const ref = window.firebaseDb.ref(`rentals/${id}`);
+      const expectedUpdatedAt = existing?.updatedAt;
+      const result = await ref.transaction(current => {
+        if (!current || current.deleted === true || current.updatedAt !== expectedUpdatedAt) return;
+        return { ...current, ...record, updatedAt: new Date().toISOString() };
+      });
+      if (!result.committed) throw new Error("Rental changed while this form was open. Reload it and apply your edits again.");
+    } else await window.firebaseDb.ref("rentals").push(record);
+    closeRentalModal(); await loadRentals(); renderRentalDashboard();
+  }
+  catch (error) { console.error(error); alert(error.message?.includes("changed while") ? "Another official changed this rental. Refresh and reapply your changes." : "Rental could not be saved. Check your connection and permissions."); }
 }
 
 async function deleteRental(id) {
   if (!requireSupervisor()) return;
   const rental = rentalState.rentals.find(item => item.id === id);
   if (!rental || !rentalCanManage(rental.category)) return;
-  if (!confirm(`Delete the rental record for "${rental.customerName}"? This cannot be undone.`)) return;
+  if (!confirm(`Hide the rental record for "${rental.customerName}"? It can be restored later.`)) return;
   try {
-    await window.firebaseDb.ref(`rentals/${id}`).remove();
+    await window.firebaseDb.ref(`rentals/${id}`).transaction(current => current ? { ...current, deleted: true, deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : current);
     await loadRentals();
     renderRentalDashboard();
   } catch (error) {
     console.error(error);
     alert("Rental record could not be deleted. Please try again.");
+  }
+}
+
+async function restoreRental(id) {
+  if (!requireSupervisor()) return;
+  const rental = rentalState.deletedRentals.find(item => item.id === id);
+  if (!rental || !rentalCanManage(rental.category)) return;
+  try {
+    const result = await window.firebaseDb.ref(`rentals/${id}`).transaction(current => current?.deleted === true ? { ...current, deleted: false, restoredAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : undefined);
+    if (!result.committed) throw new Error("The rental is no longer in the trash. Refresh and try again.");
+    await loadRentals();
+    renderRentalDashboard();
+  } catch (error) {
+    console.error("Rental restore error:", error);
+    alert("Rental could not be restored. Refresh and try again.");
   }
 }
 
@@ -432,8 +401,22 @@ async function saveRentalPayment(event, id) {
   const paid = Math.min(total, (Number(rental.paidAmount) || 0) + amount);
   const balance = Math.max(0, total - paid);
   const status = paid >= total && total ? "paid" : paid ? "partial" : "pending";
-  try { const ref = window.firebaseDb.ref(`rentals/${id}`); await ref.update({ paidAmount: paid, balance, status }); await ref.child("payments").push({ amount, date: values.date, collectedBy: values.collectedBy, createdAt: new Date().toISOString() }); closeRentalModal(); await loadRentals(); renderRentalDashboard(); }
-  catch (error) { console.error(error); alert("Payment could not be updated. Check your connection and permissions."); }
+  try {
+    const ref = window.firebaseDb.ref(`rentals/${id}`);
+    const paymentRef = ref.child("payments").push();
+    const payment = { amount, date: values.date, collectedBy: String(values.collectedBy || "").trim(), createdAt: new Date().toISOString() };
+    const result = await ref.transaction(current => {
+      if (!current || current.deleted === true || current.updatedAt !== rental.updatedAt) return;
+      const currentPaid = Number(current.paidAmount) || 0;
+      const currentBalance = Math.max(0, (Number(current.totalAmount) || 0) - currentPaid);
+      if (amount <= 0 || amount > currentBalance) return;
+      const nextPaid = currentPaid + amount;
+      return { ...current, paidAmount: nextPaid, balance: Math.max(0, (Number(current.totalAmount) || 0) - nextPaid), status: nextPaid >= Number(current.totalAmount) ? "paid" : "partial", payments: { ...(current.payments || {}), [paymentRef.key]: payment }, updatedAt: new Date().toISOString() };
+    });
+    if (!result.committed) throw new Error("Another official changed this rental, or the amount exceeds its current balance. Refresh and try again.");
+    closeRentalModal(); await loadRentals(); renderRentalDashboard();
+  }
+  catch (error) { console.error(error); alert(error.message?.includes("Another official changed") ? error.message : "Payment could not be updated. Check your connection and permissions."); }
 }
 
 function downloadRentalReport(category, selectedYear) {
@@ -447,7 +430,7 @@ function downloadRentalReport(category, selectedYear) {
   const summary = [[title], ["Year", year], ["Report generated", new Date().toLocaleDateString("en-IN")], [], ["Financial summary", "Amount (INR)"], ["Total rentals", historicalReport?.rentalCount ?? rentals.length], [historicalReport ? "Total revenue" : "Total rental amount", historicalReport?.revenue ?? totals.total]];
   if (historicalReport) {
     if (historicalReport.collected != null) summary.push(["Total collected", historicalReport.collected]);
-    if (historicalReport === SPEAKER_REPORT_2026) summary.push(["Maintenance / repair cost", historicalReport.maintenance], ["Net revenue", historicalReport.netRevenue]);
+    if (category === "speaker" && historicalReport) summary.push(["Maintenance / repair cost", historicalReport.maintenance], ["Net revenue", historicalReport.netRevenue]);
     if (historicalReport.pendingDues != null) summary.push(["Pending dues", historicalReport.pendingDues]);
     summary.push([], ["Rental details"], historicalReport.details.some(detail => detail.status) ? ["Name", "Amount (INR)", "Status"] : ["Name", "Amount (INR)"]);
     historicalReport.details.forEach(detail => summary.push(historicalReport.details.some(item => item.status) ? [detail.customerName, detail.amount ?? "", detail.status] : [detail.customerName, detail.amount ?? ""]));
@@ -486,7 +469,7 @@ function downloadRentalPDFReport(category, selectedYear) {
   pdf.setFontSize(10); pdf.setTextColor(90, 105, 96);
   pdf.text(`Year ${year} · Generated ${new Date().toLocaleDateString("en-IN")}`, margin, y); y += 9;
   const metrics = historicalReport
-    ? [["Total rentals", String(historicalReport.rentalCount)], ["Total revenue", rentalCurrencyOrDash(historicalReport.revenue)], ...(historicalReport.collected != null ? [["Total collected", rentalCurrency(historicalReport.collected)]] : []), ...(historicalReport === SPEAKER_REPORT_2026 ? [["Maintenance / repair cost", rentalCurrency(historicalReport.maintenance)], ["Net revenue", rentalCurrency(historicalReport.netRevenue)]] : []), ...(historicalReport.pendingDues != null ? [["Pending dues", rentalCurrency(historicalReport.pendingDues)]] : [])]
+    ? [["Total rentals", String(historicalReport.rentalCount)], ["Total revenue", rentalCurrencyOrDash(historicalReport.revenue)], ...(historicalReport.collected != null ? [["Total collected", rentalCurrency(historicalReport.collected)]] : []), ...(category === "speaker" ? [["Maintenance / repair cost", rentalCurrency(historicalReport.maintenance)], ["Net revenue", rentalCurrency(historicalReport.netRevenue)]] : []), ...(historicalReport.pendingDues != null ? [["Pending dues", rentalCurrency(historicalReport.pendingDues)]] : [])]
     : [["Total rentals", String(rentals.length)], ["Total collected", rentalCurrency(totals.paid)], ["Advance collected", rentalCurrency(totals.advance)], ["Pending dues", rentalCurrency(totals.balance)]];
   metrics.forEach(([label, value]) => { pdf.setFontSize(9); pdf.setTextColor(90, 105, 96); pdf.text(label, margin, y); pdf.setFontSize(11); pdf.setTextColor(23, 62, 45); pdf.text(value, margin + width, y, { align: "right" }); y += 6; });
   y += 3;

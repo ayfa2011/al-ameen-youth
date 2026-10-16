@@ -85,8 +85,37 @@ IMPORTANT
 ---------
 - Do NOT share Firebase Service Account JSON/private keys.
 - The Web App config used here is the browser config.
-- Firebase is the live website master database. Google Sheets are backup/export copies; edits to Sheets do not update Firebase automatically.
+- Firebase is the live website master database. Google Sheets are not a live backup: this site does not write changes back to Sheets, and edits to Sheets do not update Firebase automatically. Export Firebase data regularly and verify the export before treating Sheets as a backup.
 - `setupFirebaseSyncTrigger()` installs a sheet-change notice trigger only. It never overwrites Firebase.
-- `syncAllToFirebase()` is an explicit import for reviewed rows only. Every member must have an immutable `MemberID`/`memberId`, and every attendance row must have both `ProgramID` and `MemberID`. It merges by those IDs and refuses missing IDs. Back up Firebase before any import.
+- Sheet-to-Firebase imports are disabled; `syncAllToFirebase()` and its helper functions now throw to protect the live database.
 - Attendance records use the website's canonical `/attendance/{programId}/{memberId}` path.
 - The old row-position member IDs cannot be safely mapped to permanent IDs from code alone. Assign permanent IDs and reconcile existing references before importing or migrating legacy records.
+
+Reference data migration
+------------------------
+The website now reads its read-only reference data from Firebase paths
+`/officeBearers/{year}`, `/financeReports/{year}`, `/assets`,
+`/historicalRentals/{year}`, and `/bloodGroups/{memberName}` after sign-in.
+Populate these paths from the former static values before publishing; the
+client intentionally has no fallback copy. Publish the supplied rules with the
+site. These paths grant authenticated member/official reads and deny client
+writes. Use a trusted Firebase Admin SDK or Console import for the initial
+migration. The unused `components/` HTML fragments are not loaded by the site.
+
+Data protection workflow
+------------------------
+- Create a separate Firebase project for staging. Configure staging website and
+  Apps Script copies to point only at that project; deploy staging-only rules
+  and synthetic test records. Never test destructive actions against production.
+- `backupFirebaseDatabaseToDrive()` reads the full Realtime Database and saves
+  a dated JSON file in Drive. Optionally set the `FIREBASE_BACKUP_FOLDER_ID`
+  Apps Script property. Review the Apps Script project timezone, run the backup
+  function manually once, and verify the Drive file before running
+  `setupNightlyFirebaseBackupTrigger()` once. It schedules a daily run around
+  2:00 AM in that timezone. The code does not restore data automatically.
+- `syncAllToFirebase()` and the underlying sheet import helpers now throw and
+  cannot write stale Sheet rows into Firebase.
+- Deletions remain soft (`deleted: true`). Rental edits and payments use
+  transactions and reject a stale `updatedAt` version.
+- Keep each future change on a descriptive `codex/` branch and review it in
+  staging before merging.

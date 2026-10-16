@@ -4,6 +4,27 @@
 
 const attendanceSelectedMemberIds = new Set();
 let attendanceSubmitting = false;
+const ATTENDANCE_DRAFT_KEY = "alameen.attendanceDraft.v1";
+
+function saveAttendanceDraft() {
+  const draft = { programName: document.getElementById("progName")?.value || "", date: document.getElementById("progDate")?.value || "", selectedIds: [...attendanceSelectedMemberIds], updatedAt: Date.now() };
+  try { localStorage.setItem(ATTENDANCE_DRAFT_KEY, JSON.stringify(draft)); } catch (error) { console.warn("Attendance draft could not be saved:", error); }
+}
+
+function restoreAttendanceDraft() {
+  try {
+    const draft = JSON.parse(localStorage.getItem(ATTENDANCE_DRAFT_KEY) || "null");
+    if (!draft || Date.now() - Number(draft.updatedAt || 0) > 30 * 86400000) return;
+    const name = document.getElementById("progName");
+    const date = document.getElementById("progDate");
+    if (name && !name.value) name.value = draft.programName || "";
+    if (date && !date.value) date.value = draft.date || "";
+    const knownIds = new Set(fullMembersList.map(member => String(member.id)));
+    attendanceSelectedMemberIds.clear();
+    (draft.selectedIds || []).filter(id => knownIds.has(String(id))).forEach(id => attendanceSelectedMemberIds.add(String(id)));
+    renderAttendanceSelected();
+  } catch (error) { console.warn("Attendance draft could not be restored:", error); }
+}
 
 async function apiGet(action) {
   if (action === "getReports") return getFirebaseAttendanceReports();
@@ -25,8 +46,10 @@ async function getFirebaseAttendanceReports() {
 
   const programs = programSnap.val() || {};
   const attendance = attendanceSnap.val() || {};
+  const editingId = document.getElementById("attendanceList")?.dataset.editingProgramId || "";
 
   return Object.entries(programs)
+    .filter(([programId, program]) => program?.deleted !== true && (!editingId || programId !== editingId))
     .map(([programId, program]) => {
       const records = Object.entries(attendance[programId] || {});
       const presentIds = new Set();
@@ -61,6 +84,7 @@ async function loadAttendanceSheet() {
 
     container.innerHTML = `<input id="attendanceMemberSearch" class="attendance-member-search" type="search" placeholder="Search member name or ID" aria-label="Search member name or ID" oninput="filterAttendanceMembers(this.value)"><div id="attendanceMemberResults" class="attendance-member-results"></div><div id="attendanceSelectedMembers" class="attendance-selected-members"><span class="attendance-selection-hint">Search and select members marked Present.</span></div>`;
     filterAttendanceMembers("");
+    restoreAttendanceDraft();
   } catch (error) {
     console.error(error);
     container.innerHTML = `<p class="error-message">ಸದಸ್ಯರ ಪಟ್ಟಿ ಸಿಗಲಿಲ್ಲ. Firebase connection ಪರಿಶೀಲಿಸಿ.</p>`;
@@ -82,6 +106,7 @@ function selectAttendanceMember(id) {
   const results = document.getElementById("attendanceMemberResults");
   if (!member || !results) return;
   attendanceSelectedMemberIds.add(String(member.id));
+  saveAttendanceDraft();
   const input = document.getElementById("attendanceMemberSearch");
   if (input) input.value = "";
   filterAttendanceMembers("");
@@ -89,6 +114,7 @@ function selectAttendanceMember(id) {
 
 function removeAttendanceMember(id) {
   attendanceSelectedMemberIds.delete(String(id));
+  saveAttendanceDraft();
   filterAttendanceMembers(document.getElementById("attendanceMemberSearch")?.value || "");
 }
 
@@ -105,6 +131,7 @@ function resetAttendanceForm() {
   if (name) name.value = "";
   if (date) date.value = "";
   attendanceSelectedMemberIds.clear();
+  try { localStorage.removeItem(ATTENDANCE_DRAFT_KEY); } catch (_) {}
   renderAttendanceSelected();
 }
 
@@ -116,12 +143,15 @@ async function loadAttendanceReports() {
 
   try {
     const reports = await getFirebaseAttendanceReports();
+    const [programSnapshot, attendanceSnapshot] = await Promise.all([window.firebaseDb.ref("programs").once("value"), window.firebaseDb.ref("attendance").once("value")]);
+    const programs = programSnapshot.val() || {};
+    const attendance = attendanceSnapshot.val() || {};
     tbody.innerHTML = reports.length
       ? reports.map((r, i) => `
         <tr>
           <td>${escapeHTML(r.slNo ?? i + 1)}</td>
           <td><strong>${escapeHTML(r.programName)}</strong><br><small>${escapeHTML(r.date)}</small></td>
-          <td><strong>Total: ${escapeHTML(r.presentCount)} Members</strong><br>${escapeHTML(r.membersList)}</td>
+          <td><strong>Total: ${escapeHTML(r.presentCount)} Members</strong><br>${escapeHTML(r.membersList)}${isSupervisorLoggedIn() ? `<div><button type="button" onclick="editAttendanceProgram(${JSON.stringify(r.programId)})">Edit</button> <button type="button" onclick="deleteAttendanceProgram(${JSON.stringify(r.programId)})">Delete</button></div>` : ""}</td>
         </tr>`).join("")
       : `<tr><td colspan="3" class="empty-cell">ಯಾವ ವರದಿಯೂ ಸಿಗಲಿಲ್ಲ.</td></tr>`;
   } catch (error) {
@@ -130,12 +160,40 @@ async function loadAttendanceReports() {
   }
 }
 
+async function editAttendanceProgram(programId) {
+  if (!requireSupervisor()) return;
+  const program = (await window.firebaseDb.ref(`programs/${programId}`).once("value")).val();
+  if (!program || program.deleted) return;
+  const records = (await window.firebaseDb.ref(`attendance/${programId}`).once("value")).val() || {};
+  attendanceSelectedMemberIds.clear();
+  Object.entries(records).forEach(([memberId, record]) => { if (record?.status === "Present") attendanceSelectedMemberIds.add(String(record.memberId || memberId)); });
+  const name = document.getElementById("progName");
+  const date = document.getElementById("progDate");
+  const container = document.getElementById("attendanceList");
+  if (name) name.value = program.programName || "";
+  if (date) date.value = program.date || "";
+  if (container) container.dataset.editingProgramId = programId;
+  renderAttendanceSelected();
+  saveAttendanceDraft();
+  switchAttTab("mark");
+}
+
+async function deleteAttendanceProgram(programId) {
+  if (!requireSupervisor() || !confirm("Hide this attendance record? It will remain in Firebase for recovery.")) return;
+  const updates = {};
+  updates[`programs/${programId}/deleted`] = true;
+  updates[`programs/${programId}/deletedAt`] = new Date().toISOString();
+  await window.firebaseDb.ref().update(updates);
+  await loadAttendanceReports();
+}
+
 async function submitAttendance() {
   if (!requireSupervisor()) return;
   const progNameEl = document.getElementById("progName");
   const progDateEl = document.getElementById("progDate");
   const progName = progNameEl?.value.trim();
   const progDate = progDateEl?.value;
+  saveAttendanceDraft();
 
   if (!progName || !progDate) {
     alert("ದಯವಿಟ್ಟು ಕಾರ್ಯಕ್ರಮದ ಹೆಸರು ಮತ್ತು ದಿನಾಂಕ ನಮೂದಿಸಿ!");
@@ -160,17 +218,24 @@ async function submitAttendance() {
   try {
     await waitForFirebase();
 
-    const programRef = window.firebaseDb.ref("programs").push();
+    const container = document.getElementById("attendanceList");
+    const editingId = container?.dataset.editingProgramId || "";
+    const programRef = editingId ? window.firebaseDb.ref(`programs/${editingId}`) : window.firebaseDb.ref("programs").push();
     const programId = programRef.key;
+    if (!editingId) {
+      const allPrograms = (await window.firebaseDb.ref("programs").once("value")).val() || {};
+      const duplicate = Object.entries(allPrograms).some(([id, record]) => id !== programId && record?.deleted !== true && String(record?.programName || "").trim().toLowerCase() === progName.toLowerCase() && record?.date === progDate);
+      if (duplicate) throw new Error("An attendance entry with this program name and date already exists.");
+    }
     const programData = {
       id: programId,
       programName: progName,
       date: progDate,
-      createdAt: firebase.database.ServerValue.TIMESTAMP
+      createdAt: editingId ? ((await programRef.once("value")).val()?.createdAt || firebase.database.ServerValue.TIMESTAMP) : firebase.database.ServerValue.TIMESTAMP
     };
 
     const updates = {};
-    updates[`programs/${programId}`] = programData;
+    updates[`programs/${programId}`] = { ...(editingId ? (await programRef.once("value")).val() : {}), ...programData, updatedAt: firebase.database.ServerValue.TIMESTAMP };
 
     // Store a record for every member so Present/Absent history is complete.
     const selectedIds = new Set(selected.map(member => String(member.id)));
@@ -184,6 +249,7 @@ async function submitAttendance() {
     });
 
     await window.firebaseDb.ref().update(updates);
+    if (editingId) delete container.dataset.editingProgramId;
     await loadAttendanceReports();
 
     if (typeof showToast === "function") showToast("Attendance saved successfully.", "success");
@@ -222,3 +288,11 @@ function switchAttTab(tab) {
     loadAttendanceReports();
   }
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+  const name = document.getElementById("progName");
+  const date = document.getElementById("progDate");
+  restoreAttendanceDraft();
+  name?.addEventListener("input", saveAttendanceDraft);
+  date?.addEventListener("change", saveAttendanceDraft);
+});

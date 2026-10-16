@@ -19,30 +19,14 @@ function memberDisplayId(member) {
   return `AYF${String(index >= 0 ? index + 1 : 0).padStart(2, "0")}`;
 }
 
-const VERIFIED_MEMBER_BLOOD_GROUPS = new Map([
-  ["Safwan Mambli", ""], ["Rasheed Mambli", ""], ["Abdulla Kunji", "O+"],
-  ["Anshif Mambli", "A-"], ["Sharafuddeen Shaik", ""], ["Anas Mambli", ""],
-  ["Rafeeq Mambli", "O+"], ["Faris Mambli", "O+"], ["Hashir PR", ""],
-  ["Basith mambli", ""], ["Azaruddin Mambli", ""], ["Miraz Mambli", ""],
-  ["Niyaz Mambli", ""], ["Naushad Egu", ""], ["Shareef Mambli", "O+"],
-  ["Kabeer Panne", "AB+"], ["Kareem Star", ""], ["Kalandar Aramboor", ""],
-  ["Sabith Mambli", "B+"], ["Fazan mambli", ""], ["Raashid Paladka", "O+"],
-  ["Razik PG Aramboor", "O+"], ["Mukthar Mambli", ""], ["Shareef A. S", ""],
-  ["Ashiq Aramboor", "AB+"], ["Yaser Shaik", ""], ["Shafeeq Shaik", ""],
-  ["Thwaha Shaik", ""], ["Khaleed Kocchi", "O+"], ["Rishaad Paladka", "B+"],
-  ["Sabir Mambli", "B+"], ["Khasim Paladka", "B+"], ["Javed Shaik", ""],
-  ["Sadiq Mambli", ""], ["Muhsin Panne", "O+"], ["Kabeer Limra", "B+"],
-  ["Niyaz JR", ""], ["Nizar Shine", ""], ["Badruddeen Mambli", "A-"],
-  ["Samshuddin Mambli", "B+"], ["Nadeem Shaik", ""], ["Asif Panne", "O+"],
-  ["Shaheer Star", ""], ["Thajuddeen Paladka", "AB+"], ["Rauf Mambli", "O+"],
-  ["Sinan Panne", ""], ["Ashfaq PR", "O+"], ["Shamal Mambli", ""],
-  ["Rameez Shine", ""], ["Mujthaba Mambli", "AB+"], ["Nizam Mambli", "O+"],
-  ["Fayiz Mambli", ""], ["Mohammed Adnan", ""], ["Ehan Basheer", "A+"],
-  ["Hafeez PR", "O+"], ["Nasir Mambli", "B+"], ["Javad Mambli", "A+"],
-  ["Nasir Paladka", "B+"], ["Mohammad Mambli", "O+"], ["Muneer Shine", ""]
-].map(([name, group]) => [bloodMemberKey(name), group]));
-VERIFIED_MEMBER_BLOOD_GROUPS.set(bloodMemberKey("Ashphak PR"), "O+");
-VERIFIED_MEMBER_BLOOD_GROUPS.set(bloodMemberKey("Ashphak P.R."), "O+");
+let verifiedMemberBloodGroups = new Map();
+
+async function loadVerifiedBloodGroups() {
+  try {
+    const stored = await loadReferenceData("bloodGroups", "bloodGroups");
+    verifiedMemberBloodGroups = new Map(Object.entries(stored || {}).map(([name, group]) => [bloodMemberKey(name), String(group || "")]));
+  } catch (error) { console.warn("Blood group reference data unavailable:", error); }
+}
 
 function normalizeMember(row) {
   const bloodGroupOverride = row.bloodGroupOverride;
@@ -55,7 +39,7 @@ function normalizeMember(row) {
     mobile: row.mobile ?? row["Mobile"] ?? "",
     contribution: row.contribution ?? row["Monthy Contribution Amount"] ?? row["Monthly Contribution Amount"] ?? "",
     location: row.location ?? row["Location"] ?? "",
-    bloodGroup: bloodGroupOverride !== undefined ? String(bloodGroupOverride || "") : (VERIFIED_MEMBER_BLOOD_GROUPS.get(bloodMemberKey(row.name ?? row["Name"] ?? "")) ?? ""),
+    bloodGroup: bloodGroupOverride !== undefined ? String(bloodGroupOverride || "") : (verifiedMemberBloodGroups.get(bloodMemberKey(row.name ?? row["Name"] ?? "")) ?? ""),
     bloodCount: row.bloodCount ?? row["How Many Times Blood Donated :"] ?? row["How Many Times Blood Donated"] ?? 0
   };
 }
@@ -70,6 +54,7 @@ async function fetchMembersFromFirebase(force = false) {
   if (!force && fullMembersList.length) return fullMembersList;
 
   await waitForFirebase();
+  if (!verifiedMemberBloodGroups.size) await loadVerifiedBloodGroups();
   const snapshot = await window.firebaseDb.ref("members").once("value");
   const data = snapshot.val() || {};
 
@@ -341,8 +326,10 @@ async function openBloodDonationHistory(memberId) {
   try {
     await waitForFirebase();
     const snapshot = await window.firebaseDb.ref(`bloodDonations/${member.id}`).once("value");
-    const records = Object.entries(snapshot.val() || {}).map(([id, record]) => ({ id, ...record }))
+    const allRecords = Object.entries(snapshot.val() || {}).map(([id, record]) => ({ id, ...record }));
+    const records = allRecords.filter(record => record.deleted !== true)
       .sort((a, b) => String(b.donationDate || b.createdAt || "").localeCompare(String(a.donationDate || a.createdAt || "")));
+    const deletedRecords = allRecords.filter(record => record.deleted === true);
     const units = records.reduce((total, record) => total + (Number(record.units) || 1), 0);
     member.bloodDonationCount = records.length;
     document.getElementById("bloodDonationMemberCount").textContent = `${records.length} ${records.length === 1 ? "donation" : "donations"} · ${units} ${units === 1 ? "unit" : "units"} total`;
@@ -353,6 +340,9 @@ async function openBloodDonationHistory(memberId) {
         ${record.remarks ? `<p>${escapeHTML(record.remarks)}</p>` : ""}
         ${isSupervisorLoggedIn() ? `<button type="button" class="donation-delete" onclick="deleteBloodDonation('${escapeHTML(member.id)}','${escapeHTML(record.id)}')" aria-label="Delete donation record"><i class="fa-solid fa-trash"></i></button>` : ""}
       </article>`).join("") : `<p class="empty-message">No donation records yet.</p>`;
+    if (isSupervisorLoggedIn() && deletedRecords.length) {
+      document.getElementById("bloodDonationHistory").insertAdjacentHTML("beforeend", `<section class="donation-trash"><h3>Trash</h3>${deletedRecords.map(record => `<article class="donation-history-row"><div><strong>${escapeHTML(record.patientName || "Patient not recorded")}</strong><small>${escapeHTML(record.donationDate || "Date not recorded")} · Hidden</small></div><button type="button" onclick="restoreBloodDonation(${JSON.stringify(String(member.id))},${JSON.stringify(String(record.id))})">Restore</button></article>`).join("")}</section>`);
+    }
   } catch (error) {
     console.error("Blood donation history error:", error);
     document.getElementById("bloodDonationHistory").innerHTML = `<p class="error-message">Could not load donation history. Please try again.</p>`;
@@ -377,7 +367,7 @@ async function openAnnualBloodDonationHistory() {
     const memberById = new Map(fullMembersList.map(member => [String(member.id), member]));
     const byYear = {};
     Object.entries(data).forEach(([memberId, records]) => {
-      Object.entries(records || {}).forEach(([recordId, record]) => {
+      Object.entries(records || {}).filter(([, record]) => record?.deleted !== true).forEach(([recordId, record]) => {
         const date = String(record?.donationDate || "");
         const year = /^\d{4}-\d{2}-\d{2}$/.test(date) ? date.slice(0, 4) : "Date not recorded";
         const member = memberById.get(String(memberId));
@@ -467,16 +457,27 @@ async function saveBloodDonation(event) {
 
 async function deleteBloodDonation(memberId, recordId) {
   if (!requireSupervisor()) return;
-  if (!confirm("Delete this blood donation record?")) return;
+  if (!confirm("Hide this blood donation record? It can be restored later.")) return;
   try {
     await waitForFirebase();
-    await window.firebaseDb.ref(`bloodDonations/${memberId}/${recordId}`).remove();
+    await window.firebaseDb.ref(`bloodDonations/${memberId}/${recordId}`).transaction(current => current ? { ...current, deleted: true, deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : current);
     await openBloodDonationHistory(memberId);
     renderBloodDonorCards(fullMembersList);
   } catch (error) {
     console.error("Blood donation delete error:", error);
     alert("Could not delete this record. Please try again.");
   }
+}
+
+async function restoreBloodDonation(memberId, recordId) {
+  if (!requireSupervisor()) return;
+  try {
+    await waitForFirebase();
+    const result = await window.firebaseDb.ref(`bloodDonations/${memberId}/${recordId}`).transaction(current => current?.deleted === true ? { ...current, deleted: false, restoredAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : undefined);
+    if (!result.committed) throw new Error("Donation record is no longer in Trash.");
+    await openBloodDonationHistory(memberId);
+    renderBloodDonorCards(fullMembersList);
+  } catch (error) { console.error("Blood donation restore error:", error); alert("Donation record could not be restored. Refresh and try again."); }
 }
 
 document.addEventListener("DOMContentLoaded", () => {

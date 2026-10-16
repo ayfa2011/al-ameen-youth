@@ -5,10 +5,16 @@
 
   <meta charset="UTF-8">
 
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#174f91">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Al-Ameen">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/apple-touch-icon.png">
+  <link rel="icon" sizes="32x32" href="assets/icons/favicon-32.png" type="image/png">
+  <link rel="icon" sizes="16x16" href="assets/icons/favicon-16.png" type="image/png">
 
   <title>Al-Ameen Youth Federation</title>
 
@@ -37,6 +43,10 @@
   ========================================================== -->
 
   <style>
+
+    :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) { font-size: max(16px, 1em); }
+    :where(button, a, input[type="checkbox"], input[type="radio"], select) { touch-action: manipulation; }
+    body { padding-bottom: env(safe-area-inset-bottom); }
 
     /* =========================================================
        POSTER GENERATOR PAGE
@@ -818,7 +828,7 @@
         ಅಲ್‌ ಅಮೀನ್ ಯೂತ್ ಫೆಡರೇಶನ್
       </h2>
 
-      <p id="authScreenMessage" class="auth-screen-message">Choose how you want to sign in.</p>
+      <p id="authScreenMessage" class="auth-screen-message"></p>
       <div id="authRoleChoices" class="auth-role-choices">
         <button type="button" class="auth-role-choice" onclick="selectLoginRole('member')"><i class="fa-solid fa-user"></i><span><strong>Member Login</strong><small>Read-only access</small></span><i class="fa-solid fa-chevron-right"></i></button>
         <button type="button" class="auth-role-choice officials" onclick="selectLoginRole('official')"><i class="fa-solid fa-user-shield"></i><span><strong>Officials Login</strong><small>Manage records</small></span><i class="fa-solid fa-chevron-right"></i></button>
@@ -852,13 +862,9 @@
          HEADER
     ======================================================== -->
 
-    <header class="app-header">
-
-      <img
-        src="assets/images/Header.png"
-        alt="ಅಲ್ ಅಮೀನ್ ಯೂತ್ ಫೆಡರೇಶನ್"
-        class="header-brand-image"
-      >
+    <header class="app-header app-top-bar" id="appTopBar">
+      <button type="button" id="appBackButton" class="app-back-button hidden" onclick="history.back()" aria-label="Go back"><i class="fa-solid fa-arrow-left"></i></button>
+      <strong id="appPageTitle" class="app-page-title">ಅಲ್ ಅಮೀನ್ ಯೂತ್ ಫೆಡರೇಶನ್</strong>
 
       <button type="button" class="header-logout" onclick="manualRoleLogout()" aria-label="Logout"><i class="fa-solid fa-arrow-right-from-bracket"></i><span>Logout</span></button>
 
@@ -907,7 +913,6 @@
         <span class="quick-action-icon"><i class="fa-solid fa-hand-holding-heart"></i></span>
         <span class="quick-action-copy">
           <strong>ಉಸ್ತುವಾರಿಗಳ ವಂತಿಗೆ ಸಂಗ್ರಹ</strong>
-          <small>Contribution collection</small>
         </span>
         <i class="fa-solid fa-arrow-up-right-from-square quick-action-arrow" aria-hidden="true"></i>
       </a>
@@ -920,7 +925,6 @@
         <span class="quick-action-icon"><i class="fa-solid fa-chair"></i></span>
         <span class="quick-action-copy">
           <strong>ಚಯರ್ / ಟೇಬಲ್ / ಸ್ಪೀಕರ್</strong>
-          <small>Rental &amp; payment management</small>
         </span>
         <i class="fa-solid fa-arrow-right quick-action-arrow" aria-hidden="true"></i>
       </button>
@@ -946,7 +950,7 @@
 
         <!-- OFFICE BEARERS -->
 
-        <div
+        <button type="button"
           class="grid-card"
           onclick="openOfficeBearers()"
         >
@@ -957,13 +961,13 @@
             Office Bearers
           </span>
 
-        </div>
+        </button>
 
 
 
         <!-- MEMBERS PROFILE -->
 
-        <div
+        <button type="button"
           class="grid-card"
           onclick="openMembersProfile()"
         >
@@ -974,13 +978,13 @@
             Members Profile
           </span>
 
-        </div>
+        </button>
 
 
 
         <!-- ACTIVITY REPORTS -->
 
-        <div
+        <button type="button"
           class="grid-card"
           onclick="openActivityReports()"
         >
@@ -991,13 +995,13 @@
             Activity Reports
           </span>
 
-        </div>
+        </button>
 
 
 
         <!-- BLOOD DONORS -->
 
-        <div
+        <button type="button"
           class="grid-card"
           onclick="openBloodDonors()"
         >
@@ -1008,13 +1012,13 @@
             Blood Donors
           </span>
 
-        </div>
+        </button>
 
 
 
         <!-- DONORS & SPONSORS -->
 
-        <div
+        <button type="button"
           class="grid-card"
           onclick="openAgendaManagement()"
         >
@@ -1025,13 +1029,13 @@
             Meeting Agenda
           </span>
 
-        </div>
+        </button>
 
 
 
         <!-- FINANCE REPORTS -->
 
-        <div
+        <button type="button"
           class="grid-card"
           onclick="openFinanceReport()"
         >
@@ -1042,13 +1046,13 @@
             Finance Reports
           </span>
 
-        </div>
+        </button>
 
 
 
         <!-- ASSET & INVENTORY -->
 
-        <div
+        <button type="button"
           class="grid-card"
           onclick="openAssetInventory()"
         >
@@ -1059,13 +1063,13 @@
             Asset & Inventory
           </span>
 
-        </div>
+        </button>
 
 
 
         <!-- ATTENDANCE -->
 
-        <div
+        <button type="button"
           class="grid-card"
           onclick="openAttendance()"
         >
@@ -1076,11 +1080,11 @@
             Attendance
           </span>
 
-        </div>
+        </button>
 
         <!-- UPLOAD PHOTOS -->
 
-        <div
+        <button type="button"
           class="grid-card"
           onclick="openDrivePhotoUpload()"
         >
@@ -1091,13 +1095,13 @@
             Upload Photos to Drive
           </span>
 
-        </div>
+        </button>
 
 
 
         <!-- BADR MASJID -->
 
-        <div
+        <button type="button"
           class="grid-card"
           onclick="showComingSoon('Badr Masjid')"
         >
@@ -1108,7 +1112,7 @@
             Badr Masjid
           </span>
 
-        </div>
+        </button>
 
 
       </div>
@@ -1126,12 +1130,10 @@
       class="view-section hidden"
     >
 
-      <div class="section-header inner-page-header"><button class="btn-back" onclick="showDashboard()"><i class="fa-solid fa-arrow-left"></i> Back</button></div>
-
 
       <section class="annual-activity-reports">
         <div class="annual-activity-heading">
-          <div><p>PREVIOUS REPORTS</p><h3>Year-wise Activity Reports</h3></div>
+          <div><h3>Year-wise Activity Reports</h3></div>
           <i class="fa-solid fa-file-pdf"></i>
         </div>
         <div class="annual-activity-grid">
@@ -1163,23 +1165,6 @@
       id="attendanceView"
       class="view-section hidden"
     >
-
-      <div class="section-header">
-
-        <button
-          class="btn-back"
-          onclick="showDashboard()"
-        >
-
-          <i class="fa-solid fa-arrow-left"></i>
-
-          ಹಿಂದೆ
-
-        </button>
-
-
-
-      </div>
 
 
       <div class="attendance-tabs">
@@ -1305,8 +1290,6 @@
       class="view-section hidden"
     >
 
-      <div class="section-header inner-page-header"><button class="btn-back" onclick="showDashboard()"><i class="fa-solid fa-arrow-left"></i> Back</button></div>
-
       <div class="ayfa-supervisor-bar member-supervisor-bar"><span data-supervisor-login></span></div>
 
       <label class="member-search-box" for="memberSearchInput"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><input id="memberSearchInput" type="search" placeholder="Search name, ID, designation, father, education or location" autocomplete="off" oninput="filterMemberCards(this.value)" aria-label="Search members"></label>
@@ -1326,57 +1309,12 @@
     <!-- =======================================================
          ASSET & INVENTORY — INTERNAL DIGITAL ASSET REGISTER
     ======================================================== -->
+    <div id="aboutView" class="view-section hidden"><section class="about-page"><h2>About</h2><p>Badar Masjid Building, Main Road, Aramboor, Sullia, D.K - 574314</p><p><a href="mailto:ayfaramboor@gmail.com">ayfaramboor@gmail.com</a> · al ameen aramboor</p></section></div>
+
     <div id="assetInventoryView" class="view-section hidden">
-      <div class="section-header inner-page-header">
-        <button class="btn-back" onclick="showDashboard()">
-          <i class="fa-solid fa-arrow-left"></i>
-          Back
-        </button>
-      </div>
 
       <section class="asset-section">
-        <p class="asset-intro">ಸಂಸ್ಥೆಯ ಆಸ್ತಿ ಮತ್ತು ಉಪಕರಣಗಳ ಡಿಜಿಟಲ್ ದಾಖಲಾತಿ (Internal Asset Register)</p>
-
-        <h3 class="asset-highlight-title">⭐ ಪ್ರಮುಖ Assets</h3>
-        <div class="asset-highlight-grid">
-          <div class="asset-highlight-card">
-            <div class="asset-highlight-icon"><i class="fa-solid fa-chair"></i></div>
-            <div class="asset-highlight-name">Plastic Chair</div>
-            <div class="asset-quantity">120 <small>Nos</small></div>
-            <div class="asset-available">ಒಟ್ಟು ಲಭ್ಯತೆ</div>
-          </div>
-
-          <div class="asset-highlight-card">
-            <div class="asset-highlight-icon"><i class="fa-solid fa-table"></i></div>
-            <div class="asset-highlight-name">Steel Table</div>
-            <div class="asset-quantity">20 <small>Nos</small></div>
-            <div class="asset-available">ಒಟ್ಟು ಲಭ್ಯತೆ</div>
-          </div>
-
-          <div class="asset-highlight-card">
-            <div class="asset-highlight-icon"><i class="fa-solid fa-microphone-lines"></i></div>
-            <div class="asset-highlight-name">Portable Speaker &amp; Mic</div>
-            <div class="asset-quantity">Available</div>
-            <div class="asset-available">ಲಭ್ಯವಿದೆ</div>
-          </div>
-        </div>
-
-        <div class="asset-category-grid">
-          <div class="asset-category">
-            <h3>🖥️ Electronics &amp; Equipment</h3>
-            <ul class="asset-list">
-              <li><i class="fa-solid fa-fan"></i><span>Fan</span></li>
-            </ul>
-          </div>
-
-          <div class="asset-category">
-            <h3>🪑 Furniture</h3>
-            <ul class="asset-list">
-              <li><i class="fa-solid fa-table"></i><span>Office Desk</span></li>
-              <li><i class="fa-solid fa-box"></i><span>Godrej</span></li>
-            </ul>
-          </div>
-        </div>
+        <div id="assetDataContent" class="asset-data-loading">ಲೋಡ್ ಆಗುತ್ತಿದೆ…</div>
 
         <div class="asset-register-note">
           ಈ ವಿಭಾಗವನ್ನು ಸಂಸ್ಥೆಯ ಆಸ್ತಿ ಮತ್ತು inventory ದಾಖಲೆಗಳನ್ನು digitalize ಮಾಡಲು ಬಳಸಲಾಗುತ್ತದೆ.
@@ -1392,17 +1330,15 @@
          RENTAL & PAYMENT MANAGEMENT
     ======================================================== -->
     <div id="rentalView" class="view-section hidden">
-      <div class="section-header rental-header inner-page-header"><button class="btn-back" onclick="showDashboard()"><i class="fa-solid fa-arrow-left"></i> Back</button></div>
 
       <div id="rentalContent" class="rental-content" aria-live="polite"></div>
     </div>
 
     <div id="agendaView" class="view-section hidden">
-      <div class="section-header inner-page-header"><button class="btn-back" onclick="showDashboard()"><i class="fa-solid fa-arrow-left"></i> Back</button></div>
       <section class="agenda-section">
         <div class="ayfa-supervisor-bar"><span data-supervisor-login></span></div>
         <div class="agenda-toolbar"><span></span><div class="agenda-toolbar-actions"><button id="agendaImportButton" class="agenda-import-button" type="button" onclick="importLegacyAgendas()" hidden>Import legacy records</button><button class="agenda-add-button" onclick="openAgendaForm()"><i class="fa-solid fa-plus"></i> Add new agenda</button></div></div>
-        <div class="agenda-simple-sections"><div class="agenda-panel"><h3><i class="fa-solid fa-list-check"></i> Meeting Agenda</h3><div class="agenda-list-head"><span>Agenda Item</span><span>Date Added</span></div><div id="allAgendaList"></div></div><div class="agenda-panel"><h3><i class="fa-solid fa-comments"></i> Topics Discussed</h3><div class="agenda-list-head"><span>Agenda Item</span><span>Date Added</span></div><div id="actionAgendaList"></div></div><div class="agenda-panel"><h3><i class="fa-solid fa-circle-check"></i> Decisions Taken</h3><div class="agenda-list-head"><span>Agenda Item</span><span>Date Added</span></div><div id="completedAgendaList"></div></div></div>
+        <div class="agenda-simple-sections"><div class="agenda-panel"><h3><i class="fa-solid fa-list-check"></i> Meeting Agenda</h3><div class="agenda-list-head"><span>Agenda Item</span><span>Date Added</span></div><div id="allAgendaList"></div></div><div class="agenda-panel"><h3><i class="fa-solid fa-comments"></i> Topics Discussed</h3><div class="agenda-list-head"><span>Agenda Item</span><span>Date Added</span></div><div id="actionAgendaList"></div></div><div class="agenda-panel"><h3><i class="fa-solid fa-circle-check"></i> Decisions Taken</h3><div class="agenda-list-head"><span>Agenda Item</span><span>Date Added</span></div><div id="completedAgendaList"></div></div><div class="agenda-panel" id="agendaTrashPanel"><h3><i class="fa-solid fa-trash-can"></i> Trash</h3><div id="agendaTrashList"></div></div></div>
       </section>
     </div>
 
@@ -1410,14 +1346,10 @@
       id="financeView"
       class="view-section hidden"
     >
-      <div class="section-header inner-page-header"><button class="btn-back" onclick="showDashboard()"><i class="fa-solid fa-arrow-left"></i> Back</button></div>
 
       <section id="finance" class="finance-section">
         <div class="container">
           <div class="section-card">
-            <h2 class="section-title">💰 Finance Report 2022-2026</h2>
-            <p class="section-desc">ಸಂಸ್ಥೆಯ ವರ್ಷಾವಾರು ಆದಾಯ ಮತ್ತು ವೆಚ್ಚದ ವಿವರಗಳು:</p>
-
             <div class="finance-tabs" id="financeYearTabs">
               <button class="tab-btn active" onclick="showFinanceYear('2026')">2026</button>
               <button class="tab-btn" onclick="showFinanceYear('2025')">2025</button>
@@ -1500,8 +1432,6 @@
       class="view-section hidden"
     >
 
-      <div class="section-header inner-page-header"><button class="btn-back" onclick="showDashboard()"><i class="fa-solid fa-arrow-left"></i> Back</button></div>
-
 
       <div class="blood-donor-toolbar">
 
@@ -1572,7 +1502,7 @@
 
     <div id="annualDonationModal" class="blood-donation-modal hidden" role="dialog" aria-modal="true" aria-labelledby="annualDonationTitle">
       <section class="blood-donation-card">
-        <header class="blood-donation-header"><div><h2 id="annualDonationTitle">Blood Donation History</h2><p>Member donations grouped by year</p></div><button type="button" class="blood-modal-close" onclick="closeAnnualBloodDonationHistory()" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></header>
+        <header class="blood-donation-header"><div><h2 id="annualDonationTitle">Blood Donation History</h2></div><button type="button" class="blood-modal-close" onclick="closeAnnualBloodDonationHistory()" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></header>
         <div id="annualDonationContent" class="annual-donation-content"><p class="loading-message">Loading donation records...</p></div>
       </section>
     </div>
@@ -1591,7 +1521,7 @@
 
     <div id="bloodDonationFormView" class="blood-donation-modal hidden" role="dialog" aria-modal="true" aria-labelledby="bloodDonationFormTitle">
       <section class="blood-donation-card blood-donation-form-card">
-        <header class="blood-donation-header"><div><h2 id="bloodDonationFormTitle">Record Blood Donation</h2><p>Enter the donation details.</p></div><button type="button" class="blood-modal-close" onclick="closeBloodDonationForm()" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></header>
+        <header class="blood-donation-header"><div><h2 id="bloodDonationFormTitle">Record Blood Donation</h2></div><button type="button" class="blood-modal-close" onclick="closeBloodDonationForm()" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></header>
         <form id="bloodDonationForm" class="blood-donation-form" onsubmit="saveBloodDonation(event)">
           <label>Member Name<input id="bloodDonationMemberNameInput" readonly></label>
           <label>Member ID<input id="bloodDonationMemberIdInput" readonly></label>
@@ -1951,8 +1881,6 @@
       class="view-section hidden"
     >
 
-      <div class="section-header inner-page-header"><button class="btn-back" onclick="showDashboard()"><i class="fa-solid fa-arrow-left"></i> Back</button></div>
-
 
       <p class="select-instruction">
         Choose the year of office bearers
@@ -2017,21 +1945,6 @@
       id="bearersTableView"
       class="view-section hidden"
     >
-
-      <div class="section-header inner-page-header">
-
-        <button
-          class="btn-back"
-          onclick="openOfficeBearers()"
-        >
-
-          <i class="fa-solid fa-arrow-left"></i>
-
-          Back
-
-        </button>
-
-      </div>
 
 
       <div
@@ -2105,19 +2018,7 @@
          FOOTER
     ======================================================== -->
 
-    <footer class="app-footer">
-
-      <p>
-        Badar Masjid Building, Main Road,
-        Aramboor, Sullia, D.K - 574314
-      </p>
-
-      <p>
-        ayfaramboor@gmail.com |
-        al ameen aramboor
-      </p>
-
-    </footer>
+    <footer class="app-footer"><button type="button" class="about-link" onclick="openAboutPage()">About</button></footer>
 
 
   </div>
@@ -2156,12 +2057,16 @@
 
   <script src="js/attendance.js"></script>
 
+  <script src="js/reference-data.js"></script>
   <script src="js/finance.js"></script>
 
   <script src="js/rentals.js"></script>
   <script src="js/activity-reports.js"></script>
   <script src="js/agenda.js"></script>
-  <script>document.addEventListener("DOMContentLoaded", () => { if (typeof isRoleAuthenticated === "function" && isRoleAuthenticated() && typeof showDashboard === "function") showDashboard(); });</script>
+  <script>document.addEventListener("DOMContentLoaded", () => {
+    if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) navigator.serviceWorker.register("service-worker.js").catch(error => console.warn("Offline shell could not be registered:", error));
+    if (typeof isRoleAuthenticated === "function" && isRoleAuthenticated() && typeof showDashboard === "function") showDashboard();
+  });</script>
 
 
 
@@ -2177,6 +2082,8 @@
     // ASSET & INVENTORY NAVIGATION
     // ========================================================
     function openAssetInventory() {
+      if (history.state?.appView !== "assets") history.pushState({ appView: "assets" }, "", location.pathname + location.search + "#assets");
+      updateAppTopBar("assets");
       hideAllViews();
 
       const view = document.getElementById("assetInventoryView");
@@ -2185,210 +2092,19 @@
       }
 
       window.scrollTo({ top: 0, behavior: "smooth" });
+      void renderAssetInventory();
     }
 
-    // ========================================================
-    // HIDE ALL VIEWS
-    //
-    // We redefine this here so the new Poster Generator
-    // is included with the existing website navigation.
-    // ========================================================
-
-    function hideAllViews() {
-
-      document.getElementById("appContainer")?.setAttribute("data-active-view", "other");
-      document.getElementById("dashboardHomeActions")?.classList.add("hidden");
-
-      const views = [
-
-        "dashboardView",
-
-        "activityReportsView",
-
-        "yearSelectView",
-
-        "bearersTableView",
-
-        "attendanceView",
-
-        "membersView",
-
-        "bloodDonorsView",
-
-        "assetInventoryView",
-
-        "financeView",
-
-        "posterGeneratorView",
-
-        "rentalView",
-
-        "agendaView"
-
-      ];
-
-
-      views.forEach(function(id) {
-
-        const element =
-          document.getElementById(id);
-
-        if (element) {
-
-          element.classList.add("hidden");
-
-        }
-
-      });
-
+    async function renderAssetInventory() {
+      const target = document.getElementById("assetDataContent");
+      if (!target) return;
+      target.textContent = "ಲೋಡ್ ಆಗುತ್ತಿದೆ…";
+      try {
+        const assets = await loadReferenceData("assets", "assets");
+        const list = Array.isArray(assets) ? assets : Object.values(assets || {});
+        target.innerHTML = list.map(category => `<section class="asset-category"><h3>${escapeHTML(category.name || "Assets")}</h3><ul class="asset-list">${(category.items || []).map(item => `<li><i class="fa-solid ${escapeHTML(item.icon || "fa-box")}"></i><span>${escapeHTML(item.name || "")}${item.quantity != null ? ` — ${escapeHTML(item.quantity)} ${escapeHTML(item.unit || "")}` : ""}</span></li>`).join("")}</ul></section>`).join("") || "ಯಾವುದೇ assets ದಾಖಲಾಗಿಲ್ಲ.";
+      } catch (error) { target.textContent = "ಸಂಪತ್ತಿನ ವಿವರಗಳನ್ನು ಲೋಡ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ."; }
     }
-
-
-
-    // ========================================================
-    // OPEN POSTER GENERATOR
-    // ========================================================
-
-    function openPosterGenerator() {
-
-      hideAllViews();
-
-
-      const posterView =
-        document.getElementById(
-          "posterGeneratorView"
-        );
-
-
-      if (posterView) {
-
-        posterView.classList.remove("hidden");
-
-      }
-
-
-      // Automatically set today's date
-
-      const dateInput =
-        document.getElementById(
-          "posterDate"
-        );
-
-
-      if (
-        dateInput &&
-        !dateInput.value
-      ) {
-
-        const today =
-          new Date();
-
-
-        const year =
-          today.getFullYear();
-
-
-        const month =
-          String(
-            today.getMonth() + 1
-          ).padStart(2, "0");
-
-
-        const day =
-          String(
-            today.getDate()
-          ).padStart(2, "0");
-
-
-        dateInput.value =
-          `${year}-${month}-${day}`;
-
-      }
-
-
-      window.scrollTo({
-
-        top: 0,
-
-        behavior: "smooth"
-
-      });
-
-    }
-
-
-
-    // ========================================================
-    // SAFE TEXT
-    // ========================================================
-
-    function posterSafeText(value) {
-
-      return String(
-        value || ""
-      )
-        .replace(
-          /&/g,
-          "&amp;"
-        )
-        .replace(
-          /</g,
-          "&lt;"
-        )
-        .replace(
-          />/g,
-          "&gt;"
-        )
-        .replace(
-          /"/g,
-          "&quot;"
-        )
-        .replace(
-          /'/g,
-          "&#039;"
-        );
-
-    }
-
-
-
-    // ========================================================
-    // FORMAT DATE
-    // ========================================================
-
-    function formatPosterDate(dateValue) {
-
-      if (!dateValue) {
-
-        return "";
-
-      }
-
-
-      const parts =
-        dateValue.split("-");
-
-
-      if (
-        parts.length !== 3
-      ) {
-
-        return dateValue;
-
-      }
-
-
-      return (
-        parts[2] +
-        "-" +
-        parts[1] +
-        "-" +
-        parts[0]
-      );
-
-    }
-
-
 
     // ========================================================
     // GENERATE POSTER

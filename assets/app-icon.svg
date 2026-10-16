@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 513 513">
+  <!-- Generator: Adobe Illustrator 30.6.0, SVG Export Plug-In . SVG Version: 2.1.4 Build 109)  -->
+  <defs>
+    <style>
+      .st0 {
+        filter: url(#drop-shadow-1);
+      }
+    </style>
+    <filter id="drop-shadow-1" x="0" y="1" width="512" height="512" filterUnits="userSpaceOnUse">
+      <feOffset dx="8.5" dy="5.67"/>
+      <feGaussianBlur result="blur" stdDeviation="5"/>
+      <feFlood flood-color="#000" flood-opacity="1"/>
+      <feComposite in2="blur" operator="in"/>
+      <feComposite in="SourceGraphic"/>
+    </filter>
+  </defs>
+  <image width="513" height="513" xlink:href="app-icon-1.png"/>
+  <image class="st0" width="2363" height="2363" transform="translate(0 1) scale(.22)" xlink:href="../../../../LIMRA PENDR/ಗ್ರಾಫಿಕ್ ಝೋನ್/Al Ameen 15th Year/Al Ameen Logo-01.png"/>
+</svg>

@@ -1,13 +1,17 @@
-const agendaState = { items: [] };
+const agendaState = { items: [], deletedItems: [] };
 
 async function openAgendaManagement() {
+  if (typeof navigateAppView === "function" && history.state?.appView !== "agenda") history.pushState({ appView: "agenda" }, "", location.pathname + location.search + "#agenda");
+  updateAppTopBar("agenda");
   hideAllViews();
   document.getElementById("agendaView")?.classList.remove("hidden");
   window.scrollTo({ top: 0, behavior: "smooth" });
   try {
     await window.firebaseReady;
     const data = (await window.firebaseDb.ref("meetingAgendas").once("value")).val() || {};
-    agendaState.items = Object.entries(data).map(([id, value]) => ({ id, ...value }));
+    const records = Object.entries(data).map(([id, value]) => ({ id, ...value }));
+    agendaState.deletedItems = records.filter(item => item.deleted === true);
+    agendaState.items = records.filter(item => item.deleted !== true);
     agendaState.items.sort((a,b) => String(b.createdAt || b.meetingDate || "").localeCompare(String(a.createdAt || a.meetingDate || "")));
     renderAgendas();
   } catch (error) {
@@ -92,6 +96,12 @@ function renderAgendas() { agendaInjectStyles(); const b=document.querySelector(
   put("allAgendaList", allAgendas, "No agenda items yet.");
   put("actionAgendaList", underAction, "No topics discussed yet.");
   put("completedAgendaList", completed, "No decisions taken yet.");
+  const trashPanel = document.getElementById("agendaTrashList");
+  const trashSection = document.getElementById("agendaTrashPanel");
+  if (trashSection) trashSection.hidden = !isSupervisorLoggedIn();
+  if (trashPanel) trashPanel.innerHTML = isSupervisorLoggedIn() && agendaState.deletedItems.length
+    ? agendaState.deletedItems.map(item => `<article class="agenda-item"><div class="agenda-item-title">${escapeHTML(item.title || "Untitled")}</div><time class="agenda-item-date">${escapeHTML(String(item.meetingDate || "").slice(0,10))}</time><div class="agenda-item-actions"><button type="button" onclick="restoreAgenda(${JSON.stringify(item.id)})">Restore</button></div></article>`).join("")
+    : "<p class=\"agenda-empty\">Trash is empty.</p>";
 }
 
 async function importLegacyAgendas() {
@@ -139,8 +149,6 @@ function openAgendaForm(editId = "") { if(!requireSupervisor())return; const exi
 
   const title = isEdit ? "Edit agenda item" : "Add new agenda";
 
-  const subtitle = isEdit ? "Update the title or details." : "Add a topic for a meeting.";
-
   document.body.insertAdjacentHTML(
     "beforeend",
     `
@@ -149,7 +157,6 @@ function openAgendaForm(editId = "") { if(!requireSupervisor())return; const exi
         <div class="program-modal-header">
           <div>
             <h3>${title}</h3>
-            <p>${subtitle}</p>
           </div>
           <button class="program-close" type="button" onclick="document.getElementById('agendaModal').remove()" aria-label="Close">
             <i class="fa-solid fa-xmark"></i>
@@ -276,10 +283,19 @@ async function updateAgendaStage(id, status) {
 
 async function deleteAgenda(id) { if(!requireSupervisor())return; const item = agendaState.items.find(entry => entry.id === id);
   if (!item) return;
-  if (!confirm(`Delete "${item.title}"? This cannot be undone.`)) return;
+  if (!confirm(`Hide "${item.title}"? It can be restored later.`)) return;
   try {
     await window.firebaseReady;
-    await window.firebaseDb.ref(`meetingAgendas/${id}`).remove();
+    await window.firebaseDb.ref(`meetingAgendas/${id}`).transaction(current => current ? { ...current, deleted: true, deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : current);
     await openAgendaManagement();
   } catch (error) { console.error("Agenda delete error:", error); alert("Agenda could not be deleted. Check your connection and try again."); }
+}
+
+async function restoreAgenda(id) {
+  if (!requireSupervisor()) return;
+  try {
+    const result = await window.firebaseDb.ref(`meetingAgendas/${id}`).transaction(current => current?.deleted === true ? { ...current, deleted: false, restoredAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : undefined);
+    if (!result.committed) throw new Error("Agenda item is no longer in Trash.");
+    await openAgendaManagement();
+  } catch (error) { console.error("Agenda restore error:", error); alert("Agenda could not be restored. Refresh and try again."); }
 }

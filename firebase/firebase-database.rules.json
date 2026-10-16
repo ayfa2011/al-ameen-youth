@@ -2,23 +2,28 @@
   "rules": {
     "members": {
       ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
-      ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)"
+      ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
+      "$memberKey": { ".validate": "newData.hasChildren(['name']) && newData.child('name').isString()" }
     },
     "programs": {
       ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
-      ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)"
+      ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
+      "$programId": { ".validate": "newData.hasChildren(['programName', 'date']) && newData.child('programName').isString() && newData.child('date').isString()" }
     },
     "attendance": {
       ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
-      ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)"
+      ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
+      "$programId": { "$memberId": { ".validate": "newData.hasChildren(['memberId', 'memberName', 'status']) && newData.child('memberId').isString() && newData.child('memberName').isString() && (newData.child('status').val() == 'Present' || newData.child('status').val() == 'Absent')" } }
     },
     "bloodDonations": {
       ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
-      ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)"
+      ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
+      "$memberId": { "$recordId": { ".validate": "!newData.exists() || (newData.hasChildren(['memberId', 'memberName', 'patientName', 'donationDate', 'units']) && newData.child('memberId').isString() && newData.child('patientName').isString() && newData.child('donationDate').isString() && newData.child('units').isNumber())" } }
     },
     "meetingAgendas": {
       ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
-      ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)"
+      ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
+      "$agendaId": { ".validate": "newData.hasChildren(['title']) && newData.child('title').isString()" }
     },
     "meetingAgendasMigrationBackups": {
       ".read": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
@@ -26,7 +31,8 @@
     },
     "programReports": {
       ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
-      ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)"
+      ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
+      "$reportId": { ".validate": "newData.hasChildren(['title', 'description', 'date']) && newData.child('title').isString() && newData.child('description').isString() && newData.child('date').isString()" }
     },
     "drivePhotoFolders": {
       ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
@@ -34,7 +40,36 @@
     },
     "rentals": {
       ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
-      ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)"
+      ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
+      "$rentalId": { ".validate": "!newData.exists() || (newData.hasChildren(['category', 'customerName', 'startDate', 'returnDate', 'totalAmount']) && (newData.child('category').val() == 'chairTable' || newData.child('category').val() == 'speaker') && newData.child('customerName').isString() && newData.child('startDate').isString() && newData.child('returnDate').isString() && newData.child('totalAmount').isNumber())" }
+    },
+    "officeBearers": {
+      "$year": {
+        ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
+        ".write": false
+      }
+    },
+    "financeReports": {
+      "$year": {
+        ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
+        ".write": false
+      }
+    },
+    "assets": {
+      ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
+      ".write": false
+    },
+    "historicalRentals": {
+      "$year": {
+        ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
+        ".write": false
+      }
+    },
+    "bloodGroups": {
+      "$memberName": {
+        ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
+        ".write": false
+      }
     }
   }
 }
