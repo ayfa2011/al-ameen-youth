@@ -3,45 +3,74 @@
     "members": {
       ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
       ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
-      "$memberKey": { ".validate": "newData.hasChildren(['name']) && newData.child('name').isString()" }
+      "$memberKey": {
+        ".validate": "newData.hasChildren(['name']) && newData.child('name').isString() && newData.child('name').val().length <= 150 && (!newData.child('active').exists() || newData.child('active').isBoolean()) && (!newData.child('bloodGroupOverride').exists() || newData.child('bloodGroupOverride').isString()) && (!newData.child('mobile').exists() || newData.child('mobile').isString() || newData.child('mobile').isNumber())"
+      }
     },
     "programs": {
       ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
       ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
-      "$programId": { ".validate": "newData.hasChildren(['programName', 'date']) && newData.child('programName').isString() && newData.child('date').isString()" }
+      "$programId": {
+        ".validate": "newData.hasChildren(['programName', 'date']) && newData.child('programName').isString() && newData.child('programName').val().length <= 200 && newData.child('date').isString() && (!newData.child('deleted').exists() || newData.child('deleted').isBoolean())"
+      }
     },
     "attendance": {
       ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
       ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
-      "$programId": { "$memberId": { ".validate": "newData.hasChildren(['memberId', 'memberName', 'status']) && newData.child('memberId').isString() && newData.child('memberName').isString() && (newData.child('status').val() == 'Present' || newData.child('status').val() == 'Absent')" } }
+      "$programId": {
+        "$memberId": {
+          ".validate": "newData.hasChildren(['memberId', 'memberName', 'status']) && newData.child('memberId').isString() && newData.child('memberName').isString() && newData.child('memberName').val().length <= 150 && (newData.child('status').val() == 'Present' || newData.child('status').val() == 'Absent')"
+        }
+      }
     },
     "bloodDonations": {
       ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
       ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
-      "$memberId": { "$recordId": { ".validate": "!newData.exists() || (newData.hasChildren(['memberId', 'memberName', 'patientName', 'donationDate', 'units']) && newData.child('memberId').isString() && newData.child('patientName').isString() && newData.child('donationDate').isString() && newData.child('units').isNumber())" } }
+      "$memberId": {
+        "$recordId": {
+          ".validate": "!newData.exists() || (newData.hasChildren(['memberId', 'memberName', 'patientName', 'donationDate', 'units']) && newData.child('memberId').isString() && newData.child('memberName').isString() && newData.child('patientName').isString() && newData.child('patientName').val().length <= 100 && newData.child('donationDate').isString() && newData.child('units').isNumber() && newData.child('units').val() >= 1 && (!newData.child('deleted').exists() || newData.child('deleted').isBoolean()))"
+        }
+      }
     },
     "meetingAgendas": {
       ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
       ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
-      "$agendaId": { ".validate": "newData.hasChildren(['title']) && newData.child('title').isString()" }
+      "$agendaId": {
+        ".validate": "newData.hasChildren(['title', 'meetingDate']) && newData.child('title').isString() && newData.child('title').val().length <= 200 && newData.child('meetingDate').isString() && (!newData.child('deleted').exists() || newData.child('deleted').isBoolean()) && (!newData.child('priority').exists() || newData.child('priority').isString())"
+      }
     },
     "meetingAgendasMigrationBackups": {
       ".read": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
-      ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)"
+      ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
+      "$backupId": {
+        ".validate": "newData.hasChildren(['createdAt', 'source']) && newData.child('createdAt').isString() && newData.child('source').isString() && (!newData.child('items').exists() || newData.child('items').hasChildren())"
+      }
     },
     "programReports": {
       ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
       ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
-      "$reportId": { ".validate": "newData.hasChildren(['title', 'description', 'date']) && newData.child('title').isString() && newData.child('description').isString() && newData.child('date').isString()" }
+      "$reportId": {
+        ".validate": "newData.hasChildren(['title', 'description', 'date']) && newData.child('title').isString() && newData.child('title').val().length <= 200 && newData.child('description').isString() && newData.child('description').val().length <= 20000 && newData.child('date').isString() && (!newData.child('deleted').exists() || newData.child('deleted').isBoolean())"
+      }
     },
     "drivePhotoFolders": {
       ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
-      ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)"
+      ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
+      "$folderId": {
+        ".validate": "newData.hasChildren(['name']) && newData.child('name').isString() && newData.child('name').val().length <= 200"
+      }
     },
     "rentals": {
       ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
       ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
-      "$rentalId": { ".validate": "!newData.exists() || (newData.hasChildren(['category', 'customerName', 'startDate', 'returnDate', 'totalAmount']) && (newData.child('category').val() == 'chairTable' || newData.child('category').val() == 'speaker') && newData.child('customerName').isString() && newData.child('startDate').isString() && newData.child('returnDate').isString() && newData.child('totalAmount').isNumber())" }
+      "$rentalId": {
+        ".validate": "!newData.exists() || (newData.hasChildren(['category', 'customerName', 'startDate', 'returnDate', 'totalAmount']) && (newData.child('category').val() == 'chairTable' || newData.child('category').val() == 'speaker') && newData.child('customerName').isString() && newData.child('customerName').val().length <= 150 && newData.child('startDate').isString() && newData.child('returnDate').isString() && newData.child('totalAmount').isNumber() && newData.child('totalAmount').val() >= 0 && (!newData.child('paidAmount').exists() || (newData.child('paidAmount').isNumber() && newData.child('paidAmount').val() >= 0)) && (!newData.child('deleted').exists() || newData.child('deleted').isBoolean()))",
+        "payments": {
+          "$paymentId": {
+            ".validate": "newData.hasChildren(['amount', 'date']) && newData.child('amount').isNumber() && newData.child('amount').val() > 0 && newData.child('date').isString()"
+          }
+        }
+      }
     },
     "officeBearers": {
       ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
@@ -69,6 +98,13 @@
       ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
       "$memberName": {
         ".write": false
+      }
+    },
+    "auditLog": {
+      ".read": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
+      "$eventId": {
+        ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000) && !data.exists() && newData.exists() && newData.child('actorUid').val() == auth.uid && newData.child('actorRole').val() == auth.token.role",
+        ".validate": "newData.hasChildren(['action', 'path', 'actorUid', 'actorRole', 'clientAt', 'createdAt']) && newData.child('action').isString() && newData.child('path').isString() && newData.child('actorUid').isString() && newData.child('actorRole').val() == 'official' && newData.child('clientAt').isString() && newData.child('createdAt').isNumber() && (!newData.child('recordId').exists() || newData.child('recordId').isString())"
       }
     }
   }

@@ -149,6 +149,7 @@ function getOrCreateAgendaSheet_() {
   if (sheet.getLastRow() === 0) sheet.appendRow(headers);
   else if (String(sheet.getRange(1, 1).getValue()).trim() !== "ID") sheet.insertRowBefore(1), sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   if (sheet.getLastColumn() < 13) sheet.getRange(1, 13).setValue("Discussed At");
+  if (sheet.getLastColumn() < 14) sheet.getRange(1, 14).setValue("Deleted At");
   return sheet;
 }
 
@@ -169,7 +170,7 @@ function getAgendas_() {
   const values = sheet.getDataRange().getDisplayValues();
   if (values.length < 2) return [];
   const headers = values[0].map(value => String(value).trim());
-  return values.slice(1).filter(row => row[0]).map(row => {
+  return values.slice(1).filter(row => row[0] && !row[13]).map(row => {
     const item = {};
     headers.forEach((header, index) => { if (header) item[header] = row[index] || ""; });
     return { id: String(item.ID), meetingDate: item["ಸಭೆಯ ದಿನಾಂಕ"], title: item["ಅಜೆಂಡಾ / ವಿಷಯ"], description: item["ವಿವರ"], status: item["ಸ್ಥಿತಿ"], decision: item["ನಿರ್ಣಯ"], discussedDate: item["Discussed At"] || "", implementedDate: item["ಜಾರಿಯಾದ ದಿನಾಂಕ"], priority: item.Priority, responsible: item["ಜವಾಬ್ದಾರಿ"], targetDate: item["ಗುರಿ ದಿನಾಂಕ"], createdAt: item["Created At"], updatedAt: item["Updated At"], decisionStatus: item["ಸ್ಥಿತಿ"] === "Completed" ? "Completed" : "Pending" };
@@ -192,14 +193,14 @@ function deleteAgenda_(id) {
   const sheet = getOrCreateAgendaSheet_();
   const rows = sheet.getDataRange().getDisplayValues();
   const index = rows.findIndex((row, i) => i > 0 && String(row[0]) === String(id));
-  if (index > 0) sheet.deleteRow(index + 1);
+  if (index > 0 && !rows[index][13]) sheet.getRange(index + 1, 14).setValue(new Date().toISOString());
   return { success: true, id: String(id) };
 }
 
 
 function uploadDrivePhoto(data) {
   try {
-    if (!data || !data.base64 || !data.fileName) {
+    if (!data || !data.base64 || !data.fileName || !data.uploadId) {
       throw new Error("Photo data is required.");
     }
 
@@ -209,21 +210,26 @@ function uploadDrivePhoto(data) {
     const safeFolderName = String(data.folderName || "Activity Report").trim().slice(0, 120);
     const folders = root.getFoldersByName(safeFolderName);
     const folder = folders.hasNext() ? folders.next() : root.createFolder(safeFolderName);
+    const uploadMarker = "AYFA_UPLOAD_ID:" + String(data.uploadId).slice(0, 128);
+    const lock = LockService.getScriptLock();
+    if (!lock.tryLock(30000)) throw new Error("Another photo upload is in progress. Retry this photo shortly.");
+    try {
+      const existingFiles = folder.getFilesByName(String(data.fileName).slice(0, 180));
+      while (existingFiles.hasNext()) {
+        const existing = existingFiles.next();
+        if (existing.getDescription() === uploadMarker) {
+          return drivePhotoResult_(existing, folder, true);
+        }
+      }
 
-    const bytes = Utilities.base64Decode(data.base64);
-    const blob = Utilities.newBlob(bytes, data.mimeType || "image/jpeg", data.fileName);
-    const file = folder.createFile(blob);
-
-    return {
-      success: true,
-      fileId: file.getId(),
-      fileName: file.getName(),
-      folderId: folder.getId(),
-      folderUrl: folder.getUrl(),
-      imageUrl: "https://drive.google.com/uc?export=view&id=" + file.getId(),
-      thumbnailUrl: "https://drive.google.com/thumbnail?id=" + file.getId() + "&sz=w1200",
-      webViewLink: file.getUrl()
-    };
+      const bytes = Utilities.base64Decode(data.base64);
+      const blob = Utilities.newBlob(bytes, data.mimeType || "image/jpeg", data.fileName);
+      const file = folder.createFile(blob);
+      file.setDescription(uploadMarker);
+      return drivePhotoResult_(file, folder, false);
+    } finally {
+      lock.releaseLock();
+    }
   } catch (error) {
     return {
       success: false,
@@ -232,6 +238,20 @@ function uploadDrivePhoto(data) {
       stack: error.stack || ""
     };
   }
+}
+
+function drivePhotoResult_(file, folder, reused) {
+  return {
+    success: true,
+    fileId: file.getId(),
+    fileName: file.getName(),
+    folderId: folder.getId(),
+    folderUrl: folder.getUrl(),
+    imageUrl: "https://drive.google.com/uc?export=view&id=" + file.getId(),
+    thumbnailUrl: "https://drive.google.com/thumbnail?id=" + file.getId() + "&sz=w1200",
+    webViewLink: file.getUrl(),
+    reused: Boolean(reused)
+  };
 }
 
 function listDrivePhotoFolders_() {
@@ -443,37 +463,6 @@ function base64UrlEncodeBytes_(bytes) {
   return Utilities.base64EncodeWebSafe(bytes).replace(/=+$/, "");
 }
 
-// ============================================================
-// FIREBASE WRITE HELPERS
-// ============================================================
-
-function firebasePut_(path, data) {
-  const token = getFirebaseAccessToken_();
-  const url =
-    FIREBASE_DATABASE_URL.replace(/\/$/, "") +
-    "/" + path.replace(/^\/|\/$/g, "") +
-    ".json?access_token=" +
-    encodeURIComponent(token);
-
-  const response = UrlFetchApp.fetch(url, {
-    method: "put",
-    contentType: "application/json",
-    payload: JSON.stringify(data),
-    muteHttpExceptions: true
-  });
-
-  const code = response.getResponseCode();
-  const body = response.getContentText();
-
-  if (code < 200 || code >= 300) {
-    throw new Error(
-      "Firebase write failed (" + code + ") at /" + path + ": " + body
-    );
-  }
-
-  return body;
-}
-
 function syncAllToFirebase() {
   throw new Error("Sheet-to-Firebase imports are disabled to protect live website data. Review and migrate records with a staged, ID-only process.");
 }
@@ -507,14 +496,19 @@ function backupFirebaseDatabaseToDrive() {
 }
 
 function setupNightlyFirebaseBackupTrigger() {
-  ScriptApp.getProjectTriggers().forEach(trigger => {
-    if (trigger.getHandlerFunction() === "backupFirebaseDatabaseToDrive") ScriptApp.deleteTrigger(trigger);
-  });
-  ScriptApp.newTrigger("backupFirebaseDatabaseToDrive")
+  // Install the replacement first so a creation/authorization error cannot
+  // accidentally leave the project without its existing nightly backup.
+  const replacement = ScriptApp.newTrigger("backupFirebaseDatabaseToDrive")
     .timeBased()
     .everyDays(1)
     .atHour(2)
     .create();
+  const replacementId = replacement.getUniqueId();
+  ScriptApp.getProjectTriggers().forEach(trigger => {
+    if (trigger.getHandlerFunction() === "backupFirebaseDatabaseToDrive" && trigger.getUniqueId() !== replacementId) {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
   return "Nightly Firebase Drive backup scheduled for 2:00 AM in the Apps Script project timezone.";
 }
 

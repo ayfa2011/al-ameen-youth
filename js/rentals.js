@@ -3,7 +3,7 @@
 // Data is stored in Firebase Realtime Database at /rentals.
 // ============================================================
 
-const RENTAL_CURRENT_FINANCIAL_YEAR = "2027";
+const RENTAL_CURRENT_FINANCIAL_YEAR = String(new Date().getFullYear() + (new Date().getMonth() >= 3 ? 1 : 0));
 
 const rentalState = {
   rentals: [],
@@ -39,6 +39,21 @@ function rentalDate(value) {
   if (!value) return "—";
   const date = new Date(`${value}T00:00:00`);
   return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short", year: "numeric" }).format(date);
+}
+
+// Rental report years are financial years named by their ending year:
+// 2027 means 1 Apr 2026 through 31 Mar 2027.
+function rentalFinancialYearEndYear(dateValue) {
+  const match = String(dateValue || "").match(/^(\d{4})-(\d{2})-\d{2}$/);
+  if (!match) return "";
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  if (month < 1 || month > 12) return "";
+  return String(year + (month >= 4 ? 1 : 0));
+}
+
+function rentalBelongsToFinancialYear(rental, year) {
+  return rentalFinancialYearEndYear(rental.startDate) === String(year);
 }
 
 function rentalStatus(rental) {
@@ -94,7 +109,8 @@ function rentalReportYearOptions() {
   const years = new Set([RENTAL_CURRENT_FINANCIAL_YEAR]);
   years.add("2026");
   rentalState.rentals.forEach(rental => {
-    if (/^\d{4}/.test(String(rental.startDate || ""))) years.add(String(rental.startDate).slice(0, 4));
+    const financialYear = rentalFinancialYearEndYear(rental.startDate);
+    if (financialYear) years.add(financialYear);
   });
   return Array.from(years).sort((a, b) => b.localeCompare(a)).map(year => `<option value="${year}" ${year === rentalState.reportYear ? "selected" : ""}>${year}</option>`).join("");
 }
@@ -150,7 +166,7 @@ function renderRentalDashboard() {
   const historicalReport = importedRentalReport(category, selectedYear);
   const yearRentals = historicalReport
     ? []
-    : rentals.filter(rental => String(rental.startDate || "").startsWith(selectedYear));
+    : rentals.filter(rental => rentalBelongsToFinancialYear(rental, selectedYear));
   const totals = rentalTotals(yearRentals);
   const today = new Date().toISOString().slice(0, 10);
   const upcoming = yearRentals
@@ -341,12 +357,17 @@ async function saveRentalEntry(event, id = "") {
     if (id) {
       const ref = window.firebaseDb.ref(`rentals/${id}`);
       const expectedUpdatedAt = existing?.updatedAt;
+      const updatedAt = record.updatedAt;
       const result = await ref.transaction(current => {
         if (!current || current.deleted === true || current.updatedAt !== expectedUpdatedAt) return;
-        return { ...current, ...record, updatedAt: new Date().toISOString() };
+        return { ...current, ...record, updatedAt };
       });
       if (!result.committed) throw new Error("Rental changed while this form was open. Reload it and apply your edits again.");
-    } else await window.firebaseDb.ref("rentals").push(record);
+      await appendFirebaseAudit({ action: "rental.update", path: "rentals", recordId: id, beforeUpdatedAt: expectedUpdatedAt, afterUpdatedAt: updatedAt });
+    } else {
+      const ref = window.firebaseDb.ref("rentals").push();
+      await auditedFirebaseUpdate({ [`rentals/${ref.key}`]: record }, { action: "rental.create", path: "rentals", recordId: ref.key, afterUpdatedAt: record.updatedAt });
+    }
     closeRentalModal(); await loadRentals(); renderRentalDashboard();
   }
   catch (error) { console.error(error); alert(error.message?.includes("changed while") ? "Another official changed this rental. Refresh and reapply your changes." : "Rental could not be saved. Check your connection and permissions."); }
@@ -358,7 +379,10 @@ async function deleteRental(id) {
   if (!rental || !rentalCanManage(rental.category)) return;
   if (!confirm(`Hide the rental record for "${rental.customerName}"? It can be restored later.`)) return;
   try {
-    await window.firebaseDb.ref(`rentals/${id}`).transaction(current => current ? { ...current, deleted: true, deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : current);
+    const updatedAt = new Date().toISOString();
+    const result = await window.firebaseDb.ref(`rentals/${id}`).transaction(current => current && current.deleted !== true ? { ...current, deleted: true, deletedAt: updatedAt, updatedAt } : undefined);
+    if (!result.committed) throw new Error("Rental changed before it could be hidden.");
+    await appendFirebaseAudit({ action: "rental.hide", path: "rentals", recordId: id, afterUpdatedAt: updatedAt });
     await loadRentals();
     renderRentalDashboard();
   } catch (error) {
@@ -374,6 +398,7 @@ async function restoreRental(id) {
   try {
     const result = await window.firebaseDb.ref(`rentals/${id}`).transaction(current => current?.deleted === true ? { ...current, deleted: false, restoredAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : undefined);
     if (!result.committed) throw new Error("The rental is no longer in the trash. Refresh and try again.");
+    await appendFirebaseAudit({ action: "rental.restore", path: "rentals", recordId: id });
     await loadRentals();
     renderRentalDashboard();
   } catch (error) {
@@ -414,6 +439,7 @@ async function saveRentalPayment(event, id) {
       return { ...current, paidAmount: nextPaid, balance: Math.max(0, (Number(current.totalAmount) || 0) - nextPaid), status: nextPaid >= Number(current.totalAmount) ? "paid" : "partial", payments: { ...(current.payments || {}), [paymentRef.key]: payment }, updatedAt: new Date().toISOString() };
     });
     if (!result.committed) throw new Error("Another official changed this rental, or the amount exceeds its current balance. Refresh and try again.");
+    await appendFirebaseAudit({ action: "rental.payment", path: "rentals", recordId: id, beforeUpdatedAt: rental.updatedAt });
     closeRentalModal(); await loadRentals(); renderRentalDashboard();
   }
   catch (error) { console.error(error); alert(error.message?.includes("Another official changed") ? error.message : "Payment could not be updated. Check your connection and permissions."); }
@@ -423,7 +449,7 @@ function downloadRentalReport(category, selectedYear) {
   if (typeof XLSX === "undefined") { alert("Excel report library load ಆಗಿಲ್ಲ. Internet connection ಪರಿಶೀಲಿಸಿ."); return; }
   const year = selectedYear || String(new Date().getFullYear());
   const historicalReport = importedRentalReport(category, String(year));
-  const rentals = historicalReport ? [] : rentalState.rentals.filter(rental => rental.category === category && String(rental.startDate || "").startsWith(String(year)));
+  const rentals = historicalReport ? [] : rentalState.rentals.filter(rental => rental.category === category && rentalBelongsToFinancialYear(rental, year));
   const totals = rentalTotals(rentals);
   const maintenance = rentals.reduce((sum, rental) => sum + (Number(rental.maintenanceCost) || 0), 0);
   const title = category === "chairTable" ? "Chair & Table Rental Report" : "Speaker Rental Report";

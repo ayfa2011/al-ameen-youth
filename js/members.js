@@ -3,6 +3,7 @@
 // ============================================================
 
 let fullMembersList = [];
+let deactivatedMembersList = [];
 window.fullMembersList = fullMembersList;
 let memberDatabaseKeyById = new Map();
 
@@ -40,7 +41,10 @@ function normalizeMember(row) {
     contribution: row.contribution ?? row["Monthy Contribution Amount"] ?? row["Monthly Contribution Amount"] ?? "",
     location: row.location ?? row["Location"] ?? "",
     bloodGroup: bloodGroupOverride !== undefined ? String(bloodGroupOverride || "") : (verifiedMemberBloodGroups.get(bloodMemberKey(row.name ?? row["Name"] ?? "")) ?? ""),
-    bloodCount: row.bloodCount ?? row["How Many Times Blood Donated :"] ?? row["How Many Times Blood Donated"] ?? 0
+    bloodCount: row.bloodCount ?? row["How Many Times Blood Donated :"] ?? row["How Many Times Blood Donated"] ?? 0,
+    active: row.active !== false,
+    updatedAt: row.updatedAt || "",
+    deactivatedAt: row.deactivatedAt || ""
   };
 }
 
@@ -59,7 +63,7 @@ async function fetchMembersFromFirebase(force = false) {
   const data = snapshot.val() || {};
 
   memberDatabaseKeyById = new Map();
-  fullMembersList = Object.entries(data)
+  const allMembers = Object.entries(data)
     .map(([databaseKey, row]) => {
       const member = normalizeMember(row || {});
       member.id = String(member.id || databaseKey);
@@ -67,6 +71,9 @@ async function fetchMembersFromFirebase(force = false) {
       return member;
     })
     .filter(m => String(m.name || "").trim());
+
+  deactivatedMembersList = allMembers.filter(member => !member.active);
+  fullMembersList = allMembers.filter(member => member.active);
 
   fullMembersList.sort((a, b) => Number(a.id) - Number(b.id));
   window.fullMembersList = fullMembersList;
@@ -118,6 +125,7 @@ function filterMemberCards(query = "") {
   const container = document.getElementById("membersContainer");
   if (!container) return;
   container.innerHTML = matches.length ? matches.map(memberCardHTML).join("") : '<p class="empty-message">No Members Found</p>';
+  renderDeactivatedMemberTrash();
 }
 
 let attendanceCountsByMemberId = {};
@@ -126,10 +134,15 @@ async function loadMemberAttendanceCounts() {
   attendanceCountsByMemberId = {};
   await waitForFirebase();
 
-  const snapshot = await window.firebaseDb.ref("attendance").once("value");
-  const allAttendance = snapshot.val() || {};
+  const [attendanceSnapshot, programSnapshot] = await Promise.all([
+    window.firebaseDb.ref("attendance").once("value"),
+    window.firebaseDb.ref("programs").once("value")
+  ]);
+  const allAttendance = attendanceSnapshot.val() || {};
+  const programs = programSnapshot.val() || {};
 
-  Object.values(allAttendance).forEach(programAttendance => {
+  Object.entries(allAttendance).forEach(([programId, programAttendance]) => {
+    if (programs[programId]?.deleted === true) return;
     Object.entries(programAttendance || {}).forEach(([memberId, record]) => {
       if (String(record?.status || "").toLowerCase() !== "present") return;
       attendanceCountsByMemberId[memberId] =
@@ -153,12 +166,17 @@ async function renderMemberCards() {
     });
 
     const search = document.getElementById("memberSearchInput")?.value || "";
-    if (!fullMembersList.length) container.innerHTML = `<p class="empty-message">Members data ಸಿಗಲಿಲ್ಲ.</p>`;
-    else filterMemberCards(search);
+    filterMemberCards(search);
   } catch (error) {
     console.error(error);
     container.innerHTML = `<p class="error-message">Members data load ಆಗಲಿಲ್ಲ. Firebase connection ಪರಿಶೀಲಿಸಿ.</p>`;
   }
+}
+
+function renderDeactivatedMemberTrash() {
+  const container = document.getElementById("membersContainer");
+  if (!container || !isSupervisorLoggedIn() || !deactivatedMembersList.length) return;
+  container.insertAdjacentHTML("beforeend", `<section class="member-trash"><h3>Deactivated members</h3>${deactivatedMembersList.map(member => `<div class="member-trash-row"><span>${escapeHTML(member.name)}</span><button type="button" onclick="restoreMember(${JSON.stringify(String(member.id))})">Restore</button></div>`).join("")}</section>`);
 }
 
 function openMemberEdit(memberId) {
@@ -208,13 +226,20 @@ async function saveMemberEdit(event, memberId) {
   if (!update.name) { alert("Member name is required."); return; }
   try {
     await waitForFirebase();
-    await window.firebaseDb.ref(`members/${databaseKey}`).update(update);
+    const expectedUpdatedAt = String(member.updatedAt || "");
+    const updatedAt = new Date().toISOString();
+    const result = await window.firebaseDb.ref(`members/${databaseKey}`).transaction(current => {
+      if (!current || String(current.updatedAt || "") !== expectedUpdatedAt) return;
+      return { ...current, ...update, updatedAt };
+    });
+    if (!result.committed) throw new Error("Member changed after you opened this form. Refresh and reapply your edits.");
+    await appendFirebaseAudit({ action: "member.update", path: "members", recordId: databaseKey, beforeUpdatedAt: expectedUpdatedAt, afterUpdatedAt: updatedAt });
     closeMemberEdit();
     await fetchMembersFromFirebase(true);
     await renderMemberCards();
   } catch (error) {
     console.error("Member update error:", error);
-    alert("Member details could not be updated. Check the connection and try again.");
+    alert(error.message?.includes("changed after") ? "Another official changed this member. Refresh and reapply your edits." : "Member details could not be updated. Check the connection and try again.");
   }
 }
 
@@ -226,13 +251,40 @@ async function deleteMember(memberId) {
   const databaseKey = memberDatabaseKeyById.get(String(memberId)) || String(memberId);
   try {
     await waitForFirebase();
-    await window.firebaseDb.ref(`members/${databaseKey}`).update({ active: false, deactivatedAt: new Date().toISOString() });
-    memberDatabaseKeyById.delete(String(memberId));
+    const expectedUpdatedAt = String(member.updatedAt || "");
+    const deactivatedAt = new Date().toISOString();
+    const result = await window.firebaseDb.ref(`members/${databaseKey}`).transaction(current => {
+      if (!current || current.active === false || String(current.updatedAt || "") !== expectedUpdatedAt) return;
+      return { ...current, active: false, deactivatedAt, updatedAt: deactivatedAt };
+    });
+    if (!result.committed) throw new Error("Member changed before deactivation. Refresh and try again.");
+    await appendFirebaseAudit({ action: "member.deactivate", path: "members", recordId: databaseKey, beforeUpdatedAt: expectedUpdatedAt, afterUpdatedAt: deactivatedAt });
     await fetchMembersFromFirebase(true);
     await renderMemberCards();
   } catch (error) {
     console.error("Member delete error:", error);
-    alert("Member could not be deleted. Check the connection and try again.");
+    alert(error.message?.includes("changed before") ? "Another official changed this member. Refresh and try again." : "Member could not be deactivated. Check the connection and try again.");
+  }
+}
+
+async function restoreMember(memberId) {
+  if (!requireSupervisor()) return;
+  const member = deactivatedMembersList.find(item => String(item.id) === String(memberId));
+  if (!member) return;
+  const databaseKey = memberDatabaseKeyById.get(String(memberId)) || String(memberId);
+  try {
+    const restoredAt = new Date().toISOString();
+    const result = await window.firebaseDb.ref(`members/${databaseKey}`).transaction(current => {
+      if (!current || current.active !== false || String(current.updatedAt || "") !== String(member.updatedAt || "")) return;
+      return { ...current, active: true, restoredAt, updatedAt: restoredAt };
+    });
+    if (!result.committed) throw new Error("Member changed before restore. Refresh and try again.");
+    await appendFirebaseAudit({ action: "member.restore", path: "members", recordId: databaseKey, beforeUpdatedAt: member.updatedAt, afterUpdatedAt: restoredAt });
+    await fetchMembersFromFirebase(true);
+    await renderMemberCards();
+  } catch (error) {
+    console.error("Member restore error:", error);
+    alert(error.message?.includes("changed before") ? "Another official changed this member. Refresh and try again." : "Member could not be restored. Check the connection and try again.");
   }
 }
 
@@ -251,7 +303,7 @@ async function renderBloodDonors() {
     const donationSnapshot = await window.firebaseDb.ref("bloodDonations").once("value");
     const donationData = donationSnapshot.val() || {};
     members.forEach(member => {
-      const records = Object.values(donationData[String(member.id)] || {});
+      const records = Object.values(donationData[String(member.id)] || {}).filter(record => record?.deleted !== true);
       member.bloodDonationCount = records.length;
     });
     if (countEl) countEl.textContent = members.length;
@@ -445,7 +497,8 @@ async function saveBloodDonation(event) {
   error.textContent = "";
   try {
     await waitForFirebase();
-    await window.firebaseDb.ref(`bloodDonations/${member.id}`).push(record);
+    const recordRef = window.firebaseDb.ref(`bloodDonations/${member.id}`).push();
+    await auditedFirebaseUpdate({ [`bloodDonations/${member.id}/${recordRef.key}`]: record }, { action: "bloodDonation.create", path: `bloodDonations/${member.id}`, recordId: recordRef.key, afterUpdatedAt: record.createdAt });
     closeBloodDonationForm();
     await openBloodDonationHistory(member.id);
     renderBloodDonorCards(fullMembersList);
@@ -460,7 +513,10 @@ async function deleteBloodDonation(memberId, recordId) {
   if (!confirm("Hide this blood donation record? It can be restored later.")) return;
   try {
     await waitForFirebase();
-    await window.firebaseDb.ref(`bloodDonations/${memberId}/${recordId}`).transaction(current => current ? { ...current, deleted: true, deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : current);
+    const updatedAt = new Date().toISOString();
+    const result = await window.firebaseDb.ref(`bloodDonations/${memberId}/${recordId}`).transaction(current => current && current.deleted !== true ? { ...current, deleted: true, deletedAt: updatedAt, updatedAt } : undefined);
+    if (!result.committed) throw new Error("Donation record changed before it could be hidden.");
+    await appendFirebaseAudit({ action: "bloodDonation.hide", path: `bloodDonations/${memberId}`, recordId, afterUpdatedAt: updatedAt });
     await openBloodDonationHistory(memberId);
     renderBloodDonorCards(fullMembersList);
   } catch (error) {
@@ -473,8 +529,10 @@ async function restoreBloodDonation(memberId, recordId) {
   if (!requireSupervisor()) return;
   try {
     await waitForFirebase();
-    const result = await window.firebaseDb.ref(`bloodDonations/${memberId}/${recordId}`).transaction(current => current?.deleted === true ? { ...current, deleted: false, restoredAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : undefined);
+    const restoredAt = new Date().toISOString();
+    const result = await window.firebaseDb.ref(`bloodDonations/${memberId}/${recordId}`).transaction(current => current?.deleted === true ? { ...current, deleted: false, restoredAt, updatedAt: restoredAt } : undefined);
     if (!result.committed) throw new Error("Donation record is no longer in Trash.");
+    await appendFirebaseAudit({ action: "bloodDonation.restore", path: `bloodDonations/${memberId}`, recordId, afterUpdatedAt: restoredAt });
     await openBloodDonationHistory(memberId);
     renderBloodDonorCards(fullMembersList);
   } catch (error) { console.error("Blood donation restore error:", error); alert("Donation record could not be restored. Refresh and try again."); }

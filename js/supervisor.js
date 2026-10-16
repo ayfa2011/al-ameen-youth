@@ -114,6 +114,7 @@ async function submitRoleLogin(event) {
   roleHint?.classList.add("hidden");
   authLoginInProgress = true;
   try {
+    if (!window.firebaseDb || !window.firebaseAuth || !SCRIPT_URL) throw new Error(window.firebaseConfigError || "Firebase login is not configured for this environment.");
     await window.firebaseReady;
     const response = await fetch(SCRIPT_URL, {
       method: "POST", mode: "cors", headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -242,8 +243,8 @@ function supervisorInjectStyles() {
 
 supervisorInjectStyles();
 document.addEventListener("DOMContentLoaded", () => {
-  showAuthScreen();
-  window.firebaseAuth.onAuthStateChanged(user => {
+  showAuthScreen("", window.firebaseConfigError || "");
+  if (window.firebaseAuth) window.firebaseAuth.onAuthStateChanged(user => {
     if (authLoginInProgress) return;
     void restoreRoleSession(user);
   });

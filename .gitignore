@@ -2,3 +2,6 @@
 .git/
 __MACOSX/
 ._*
+firebase-debug.log
+firebase-debug.*.log
+js/firebase-config.local.js

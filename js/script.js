@@ -9,7 +9,7 @@
 // ============================================================
 
 const SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycbzPxZ0zX0ZjsHepbOM4AYYzvq3hx3ckqz7LAh-hsnalaRvbNr2YbwD47cS8kjDZWk40/exec";
+  window.AYFA_SCRIPT_URL || (["localhost", "127.0.0.1", "::1"].includes(location.hostname) ? "" : "https://script.google.com/macros/s/AKfycbzPxZ0zX0ZjsHepbOM4AYYzvq3hx3ckqz7LAh-hsnalaRvbNr2YbwD47cS8kjDZWk40/exec");
 
 
 // ============================================================

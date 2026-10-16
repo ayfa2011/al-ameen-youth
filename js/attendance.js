@@ -146,6 +146,7 @@ async function loadAttendanceReports() {
     const [programSnapshot, attendanceSnapshot] = await Promise.all([window.firebaseDb.ref("programs").once("value"), window.firebaseDb.ref("attendance").once("value")]);
     const programs = programSnapshot.val() || {};
     const attendance = attendanceSnapshot.val() || {};
+    const deletedPrograms = Object.entries(programs).filter(([, program]) => program?.deleted === true);
     tbody.innerHTML = reports.length
       ? reports.map((r, i) => `
         <tr>
@@ -154,6 +155,7 @@ async function loadAttendanceReports() {
           <td><strong>Total: ${escapeHTML(r.presentCount)} Members</strong><br>${escapeHTML(r.membersList)}${isSupervisorLoggedIn() ? `<div><button type="button" onclick="editAttendanceProgram(${JSON.stringify(r.programId)})">Edit</button> <button type="button" onclick="deleteAttendanceProgram(${JSON.stringify(r.programId)})">Delete</button></div>` : ""}</td>
         </tr>`).join("")
       : `<tr><td colspan="3" class="empty-cell">ಯಾವ ವರದಿಯೂ ಸಿಗಲಿಲ್ಲ.</td></tr>`;
+    if (isSupervisorLoggedIn() && deletedPrograms.length) tbody.insertAdjacentHTML("beforeend", `<tr><td colspan="3"><section class="attendance-trash"><strong>Trash</strong>${deletedPrograms.map(([id, program]) => `<div class="attendance-trash-row"><span>${escapeHTML(program.programName || "Untitled program")} · ${escapeHTML(program.date || "")}</span><button type="button" onclick="restoreAttendanceProgram(${JSON.stringify(id)})">Restore</button></div>`).join("")}</section></td></tr>`);
   } catch (error) {
     console.error(error);
     tbody.innerHTML = `<tr><td colspan="3" class="error-cell">ವರದಿ ಲೋಡ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.</td></tr>`;
@@ -180,11 +182,28 @@ async function editAttendanceProgram(programId) {
 
 async function deleteAttendanceProgram(programId) {
   if (!requireSupervisor() || !confirm("Hide this attendance record? It will remain in Firebase for recovery.")) return;
-  const updates = {};
-  updates[`programs/${programId}/deleted`] = true;
-  updates[`programs/${programId}/deletedAt`] = new Date().toISOString();
-  await window.firebaseDb.ref().update(updates);
-  await loadAttendanceReports();
+  try {
+    const updatedAt = new Date().toISOString();
+    await auditedFirebaseUpdate({ [`programs/${programId}/deleted`]: true, [`programs/${programId}/deletedAt`]: updatedAt, [`programs/${programId}/updatedAt`]: updatedAt }, { action: "attendance.hide", path: "programs", recordId: programId, afterUpdatedAt: updatedAt });
+    await loadAttendanceReports();
+  } catch (error) {
+    console.error("Attendance hide error:", error);
+    alert("Attendance record could not be hidden. Check the connection and try again.");
+  }
+}
+
+async function restoreAttendanceProgram(programId) {
+  if (!requireSupervisor()) return;
+  try {
+    const restoredAt = new Date().toISOString();
+    const result = await window.firebaseDb.ref(`programs/${programId}`).transaction(current => current?.deleted === true ? { ...current, deleted: false, restoredAt, updatedAt: restoredAt } : undefined);
+    if (!result.committed) throw new Error("Attendance record is no longer in Trash.");
+    await appendFirebaseAudit({ action: "attendance.restore", path: "programs", recordId: programId, afterUpdatedAt: restoredAt });
+    await loadAttendanceReports();
+  } catch (error) {
+    console.error("Attendance restore error:", error);
+    alert("Attendance record could not be restored. Refresh and try again.");
+  }
 }
 
 async function submitAttendance() {
@@ -248,7 +267,8 @@ async function submitAttendance() {
       };
     });
 
-    await window.firebaseDb.ref().update(updates);
+    const previousUpdatedAt = editingId ? String((await programRef.once("value")).val()?.updatedAt || "") : "";
+    await auditedFirebaseUpdate(updates, { action: editingId ? "attendance.update" : "attendance.create", path: "programs", recordId: programId, beforeUpdatedAt: previousUpdatedAt, afterUpdatedAt: new Date().toISOString() });
     if (editingId) delete container.dataset.editingProgramId;
     await loadAttendanceReports();
 

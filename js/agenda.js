@@ -116,7 +116,9 @@ async function importLegacyAgendas() {
     const firebaseRef = window.firebaseDb.ref("meetingAgendas");
     const current = (await firebaseRef.once("value")).val() || {};
     const backupId = new Date().toISOString().replace(/[:.]/g,"-");
-    await window.firebaseDb.ref(`meetingAgendasMigrationBackups/${backupId}`).set({createdAt:new Date().toISOString(),source:"pre-legacy-agenda-import",items:current});
+    await auditedFirebaseUpdate({
+      [`meetingAgendasMigrationBackups/${backupId}`]: {createdAt:new Date().toISOString(),source:"pre-legacy-agenda-import",items:Object.keys(current).length ? current : null}
+    }, { action: "agenda.migrationBackup", path: "meetingAgendasMigrationBackups", recordId: backupId });
     const authToken = await window.firebaseAuth.currentUser.getIdToken();
     const response = await fetch(SCRIPT_URL,{method:"POST",mode:"cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"getAgendas",authToken})});
     const legacy = await response.json();
@@ -129,7 +131,7 @@ async function importLegacyAgendas() {
       if (!id || !title || !meetingDate || current[id]) return;
       additions[id]={...item,id,title,meetingDate,createdAt:item.createdAt || new Date().toISOString(),updatedAt:item.updatedAt || new Date().toISOString()};
     });
-    if (Object.keys(additions).length) await firebaseRef.update(additions);
+    if (Object.keys(additions).length) await auditedFirebaseUpdate(Object.fromEntries(Object.entries(additions).map(([id, item]) => [`meetingAgendas/${id}`, item])), { action: "agenda.legacyImport", path: "meetingAgendas", recordId: Object.keys(additions).join(",") });
     await openAgendaManagement();
     alert(`${Object.keys(additions).length} legacy agenda record(s) imported. Existing Firebase records were kept. Backup: ${backupId}`);
   } catch(error) {
@@ -237,17 +239,18 @@ async function saveAgenda(event, editId = "") {
     await window.firebaseReady;
 
     if (editId) {
-      await window.firebaseDb.ref(`meetingAgendas/${editId}`).update({
-        ...payload,
-        createdAt: oldItem.createdAt || new Date().toISOString()
+      const expectedUpdatedAt = String(oldItem.updatedAt || "");
+      const result = await window.firebaseDb.ref(`meetingAgendas/${editId}`).transaction(current => {
+        if (!current || current.deleted === true || String(current.updatedAt || "") !== expectedUpdatedAt) return;
+        return { ...current, ...payload, createdAt: current.createdAt || oldItem.createdAt || new Date().toISOString() };
       });
+      if (!result.committed) throw new Error("Agenda changed while this form was open. Refresh and reapply your edits.");
+      await appendFirebaseAudit({ action: "agenda.update", path: "meetingAgendas", recordId: editId, beforeUpdatedAt: expectedUpdatedAt, afterUpdatedAt: payload.updatedAt });
     } else {
       payload.createdAt = new Date().toISOString();
-      const savedRef = await window.firebaseDb.ref("meetingAgendas").push({
-        ...payload,
-        createdAt: payload.createdAt
-      });
+      const savedRef = window.firebaseDb.ref("meetingAgendas").push();
       savedId = savedRef.key;
+      await auditedFirebaseUpdate({ [`meetingAgendas/${savedId}`]: { ...payload, id: savedId, createdAt: payload.createdAt } }, { action: "agenda.create", path: "meetingAgendas", recordId: savedId, afterUpdatedAt: payload.updatedAt });
     }
 
     const savedItem = { ...payload, id: savedId, createdAt: payload.createdAt || oldItem.createdAt || new Date().toISOString() };
@@ -256,7 +259,7 @@ async function saveAgenda(event, editId = "") {
 
   } catch (error) {
     console.error("Agenda save error:", error);
-    alert("Agenda could not be saved. Check your connection and try again.");
+    alert(error.message?.includes("changed while") ? "Another official changed this agenda. Refresh and reapply your edits." : "Agenda could not be saved. Check your connection and try again.");
   }
 }
 
@@ -269,14 +272,20 @@ async function updateAgendaStage(id, status) {
   const item = agendaState.items.find(entry => entry.id === id);
   if (!item) return;
   const now = new Date().toISOString();
-  const payload = { ...item, id, status, decisionStatus: status === "Completed" ? "Completed" : (item.decisionStatus || "Pending"), updatedAt: now };
+  const payload = { status, decisionStatus: status === "Completed" ? "Completed" : (item.decisionStatus || "Pending"), updatedAt: now };
   if (status === "Under Action") payload.discussedDate = now;
   if (status === "Upcoming") { payload.discussedDate = ""; payload.implementedDate = ""; payload.decisionStatus = "Pending"; }
   if (status === "Under Action" && item.status === "Completed") payload.implementedDate = "";
   if (status === "Completed") payload.implementedDate = now;
   try {
     await window.firebaseReady;
-    await window.firebaseDb.ref(`meetingAgendas/${id}`).update(payload);
+    const expectedUpdatedAt = String(item.updatedAt || "");
+    const result = await window.firebaseDb.ref(`meetingAgendas/${id}`).transaction(current => {
+      if (!current || current.deleted === true || String(current.updatedAt || "") !== expectedUpdatedAt) return;
+      return { ...current, ...payload };
+    });
+    if (!result.committed) throw new Error("Agenda changed before this status update. Refresh and try again.");
+    await appendFirebaseAudit({ action: "agenda.status", path: "meetingAgendas", recordId: id, beforeUpdatedAt: expectedUpdatedAt, afterUpdatedAt: now });
     await openAgendaManagement();
   } catch (error) { console.error("Agenda stage update error:", error); alert("Agenda update failed. Check your connection and try again."); }
 }
@@ -286,7 +295,10 @@ async function deleteAgenda(id) { if(!requireSupervisor())return; const item = a
   if (!confirm(`Hide "${item.title}"? It can be restored later.`)) return;
   try {
     await window.firebaseReady;
-    await window.firebaseDb.ref(`meetingAgendas/${id}`).transaction(current => current ? { ...current, deleted: true, deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : current);
+    const updatedAt = new Date().toISOString();
+    const result = await window.firebaseDb.ref(`meetingAgendas/${id}`).transaction(current => current && current.deleted !== true ? { ...current, deleted: true, deletedAt: updatedAt, updatedAt } : undefined);
+    if (!result.committed) throw new Error("Agenda changed before it could be hidden.");
+    await appendFirebaseAudit({ action: "agenda.hide", path: "meetingAgendas", recordId: id, afterUpdatedAt: updatedAt });
     await openAgendaManagement();
   } catch (error) { console.error("Agenda delete error:", error); alert("Agenda could not be deleted. Check your connection and try again."); }
 }
@@ -296,6 +308,7 @@ async function restoreAgenda(id) {
   try {
     const result = await window.firebaseDb.ref(`meetingAgendas/${id}`).transaction(current => current?.deleted === true ? { ...current, deleted: false, restoredAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : undefined);
     if (!result.committed) throw new Error("Agenda item is no longer in Trash.");
+    await appendFirebaseAudit({ action: "agenda.restore", path: "meetingAgendas", recordId: id });
     await openAgendaManagement();
   } catch (error) { console.error("Agenda restore error:", error); alert("Agenda could not be restored. Refresh and try again."); }
 }

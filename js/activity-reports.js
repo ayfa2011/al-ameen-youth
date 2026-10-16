@@ -100,23 +100,37 @@ function fileToBase64(file) {
 
 async function compressProgramPhoto(file) {
   const maxBytes = 1024 * 1024;
-  if (file.size <= maxBytes && file.type === "image/jpeg") return file;
+  if (file.size < maxBytes && file.type === "image/jpeg") return file;
   const bitmap = await createImageBitmap(file);
   try {
     const canvas = document.createElement("canvas");
-    const scale = Math.min(1, 2400 / Math.max(bitmap.width, bitmap.height));
-    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-    canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    let quality = 0.86;
-    let blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", quality));
-    while (blob && blob.size >= maxBytes && quality > 0.4) {
-      quality -= 0.1;
-      blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", quality));
+    const context = canvas.getContext("2d");
+    let blob = null;
+    for (const maxDimension of [2400, 2000, 1600, 1200, 900]) {
+      const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      for (let quality = 0.86; quality >= 0.36; quality -= 0.1) {
+        blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", quality));
+        if (blob && blob.size < maxBytes) break;
+      }
+      if (blob && blob.size < maxBytes) break;
     }
     if (!blob || blob.size >= maxBytes) throw new Error(`Could not compress ${file.name} below 1 MB.`);
     return new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg", lastModified: Date.now() });
   } finally { bitmap.close(); }
+}
+
+async function stablePhotoUploadId(file, folderName) {
+  if (!window.crypto?.subtle) throw new Error("Secure photo retry protection is unavailable in this browser. Open the site over HTTPS and try again.");
+  const source = await file.arrayBuffer();
+  const folderBytes = new TextEncoder().encode(`${folderName}\n${file.name}\n${file.size}\n`);
+  const combined = new Uint8Array(folderBytes.length + source.byteLength);
+  combined.set(folderBytes);
+  combined.set(new Uint8Array(source), folderBytes.length);
+  const digest = await window.crypto.subtle.digest("SHA-256", combined);
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
 }
 
 async function uploadPhotosToDrive(files, folderName) {
@@ -127,7 +141,8 @@ async function uploadPhotosToDrive(files, folderName) {
   for (const [index, file] of files.entries()) {
     if (message) message.textContent = `Uploading photo ${index + 1} of ${files.length}: ${file.name}`;
     const compressed = await compressProgramPhoto(file);
-    const payload = { action: "uploadDrivePhoto", authToken, folderName, fileName: compressed.name, mimeType: compressed.type, base64: await fileToBase64(compressed) };
+    const uploadId = await stablePhotoUploadId(file, folderName);
+    const payload = { action: "uploadDrivePhoto", authToken, folderName, fileName: compressed.name, mimeType: compressed.type, uploadId, base64: await fileToBase64(compressed) };
     try {
       const response = await fetch(SCRIPT_URL, {
         method: "POST",
@@ -150,10 +165,21 @@ async function uploadPhotosToDrive(files, folderName) {
     const folderId = String(results[0].folderId || "");
     const folderKey = folderId || String(folderName || "Activity Report").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
     const folderRef = window.firebaseDb.ref(`drivePhotoFolders/${folderKey}`);
-    let previous = {};
-    try { previous = (await folderRef.once("value")).val() || {}; } catch (_) {}
     const photos = results.map(item => ({ fileId:item.fileId || "", fileName:item.fileName || "", imageUrl:item.imageUrl || "", thumbnailUrl:item.thumbnailUrl || "", webViewLink:item.webViewLink || "", folderUrl:item.folderUrl || "", uploadedAt:new Date().toISOString() }));
-    try { await folderRef.set({driveFolderId:folderId,name:String(folderName || "Activity Report"),folderUrl:results.find(item => item.folderUrl)?.folderUrl || previous.folderUrl || "",photos:[...(Array.isArray(previous.photos) ? previous.photos : Object.values(previous.photos || {})),...photos],updatedAt:new Date().toISOString()}); }
+    try {
+      const result = await folderRef.transaction(current => {
+        const previous = current || {};
+        const oldPhotos = Array.isArray(previous.photos) ? previous.photos : Object.values(previous.photos || {});
+        const byId = new Map(oldPhotos.map(photo => [String(photo.fileId || photo.imageUrl || photo.webViewLink || ""), photo]));
+        photos.forEach(photo => {
+          const photoKey = String(photo.fileId || photo.imageUrl || photo.webViewLink || "");
+          if (photoKey) byId.set(photoKey, photo);
+        });
+        return { ...previous, driveFolderId:folderId || previous.driveFolderId || "", name:String(folderName || previous.name || "Activity Report"), folderUrl:results.find(item => item.folderUrl)?.folderUrl || previous.folderUrl || "", photos:[...byId.values()], updatedAt:new Date().toISOString() };
+      });
+      if (!result.committed) throw new Error("Photo metadata transaction did not commit.");
+      await appendFirebaseAudit({ action: "drivePhotoFolder.update", path: "drivePhotoFolders", recordId: folderKey, afterUpdatedAt: result.snapshot.val()?.updatedAt });
+    }
     catch(error) { throw new Error(`Photos uploaded to Google Drive, but Firebase photo metadata could not be saved: ${error.message || error}`); }
   }
   return results;
@@ -183,13 +209,13 @@ async function loadDriveFolders() {
     const byFolder = new Map(cached.map(folder => [String(folder.driveFolderId || folder.id), folder]));
     (driveData.folders || []).forEach(folder => {
       const old = byFolder.get(String(folder.id)) || {};
-      byFolder.set(String(folder.id), {...old,...folder,id:old.id || folder.id,driveFolderId:folder.id,photos:(folder.photos || old.photos || [])});
-      const knownIds = new Set((Array.isArray(old.photos) ? old.photos : Object.values(old.photos || {})).map(photo => String(photo.fileId || "")));
-      const hasMissingDriveMetadata = !(old.driveFolderId && String(old.driveFolderId) === String(folder.id)) || (folder.photos || []).some(photo => !knownIds.has(String(photo.fileId || "")));
-      if (isSupervisorLoggedIn() && hasMissingDriveMetadata) {
-        const key = String(folder.id);
-        void window.firebaseDb.ref(`drivePhotoFolders/${key}`).set({driveFolderId:key,name:folder.name,folderUrl:folder.folderUrl || "",photos:folder.photos || [],updatedAt:new Date().toISOString()}).catch(error => console.warn("Drive metadata cache failed:",error));
-      }
+      const oldPhotos = Array.isArray(old.photos) ? old.photos : Object.values(old.photos || {});
+      const photoById = new Map(oldPhotos.map(photo => [String(photo.fileId || photo.imageUrl || photo.webViewLink || ""), photo]));
+      (folder.photos || []).forEach(photo => {
+        const key = String(photo.fileId || photo.imageUrl || photo.webViewLink || "");
+        photoById.set(key, { ...(photoById.get(key) || {}), ...photo });
+      });
+      byFolder.set(String(folder.id), {...old,...folder,id:old.id || folder.id,driveFolderId:folder.id,photos:[...photoById.values()]});
     });
     driveGalleryState.folders = [...byFolder.values()].sort((a,b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
     const datalist = document.getElementById("driveFolderNames");
@@ -283,11 +309,35 @@ async function submitProgramReport(event, editId = "") {
     const folderName = `${values.date} - ${values.title.trim()}`;
     const uploaded = photos.length ? await uploadPhotosToDrive(photos, folderName) : [];
     const photoUrls = uploaded.map(item => item.imageUrl || item.thumbnailUrl || item.webViewLink || item.url).filter(Boolean);
-    const previousPhotos = Array.isArray(existing?.photos) ? existing.photos : Object.values(existing?.photos || {});
     const driveFolderUrl = uploaded.find(item => item && item.folderUrl)?.folderUrl || existing?.driveFolderUrl || "";
-    const previousUploaded = Number(existing?.photosUploaded || 0);
     if (photos.length && photoUrls.length !== uploaded.length) throw new Error("One or more Drive uploads returned no photo URL. The report was not published.");
-    await reportRef.set({ title: values.title.trim(), description: values.description.trim(), date: values.date, photos: [...previousPhotos, ...photoUrls], photosUploaded: existing ? previousUploaded + photos.length : photos.length, driveFolderName: folderName, driveFolderUrl, createdAt: existing?.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString(), submittedBy: existing?.submittedBy || "AYFA supervisor", deleted: false });
+    const updatedAt = new Date().toISOString();
+    const nextFields = { title: values.title.trim(), description: values.description.trim(), date: values.date, driveFolderName: folderName, driveFolderUrl, updatedAt };
+    if (editId) {
+      const expectedUpdatedAt = String(existing?.updatedAt || "");
+      const result = await reportRef.transaction(current => {
+        if (!current || current.deleted === true || String(current.updatedAt || "") !== expectedUpdatedAt) return;
+        const currentPhotos = Array.isArray(current.photos) ? current.photos : Object.values(current.photos || {});
+        const mergedPhotos = [...currentPhotos];
+        const knownPhotos = new Set(currentPhotos.flatMap(photo => typeof photo === "object"
+          ? [photo.fileId, photo.imageUrl, photo.thumbnailUrl, photo.webViewLink, photo.url].filter(Boolean).map(String)
+          : [String(photo || "")]));
+        uploaded.forEach(item => {
+          const aliases = [item.fileId, item.imageUrl, item.thumbnailUrl, item.webViewLink, item.url].filter(Boolean).map(String);
+          if (aliases.some(key => knownPhotos.has(key))) return;
+          aliases.forEach(key => knownPhotos.add(key));
+          mergedPhotos.push(item.imageUrl || item.thumbnailUrl || item.webViewLink || item.url || "");
+        });
+        const newlyAttached = Math.max(0, mergedPhotos.length - currentPhotos.length);
+        return { ...current, ...nextFields, photos:mergedPhotos, photosUploaded:(Number(current.photosUploaded) || currentPhotos.length) + newlyAttached, createdAt:current.createdAt || new Date().toISOString(), submittedBy:current.submittedBy || "AYFA supervisor" };
+      });
+      if (!result.committed) throw new Error("This activity report changed while you were editing. Refresh and reapply your changes. Uploaded photos are safe in Drive but may need linking again.");
+      await appendFirebaseAudit({ action: "programReport.update", path: "programReports", recordId: editId, beforeUpdatedAt: expectedUpdatedAt, afterUpdatedAt: updatedAt });
+    } else {
+      const reportId = reportRef.key;
+      const newReport = { ...nextFields, photos:photoUrls, photosUploaded:photoUrls.length, createdAt:updatedAt, submittedBy:"AYFA supervisor", deleted:false };
+      await auditedFirebaseUpdate({ [`programReports/${reportId}`]: newReport }, { action: "programReport.create", path: "programReports", recordId: reportId, afterUpdatedAt: updatedAt });
+    }
     closeProgramModal();
     await loadProgramReports();
   } catch (error) {
@@ -327,7 +377,10 @@ async function deleteProgramReport(id) {
   if (!report || !confirm(`Hide "${report.title}"? It can be restored later.`)) return;
   try {
     await window.firebaseReady;
-    await window.firebaseDb.ref(`programReports/${id}`).transaction(current => current ? { ...current, deleted: true, deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : current);
+    const updatedAt = new Date().toISOString();
+    const result = await window.firebaseDb.ref(`programReports/${id}`).transaction(current => current && current.deleted !== true ? { ...current, deleted: true, deletedAt: updatedAt, updatedAt } : undefined);
+    if (!result.committed) throw new Error("Report changed before it could be hidden.");
+    await appendFirebaseAudit({ action: "programReport.hide", path: "programReports", recordId: id, afterUpdatedAt: updatedAt });
     closeProgramModal();
     await loadProgramReports();
   } catch (error) {
@@ -341,6 +394,7 @@ async function restoreProgramReport(id) {
   try {
     const result = await window.firebaseDb.ref(`programReports/${id}`).transaction(current => current?.deleted === true ? { ...current, deleted: false, restoredAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : undefined);
     if (!result.committed) throw new Error("Report is no longer in Trash.");
+    await appendFirebaseAudit({ action: "programReport.restore", path: "programReports", recordId: id });
     await loadProgramReports();
   } catch (error) { console.error("Activity restore error:", error); alert("Report could not be restored. Refresh and try again."); }
 }
