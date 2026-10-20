@@ -44,10 +44,42 @@ function reportPreview(text) {
   return words.length > 35 ? `${words.slice(0, 35).join(" ")}…` : words.join(" ");
 }
 
+function normalizeReportPhotos(report) {
+  const raw = report?.photos;
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw.filter(Boolean);
+  if (typeof raw === "object") return Object.values(raw).filter(Boolean);
+  if (typeof raw === "string" && raw.trim()) return [raw.trim()];
+  return [];
+}
+
 function displayPhotoUrl(url) {
-  const value = String(typeof url === "object" ? (url.thumbnailUrl || url.imageUrl || url.url || url.webViewLink || "") : url || "").trim();
-  const driveId = value.match(/drive\.google\.com\/file\/d\/([^/]+)/)?.[1] || value.match(/[?&]id=([^&]+)/)?.[1] || value.match(/drive\.google\.com\/thumbnail\?id=([^&]+)/)?.[1];
-  return driveId ? `https://drive.google.com/thumbnail?id=${encodeURIComponent(driveId)}&sz=w1200` : value;
+  if (!url) return "";
+  let value = "";
+  let fileId = "";
+  if (typeof url === "object") {
+    value = String(url.thumbnailUrl || url.imageUrl || url.downloadUrl || url.directLink || url.url || url.webViewLink || url.src || "").trim();
+    fileId = String(url.fileId || url.driveFileId || url.driveId || "").trim();
+  } else {
+    value = String(url || "").trim();
+  }
+  if (!value && fileId) return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w1000`;
+  if (!value) return "";
+  const driveId = fileId
+    || value.match(/drive\.google\.com\/file\/d\/([^/ ?#]+)/)?.[1]
+    || value.match(/[?&]id=([^&#]+)/)?.[1]
+    || value.match(/drive\.google\.com\/thumbnail\?id=([^&#]+)/)?.[1]
+    || "";
+  if (driveId) return `https://drive.google.com/thumbnail?id=${encodeURIComponent(driveId)}&sz=w1000`;
+  return value;
+}
+
+function programCoverFallback(img) {
+  const wrap = img ? img.closest(".program-report-cover") : null;
+  if (!wrap || wrap.dataset.fallback === "1") return;
+  wrap.dataset.fallback = "1";
+  wrap.classList.add("is-empty");
+  wrap.innerHTML = '<div class="program-report-placeholder"><i class="fa-solid fa-calendar-check"></i><span>AYFA Activity</span></div>';
 }
 
 function renderProgramReports() {
@@ -57,13 +89,29 @@ function renderProgramReports() {
   if (!list) return;
   if (title) title.textContent = `${year} AYFA Activities & Programs`;
   const reports = programReportState.reports.filter(report => String(report.date || "").startsWith(year));
+  const supervisor = typeof isSupervisorLoggedIn === "function" ? isSupervisorLoggedIn() : false;
   list.innerHTML = reports.length ? reports.map(report => {
-    const photos = Array.isArray(report.photos) ? report.photos : Object.values(report.photos || {});
+    const photos = normalizeReportPhotos(report);
     const cover = photos[0] ? displayPhotoUrl(photos[0]) : "";
-    return `<article class="program-report-card"><div class="program-report-cover">${cover ? `<img src="${escapeHTML(cover)}" alt="${escapeHTML(report.title)}" loading="lazy" onerror="this.closest('.program-report-cover').innerHTML='<div class=&quot;program-report-placeholder&quot;>Photo unavailable</div>'">` : '<div class="program-report-placeholder"><i class="fa-solid fa-calendar-check"></i><span>AYFA Activity</span></div>'}</div><div class="program-report-copy"><h3>${escapeHTML(report.title || "Untitled program")}</h3><div class="program-report-meta"><span><i class="fa-regular fa-calendar"></i> ${programDate(report.date)}</span>${photos.length > 1 ? `<span><i class="fa-solid fa-images"></i> ${photos.length} photos</span>` : ""}</div><p>${escapeHTML(reportPreview(report.description))}</p><button type="button" class="program-report-read" onclick="openProgramReportDetail(${JSON.stringify(report.id)})">Read more <i class="fa-solid fa-arrow-right"></i></button>${isSupervisorLoggedIn() ? `<div class="program-report-admin"><button type="button" onclick="openProgramReportForm(${JSON.stringify(report.id)})">Edit</button><button type="button" class="program-report-delete" onclick="deleteProgramReport(${JSON.stringify(report.id)})">Delete</button></div>` : ""}</div></article>`;
-  }).join("") : `<div class="program-reports-empty"><i class="fa-regular fa-folder-open"></i><strong>No activities for ${year}</strong><span>Submit the first program report for this year.</span></div>`;
-  if (isSupervisorLoggedIn() && programReportState.deletedReports.length) {
-    list.insertAdjacentHTML("beforeend", `<section class="program-trash"><h3><i class="fa-solid fa-trash-can"></i> Trash</h3>${programReportState.deletedReports.map(report => `<div class="program-trash-row"><span>${escapeHTML(report.title || "Untitled report")}</span><button type="button" onclick="restoreProgramReport(${JSON.stringify(report.id)})">Restore</button></div>`).join("")}</section>`);
+    const safeId = escapeHTML(String(report.id ?? ""));
+    return `<article class="program-report-card"><div class="program-report-cover">${cover ? `<img src="${escapeHTML(cover)}" alt="${escapeHTML(report.title || "AYFA activity photo")}" loading="lazy" referrerpolicy="no-referrer" onerror="programCoverFallback(this)">` : '<div class="program-report-placeholder"><i class="fa-solid fa-calendar-check"></i><span>AYFA Activity</span></div>'}</div><div class="program-report-copy"><h3>${escapeHTML(report.title || "Untitled program")}</h3><div class="program-report-meta"><span><i class="fa-regular fa-calendar"></i> ${programDate(report.date)}</span>${photos.length > 1 ? `<span><i class="fa-solid fa-images"></i> ${photos.length} photos</span>` : ""}</div><p>${escapeHTML(reportPreview(report.description))}</p><button type="button" class="program-report-read" data-action="view" data-id="${safeId}">Read more <i class="fa-solid fa-arrow-right"></i></button>${supervisor ? `<div class="program-report-admin"><button type="button" data-action="edit" data-id="${safeId}"><i class="fa-solid fa-pen"></i> Edit</button><button type="button" class="program-report-delete" data-action="delete" data-id="${safeId}"><i class="fa-solid fa-trash"></i> Delete</button></div>` : ""}</div></article>`;
+  }).join("") : `<div class="program-reports-empty"><i class="fa-regular fa-folder-open"></i><strong>No activities for ${escapeHTML(year)}</strong><span>Submit the first program report for this year.</span></div>`;
+  // Delegated buttons — no inline quoting bugs, works with any Firebase push-id.
+  list.querySelectorAll("[data-action][data-id]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-id") || "";
+      const action = btn.getAttribute("data-action") || "";
+      if (action === "view") openProgramReportDetail(id);
+      else if (action === "edit") openProgramReportForm(id);
+      else if (action === "delete") deleteProgramReport(id);
+      else if (action === "restore") restoreProgramReport(id);
+    });
+  });
+  if (supervisor && programReportState.deletedReports.length) {
+    list.insertAdjacentHTML("beforeend", `<section class="program-trash"><h3><i class="fa-solid fa-trash-can"></i> Trash</h3>${programReportState.deletedReports.map(report => `<div class="program-trash-row"><span>${escapeHTML(report.title || "Untitled report")}</span><button type="button" data-action="restore" data-id="${escapeHTML(String(report.id ?? ""))}">Restore</button></div>`).join("")}</section>`);
+    list.querySelectorAll(".program-trash [data-action='restore']").forEach(btn => {
+      btn.addEventListener("click", () => restoreProgramReport(btn.getAttribute("data-id") || ""));
+    });
   }
 }
 
@@ -74,7 +122,12 @@ function openProgramReportForm(editId = "") {
   if (!requireSupervisor()) return;
   const existing = editId ? programReportState.reports.find(item => item.id === editId) : null;
   const today = new Date().toISOString().slice(0, 10);
-  programModal(`<div class="program-modal-card"><div class="program-modal-header"><div><h3>${existing ? "Edit Activity Report" : "Submit Activity Report"}</h3></div><button type="button" class="program-close" onclick="closeProgramModal()"><i class="fa-solid fa-xmark"></i></button></div><form id="programReportForm" class="program-report-form" onsubmit="submitProgramReport(event,'${editId}')"><label>Program title *<input name="title" value="${escapeHTML(existing?.title || "")}" required></label><label>Description *<textarea name="description" required>${escapeHTML(existing?.description || "")}</textarea></label><label>Date *<input name="date" type="date" value="${escapeHTML(existing?.date || today)}" required></label><label class="program-photo-field">Upload photos <span>Multiple photos allowed. Newly uploaded photos are added to this report.</span><input name="photos" type="file" accept="image/*" multiple onchange="previewSelectedProgramPhotos(this.files)"></label><div id="programPhotoPreview" class="program-photo-preview"></div>${existing ? `<div class="program-photo-gallery">${(Array.isArray(existing.photos) ? existing.photos : Object.values(existing.photos || {})).map(url => `<img src="${escapeHTML(displayPhotoUrl(url))}" alt="Existing activity photo">`).join("")}</div>` : ""}<p id="programFormMessage" class="program-form-message"></p><div class="program-form-actions"><button type="button" class="program-cancel" onclick="closeProgramModal()">Cancel</button><button type="submit" class="program-submit">${existing ? "Save changes" : "Submit report"}</button></div></form></div>`);
+  const safeEditId = escapeHTML(String(editId || ""));
+  const existingPhotos = existing ? normalizeReportPhotos(existing) : [];
+  programModal(`<div class="program-modal-card"><div class="program-modal-header"><div><h3>${existing ? "Edit Activity Report" : "Submit Activity Report"}</h3></div><button type="button" class="program-close" onclick="closeProgramModal()"><i class="fa-solid fa-xmark"></i></button></div><form id="programReportForm" class="program-report-form" data-edit-id="${safeEditId}"><label>Program title *<input name="title" value="${escapeHTML(existing?.title || "")}" required></label><label>Description *<textarea name="description" required>${escapeHTML(existing?.description || "")}</textarea></label><label>Date *<input name="date" type="date" value="${escapeHTML(existing?.date || today)}" required></label><label class="program-photo-field">Upload photos <span>Multiple photos allowed. Newly uploaded photos are added to this report.</span><input name="photos" type="file" accept="image/*" multiple onchange="previewSelectedProgramPhotos(this.files)"></label><div id="programPhotoPreview" class="program-photo-preview"></div>${existingPhotos.length ? `<div class="program-photo-gallery">${existingPhotos.map(url => `<img src="${escapeHTML(displayPhotoUrl(url))}" alt="Existing activity photo" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">`).join("")}</div>` : ""}<p id="programFormMessage" class="program-form-message"></p><div class="program-form-actions"><button type="button" class="program-cancel" onclick="closeProgramModal()">Cancel</button><button type="submit" class="program-submit">${existing ? "Save changes" : "Submit report"}</button></div></form></div>`);
+  document.getElementById("programReportForm")?.addEventListener("submit", (e) => {
+    submitProgramReport(e, e.target?.getAttribute("data-edit-id") || "");
+  });
 }
 
 function previewSelectedProgramPhotos(files) {
@@ -352,12 +405,12 @@ async function submitProgramReport(event, editId = "") {
 }
 
 function openProgramReportDetail(id) {
-  const report = programReportState.reports.find(item => item.id === id);
+  const report = programReportState.reports.find(item => String(item.id) === String(id));
   if (!report) return;
-  const storedPhotos = Array.isArray(report.photos) ? report.photos : Object.values(report.photos || {});
-  const photos = storedPhotos.map(displayPhotoUrl);
+  const storedPhotos = normalizeReportPhotos(report);
+  const photos = storedPhotos.map(displayPhotoUrl).filter(Boolean);
   const legacyPhotoCount = Math.max(0, Number(report.photosUploaded || 0) - photos.length);
-  programModal(`<div class="program-modal-card program-detail"><div class="program-modal-header"><div><button type="button" class="program-cancel detail-back" onclick="closeProgramModal()"><i class="fa-solid fa-arrow-left"></i> Back</button><h3>${escapeHTML(report.title)}</h3><p><i class="fa-regular fa-calendar"></i> ${programDate(report.date)}</p></div><button type="button" class="program-close" onclick="closeProgramModal()" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div><div class="program-detail-content"><p>${escapeHTML(report.description).replace(/\n/g, "<br>")}</p>${photos.length ? `<div class="program-photo-gallery">${photos.map((url, index) => `<button type="button" class="program-photo-open" data-photo-index="${index}"><img src="${escapeHTML(url)}" loading="lazy" alt="${escapeHTML(report.title)} photo ${index + 1}" onerror="this.outerHTML='<span class=&quot;program-no-photo&quot;>Photo unavailable</span>'"></button>`).join("")}</div>` : (legacyPhotoCount ? `<div class="program-no-photo">${legacyPhotoCount} photo(s) are in the Drive folder for this report. Open the folder to view them.</div>` : '<div class="program-no-photo">No photos were uploaded for this activity.</div>')}${report.driveFolderUrl ? `<p><a href="${escapeHTML(report.driveFolderUrl)}" target="_blank" rel="noopener">Open Google Drive folder</a></p>` : ""}</div></div>`);
+  programModal(`<div class="program-modal-card program-detail"><div class="program-modal-header"><div><button type="button" class="program-cancel detail-back" onclick="closeProgramModal()"><i class="fa-solid fa-arrow-left"></i> Back</button><h3>${escapeHTML(report.title)}</h3><p><i class="fa-regular fa-calendar"></i> ${programDate(report.date)}</p></div><button type="button" class="program-close" onclick="closeProgramModal()" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div><div class="program-detail-content"><p>${escapeHTML(report.description).replace(/\n/g, "<br>")}</p>${photos.length ? `<div class="program-photo-gallery">${photos.map((url, index) => `<button type="button" class="program-photo-open" data-photo-index="${index}"><img src="${escapeHTML(url)}" loading="lazy" referrerpolicy="no-referrer" alt="${escapeHTML(report.title)} photo ${index + 1}" onerror="this.closest('.program-photo-open').innerHTML='<span class=&quot;program-no-photo&quot;>Photo unavailable</span>'"></button>`).join("")}</div>` : (legacyPhotoCount ? `<div class="program-no-photo">${legacyPhotoCount} photo(s) are in the Drive folder for this report. Open the folder to view them.</div>` : '<div class="program-no-photo">No photos were uploaded for this activity.</div>')}${report.driveFolderUrl ? `<p><a href="${escapeHTML(report.driveFolderUrl)}" target="_blank" rel="noopener">Open Google Drive folder</a></p>` : ""}</div></div>`);
   document.querySelectorAll(".program-photo-open[data-photo-index]").forEach(button => button.addEventListener("click", () => {
     const photo = photos[Number(button.dataset.photoIndex)];
     if (photo) openProgramPhotoPreview(photo, `${report.title} photo ${Number(button.dataset.photoIndex) + 1}`);
