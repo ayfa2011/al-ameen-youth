@@ -11,8 +11,45 @@ function agendaStatus(i){return i.status||"Upcoming";}
 function agendaStage(i){const s=agendaStatus(i);if(s==="Completed"||i.decisionStatus==="Completed")return"done";if(s==="Decision Taken"||s==="Under Action")return"disc";return"age";}
 function agCanEdit(){return typeof isSupervisorLoggedIn==="function"?isSupervisorLoggedIn():true;}
 function agFilter(list){const q=String(agendaState.search||"").trim().toLowerCase();if(!q)return list;return list.filter(x=>((x.title||"")+" "+(x.description||"")).toLowerCase().includes(q));}
-function agendaInjectStyles(){if(document.getElementById("agMinCss"))return;
-document.head.insertAdjacentHTML("beforeend",'<style id="agMinCss">#agendaView{padding:0;background:#eef1ef}.agW{max-width:430px;margin:0 auto;min-height:92dvh;background:#fbfdfb;padding:14px 14px 30px}.agTop{display:flex;align-items:center;margin:2px 0 6px}.agBk{width:34px;height:34px;display:grid;place-items:center;border:0;background:transparent;color:#12372a;font-size:22px;cursor:pointer}.agKick{margin:0;color:#7d8b83;font-size:14px}.agH{margin:0 0 2px;color:#12372a;font-size:25px;font-weight:800;letter-spacing:-.02em}.agSrch{display:flex;align-items:center;gap:8px;margin:12px 0 12px;padding:11px 14px;border:1px solid #e3eae6;border-radius:999px;background:#fff;color:#7d8b83}.agSrch input{flex:1;min-width:0;border:0;outline:0;background:transparent;font:inherit;font-size:14px;color:#12372a}.agPill{display:inline-block;margin:10px 0 8px;padding:7px 20px;border-radius:999px;background:#0b6b4f;color:#fff;font-size:15px;font-weight:800}.agCard{display:flex;align-items:center;gap:8px;width:100%;margin:0 0 10px;padding:13px 12px;border:1px solid #e5ece8;border-radius:14px;background:#fff;color:#12372a;font:inherit;text-align:left;cursor:pointer}.agCard .n{white-space:nowrap;font-size:15px}.agCard .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px}.agCard i{color:#5f6f66;font-size:13px}.agEmpty{margin:4px 2px 10px;color:#8a978f;font-size:13px;text-align:center}.agAdd{width:100%;margin:0 0 14px;padding:10px;border:1px dashed #b9ccc1;border-radius:12px;background:transparent;color:#0b6b4f;font:inherit;font-size:13px;font-weight:700;cursor:pointer}.agRow{display:flex;gap:8px;margin:0 0 12px}.agRow input{flex:1;min-width:0;padding:11px 13px;border:1px solid #0b6b4f;border-radius:12px;font:inherit;font-size:14px;outline:0}.agRow button{padding:0 16px;border:0;border-radius:12px;background:#0b6b4f;color:#fff;font:inherit;font-weight:700;cursor:pointer}.agHint{margin:2px;color:#8a978f;font-size:11px;line-height:1.5}.agDT{margin:6px 0 10px;color:#12372a;font-size:27px;font-weight:800;line-height:1.2;overflow-wrap:anywhere}.agDT.tap,.agDB.tap{cursor:pointer}.agDB{margin:0;color:#2f3f37;font-size:17px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere}.agIn{width:100%;padding:10px 12px;border:1px solid #0b6b4f;border-radius:10px;font:inherit;color:#12372a;outline:0}.agIn.t{font-size:20px;font-weight:700}textarea.agIn{min-height:140px;font-size:15px;line-height:1.6;resize:vertical}.agER{display:flex;gap:8px;margin-top:8px}.agSv{flex:1;padding:11px;border:0;border-radius:10px;background:#0b6b4f;color:#fff;font:inherit;font-weight:800;cursor:pointer}.agCn{padding:11px 16px;border:1px solid #d8e2dc;border-radius:10px;background:#fff;font:inherit;font-weight:700;cursor:pointer}.agMt{margin:12px 0 0;color:#8a978f;font-size:12px}.agFt{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:26px}.agPm{padding:13px;border:0;border-radius:999px;background:#0b6b4f;color:#fff;font:inherit;font-size:15px;font-weight:800;cursor:pointer}.agDl{padding:13px;border:1px solid #e5a49e;border-radius:999px;background:#fdeeee;color:#c0493f;font:inherit;font-size:15px;font-weight:800;cursor:pointer}.agGh{grid-column:1/-1;padding:10px;border:1px solid #d8e2dc;border-radius:999px;background:#fff;color:#43554b;font:inherit;font-size:13px;font-weight:700;cursor:pointer}.agBack{padding:10px 18px;border:1px solid #d8e2dc;border-radius:999px;background:#fff;font:inherit;font-weight:700;cursor:pointer}</style>');}
+function agendaInjectStyles(){if(document.getElementById("agMinCss")){const o=document.getElementById("agMinCss");if(o)o.remove();}
+document.head.insertAdjacentHTML("beforeend",'<style id="agMinCss">'
++'#agendaView{padding:0;background:#eef1ef}'
++'.agW{max-width:430px;margin:0 auto;min-height:92dvh;background:#fbfdfb;padding:14px 14px 30px}'
++'.agTop{display:flex;align-items:center;margin:2px 0 6px}'
++'.agBk{width:32px;height:32px;display:grid;place-items:center;border:0;background:transparent;color:#12372a;font-size:19px;cursor:pointer}'
++'.agKick{margin:0;color:#7d8b83;font-size:13px}'
++'.agH{margin:0 0 2px;color:#12372a;font-size:22px;font-weight:800;letter-spacing:-.01em}'
++'.agSrch{display:flex;align-items:center;gap:8px;margin:10px 0;padding:10px 14px;border:1px solid #e3eae6;border-radius:999px;background:#fff;color:#7d8b83}'
++'.agSrch input{flex:1;min-width:0;border:0;outline:0;background:transparent;font:inherit;font-size:14px;color:#12372a}'
++'.agPill{display:inline-flex;align-items:center;justify-content:center;margin:10px 0 8px;padding:5px 16px;border-radius:999px;background:#0b6b4f;color:#fff;font-size:13px;font-weight:700;line-height:1.5}'
++'.agCard{display:flex;align-items:center;gap:8px;width:100%;margin:0 0 8px;padding:11px 12px;border:1px solid #e5ece8;border-radius:12px;background:#fff;color:#12372a;font:inherit;font-size:14px;text-align:left;cursor:pointer}'
++'.agCard .n{flex:0 0 auto}.agCard .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.agCard i{flex:0 0 auto;color:#5f6f66;font-size:12px}'
++'.agEmpty{margin:4px 2px 10px;color:#8a978f;font-size:12.5px;text-align:center}'
++'.agAdd{width:100%;margin:0 0 12px;padding:9px;border:1px dashed #b9ccc1;border-radius:10px;background:transparent;color:#0b6b4f;font:inherit;font-size:13px;font-weight:600;cursor:pointer}'
++'.agHint{margin:2px;color:#8a978f;font-size:11px}'
++'.agDT{margin:6px 0 8px;color:#12372a;font-size:22px;font-weight:800;line-height:1.25;overflow-wrap:anywhere}'
++'.agDT.tap,.agDB.tap,.agFR.tap{cursor:pointer}'
++'.agDB{margin:0;color:#2f3f37;font-size:15px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}'
++'.agIn{width:100%;padding:9px 11px;border:1px solid #0b6b4f;border-radius:9px;font:inherit;font-size:14px;color:#12372a;outline:0;background:#fff}'
++'textarea.agIn{min-height:90px;line-height:1.6;resize:vertical}'
++'.agIn.t{font-size:18px;font-weight:700}'
++'.agER{display:flex;gap:8px;margin-top:8px}'
++'.agSv{flex:1;padding:9px;border:0;border-radius:9px;background:#0b6b4f;color:#fff;font:inherit;font-size:13px;font-weight:700;cursor:pointer;min-height:38px}'
++'.agCn{padding:9px 14px;border:1px solid #d8e2dc;border-radius:9px;background:#fff;font:inherit;font-size:13px;font-weight:600;cursor:pointer;min-height:38px}'
++'.agFSec{margin-top:12px;border-top:1px solid #e6ece8;padding-top:8px;display:grid;gap:6px}'
++'.agFR{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #e5ece8;border-radius:10px;background:#fff;font-size:13px}'
++'.agFR b{flex:0 0 88px;color:#6b7c73;font-weight:600;font-size:12px}'
++'.agFR span{flex:1;min-width:0;color:#12372a;overflow-wrap:anywhere}'
++'.agRow{display:flex;gap:8px;margin:0 0 10px}'
++'.agRow input{flex:1;min-width:0;padding:9px 11px;border:1px solid #0b6b4f;border-radius:10px;font:inherit;font-size:14px;outline:0}'
++'.agRow button{padding:0 14px;border:0;border-radius:10px;background:#0b6b4f;color:#fff;font:inherit;font-size:13px;font-weight:700;cursor:pointer;min-height:38px}'
++'.agMt{margin:10px 0 0;color:#8a978f;font-size:11.5px}'
++'.agFt{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:20px}'
++'.agPm,.agDl{min-height:40px;padding:10px 12px;border-radius:999px;font:inherit;font-size:13.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-align:center;line-height:1.3}'
++'.agPm{border:0;background:#0b6b4f;color:#fff}.agDl{border:1px solid #e5a49e;background:#fdeeee;color:#c0493f}'
++'.agGh{grid-column:1/-1;min-height:38px;padding:8px;border:1px solid #d8e2dc;border-radius:999px;background:#fff;color:#43554b;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}'
++'.agBtn{padding:9px 18px;border:1px solid #d8e2dc;border-radius:999px;background:#fff;font:inherit;font-size:13px;font-weight:600;cursor:pointer}'
++'</style>');}
 function agRow(it,i){return '<button type="button" class="agCard" onclick="openAgendaDetail('+JSON.stringify(it.id)+')"><span class="n">'+(i+1)+'.</span><span class="t">'+escapeHTML(it.title||"Untitled")+'</span><i class="fa-solid fa-chevron-right"></i></button>';}
 function agSec(stage,pill,list,empty,canAdd){const ce=agCanEdit();let h='<span class="agPill">'+pill+'</span>';
 h+=list.length?list.map((x,i)=>agRow(x,i)).join(""):'<p class="agEmpty">'+empty+'</p>';
@@ -30,20 +67,26 @@ v.innerHTML='<section class="agW"><div class="agTop"><button type="button" class
 +agSec("age","Agenda",A,"No agenda items yet.",true)+agSec("disc","On Discussion",D,"Nothing on discussion.",false)+agSec("done","Completed",C,"Nothing completed yet.",false)+trash
 +'<p class="agHint">'+(agCanEdit()?"Tip: title/vivarane mele tap madi - page-nalliye edit agutte. Popup illa.":"Tap any item to read details.")+'</p></section>';}
 function agKeepFocus(){const a=document.activeElement?.value??"";renderAgendas();const n=document.querySelector(".agSrch input");if(n){n.focus();try{n.setSelectionRange(n.value.length,n.value.length);}catch(e){}}void a;}
-function openAgendaDetail(id){agendaState.view="detail";agendaState.activeId=id;agendaState.editTitle=false;agendaState.editDesc=false;renderAgendas();window.scrollTo({top:0});}
-function backToAgendaList(){agendaState.view="list";agendaState.activeId="";agendaState.editTitle=false;agendaState.editDesc=false;renderAgendas();}
+function openAgendaDetail(id){agendaState.view="detail";agendaState.activeId=id;agendaState.editF="";renderAgendas();window.scrollTo({top:0});}
+function backToAgendaList(){agendaState.view="list";agendaState.activeId="";agendaState.editF="";renderAgendas();}
+function agFieldRow(it,f,label){const ce=agCanEdit();const val=String(it[f]||"").trim()||"—";
+if(agendaState.editF===f&&ce){const isDate=(f==="meetingDate"||f==="targetDate");const isTA=(f==="description"||f==="decision");
+const inp=isTA?'<textarea id="agF" class="agIn" rows="3">'+escapeHTML(it[f]||"")+'</textarea>':'<input id="agF" class="agIn" '+(isDate?'type="date"':'type="text"')+' value="'+escapeHTML(it[f]||"")+'">';
+return '<div style="margin-top:8px">'+inp+'<div class="agER"><button type="button" class="agSv" onclick="saveAgendaOneField(\''+f+'\')">Save</button><button type="button" class="agCn" onclick="agendaState.editF=\'\';renderAgendas()">Cancel</button></div></div>';}
+return '<div class="agFR '+((ce&&f!=="createdAt")?"tap":"")+'" '+((ce&&f!=="createdAt")?'onclick="agendaState.editF=\''+f+'\';renderAgendas();setTimeout(()=>document.getElementById(\'agF\')?.focus(),60)"':"")+'><b>'+label+'</b><span>'+escapeHTML(val)+'</span></div>';}
 function renderAgendaDetail(){const v=document.getElementById("agendaView");const it=agendaState.items.find(x=>x.id===agendaState.activeId);if(!it){backToAgendaList();return;}
 const st=agendaStage(it);const ce=agCanEdit();const pill=st==="age"?"Agenda":st==="disc"?"On Discussion":"Completed";
 const desc=String(it.description||"").trim()||"No description yet.";
-const tB=(agendaState.editTitle&&ce)?'<input id="agT" class="agIn t" value="'+escapeHTML(it.title||"")+'" maxlength="120"><div class="agER"><button type="button" class="agSv" onclick="saveAgendaTitle()">Save</button><button type="button" class="agCn" onclick="agendaState.editTitle=false;renderAgendas()">Cancel</button></div>'
-:'<h2 class="agDT '+(ce?"tap":"")+'" '+(ce?'onclick="agendaState.editTitle=true;renderAgendas();setTimeout(()=>{const e=document.getElementById(\'agT\');if(e){e.focus();e.select();}},60)"':"")+'>'+escapeHTML(it.title||"Untitled")+'</h2>';
-const dB=(agendaState.editDesc&&ce)?'<textarea id="agD" class="agIn" placeholder="Vivarane bareyiri...">'+escapeHTML(it.description||"")+'</textarea><div class="agER"><button type="button" class="agSv" onclick="saveAgendaDesc()">Save</button><button type="button" class="agCn" onclick="agendaState.editDesc=false;renderAgendas()">Cancel</button></div>'
-:'<p class="agDB '+(ce?"tap":"")+'" '+(ce?'onclick="agendaState.editDesc=true;renderAgendas();setTimeout(()=>document.getElementById(\'agD\')?.focus(),60)"':"")+'>'+escapeHTML(desc)+'</p>';
+const tB=(agendaState.editF==="title"&&ce)?'<input id="agF" class="agIn t" value="'+escapeHTML(it.title||"")+'" maxlength="120"><div class="agER"><button type="button" class="agSv" onclick="saveAgendaOneField(\'title\')">Save</button><button type="button" class="agCn" onclick="agendaState.editF=\'\';renderAgendas()">Cancel</button></div>'
+:'<h2 class="agDT '+(ce?"tap":"")+'" '+(ce?'onclick="agendaState.editF=\'title\';renderAgendas();setTimeout(()=>{const e=document.getElementById(\'agF\');if(e){e.focus();e.select();}},60)"':"")+'>'+escapeHTML(it.title||"Untitled")+'</h2>';
+const dB=(agendaState.editF==="description"&&ce)?'<textarea id="agF" class="agIn" rows="4" placeholder="Vivarane bareyiri...">'+escapeHTML(it.description||"")+'</textarea><div class="agER"><button type="button" class="agSv" onclick="saveAgendaOneField(\'description\')">Save</button><button type="button" class="agCn" onclick="agendaState.editF=\'\';renderAgendas()">Cancel</button></div>'
+:'<p class="agDB '+(ce?"tap":"")+'" '+(ce?'onclick="agendaState.editF=\'description\';renderAgendas();setTimeout(()=>document.getElementById(\'agF\')?.focus(),60)"':"")+'>'+escapeHTML(desc)+'</p>';
+const fields='<div class="agFSec">'+agFieldRow(it,"meetingDate","Meeting date")+agFieldRow(it,"priority","Priority")+agFieldRow(it,"decision","Decision")+agFieldRow(it,"responsible","Responsible")+agFieldRow(it,"targetDate","Target date")+'</div>';
 let ft="";const id=JSON.stringify(it.id);
 if(ce){if(st==="age")ft='<div class="agFt"><button type="button" class="agPm" onclick="moveAgendaToDecision('+id+')">Discussed</button><button type="button" class="agDl" onclick="deleteAgenda('+id+')">Delete</button></div>';
 else if(st==="disc")ft='<div class="agFt"><button type="button" class="agPm" onclick="completeAgenda('+id+')">Completed</button><button type="button" class="agDl" onclick="deleteAgenda('+id+')">Delete</button><button type="button" class="agGh" onclick="moveAgendaBackToAgenda('+id+')">Move back to Agenda</button></div>';
 else ft='<div class="agFt"><button type="button" class="agPm" onclick="moveAgendaToDecision('+id+')">Move to Discussion</button><button type="button" class="agDl" onclick="deleteAgenda('+id+')">Delete</button></div>';}
-v.innerHTML='<section class="agW"><div class="agTop"><button type="button" class="agBk" onclick="backToAgendaList()">&#8592;</button></div><span class="agPill">'+pill+'</span>'+tB+dB+'<p class="agMt">Added: '+escapeHTML(String(it.createdAt||it.meetingDate||"").slice(0,10)||"-")+'</p>'+ft+'</section>';}
+v.innerHTML='<section class="agW"><div class="agTop"><button type="button" class="agBk" onclick="backToAgendaList()">&#8592;</button></div><span class="agPill">'+pill+'</span>'+tB+dB+fields+'<p class="agMt">Added: '+escapeHTML(String(it.createdAt||it.meetingDate||"").slice(0,10)||"-")+'</p>'+ft+'</section>';}
 async function saveAgendaField(id,field,val){if(!requireSupervisor())return false;
 const old=agendaState.items.find(x=>x.id===id)||{};const now=new Date().toISOString();
 try{await window.firebaseReady;const exp=String(old.updatedAt||"");
@@ -52,10 +95,11 @@ if(!r.committed)throw new Error("changed");
 await appendFirebaseAudit({action:"agenda.update",path:"meetingAgendas",recordId:id,beforeUpdatedAt:exp,afterUpdatedAt:now});
 const loc=agendaState.items.find(x=>x.id===id);if(loc){loc[field]=val;loc.updatedAt=now;}return true;}
 catch(e){console.error(e);alert("Save failed. Refresh and try again.");return false;}}
-async function saveAgendaTitle(){const e=document.getElementById("agT");const v=String(e?.value||"").trim();if(!v){alert("Title required.");return;}
-if(await saveAgendaField(agendaState.activeId,"title",v)){agendaState.editTitle=false;renderAgendas();}}
-async function saveAgendaDesc(){const e=document.getElementById("agD");const v=String(e?.value||"").trim();
-if(await saveAgendaField(agendaState.activeId,"description",v)){agendaState.editDesc=false;renderAgendas();}}
+async function saveAgendaOneField(f){const e=document.getElementById("agF");const v=String(e?.value||"").trim();
+if((f==="title"||f==="meetingDate")&&!v){alert(f==="title"?"Title required.":"Meeting date required.");return;}
+if(await saveAgendaField(agendaState.activeId,f,v)){agendaState.editF="";renderAgendas();}}
+async function saveAgendaTitle(){agendaState.editF="title";const e=document.getElementById("agF");if(e){saveAgendaOneField("title");return;}agendaState.editF="title";renderAgendas();}
+async function saveAgendaDesc(){agendaState.editF="description";renderAgendas();}
 async function addAgendaInline(stage){if(!requireSupervisor())return;
 const e=document.getElementById("agAdd-"+stage);const title=String(e?.value||"").trim();
 if(!title){alert("Title bareyiri.");e?.focus();return;}
