@@ -1,5 +1,21 @@
 {
   "database": {
     "rules": "firebase/firebase-database.rules.json"
+  },
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "firebase-debug.log",
+      ".firebaserc",
+      "**/.*",
+      "**/node_modules/**",
+      "public/**",
+      "firebase/**",
+      "google-apps-script.gs",
+      "appsscript.json",
+      "README-*.txt",
+      "DATA-SAFETY.md"
+    ]
   }
 }
