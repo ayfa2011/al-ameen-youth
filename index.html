@@ -19,11 +19,11 @@
   <title>Al-Ameen Youth Federation</title>
 
 
-  <!-- MAIN CSS -->
+  <!-- MAIN CSS (v9: office-bearers creative design cache-bust) -->
 
   <link
     rel="stylesheet"
-    href="css/style.css"
+    href="css/style.css?v=20261020-v9"
   >
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2081,7 +2081,12 @@
   <script src="js/activity-reports.js"></script>
   <script src="js/agenda.js"></script>
   <script>document.addEventListener("DOMContentLoaded", () => {
-    if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) navigator.serviceWorker.register("service-worker.js").catch(error => console.warn("Offline shell could not be registered:", error));
+    if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+      // v9: office-bearers creative design — drop old shell, force fresh CSS/HTML.
+      caches?.keys?.().then(keys => Promise.all((keys || []).filter(k => k.indexOf("alameen-shell-") === 0 && k !== "alameen-shell-v9-office-bearers-fix").map(k => caches.delete(k)))).catch(() => {});
+      navigator.serviceWorker.getRegistrations?.().then(regs => regs.forEach(r => r.update?.().catch(() => {}))).catch(() => {});
+      navigator.serviceWorker.register("service-worker.js").catch(error => console.warn("Offline shell could not be registered:", error));
+    }
     if (typeof isRoleAuthenticated === "function" && isRoleAuthenticated() && typeof showDashboard === "function") showDashboard();
   });</script>
 
