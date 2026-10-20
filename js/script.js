@@ -116,10 +116,9 @@ window.addEventListener("popstate", event => {
 const APP_PAGE_TITLES = { dashboard: "ಅಲ್ ಅಮೀನ್ ಯೂತ್ ಫೆಡರೇಶನ್", members: "Members", officeBearers: "Office Bearers", activities: "Activities", blood: "Blood Donors", agenda: "Agenda", finance: "Finance", assets: "Assets", attendance: "Attendance", rentals: "Rentals", poster: "Blood Donation Poster", about: "About" };
 
 function updateAppTopBar(view = history.state?.appView || "dashboard") {
-  const title = document.getElementById("appPageTitle");
   const back = document.getElementById("appBackButton");
-  if (title) title.textContent = APP_PAGE_TITLES[view] || APP_PAGE_TITLES.dashboard;
-  if (title) title.classList.toggle("hidden", view === "dashboard");
+  // Uniform top bar on ALL pages: Logo left + Logout right. No center page name.
+  document.getElementById("appPageTitle")?.classList.add("hidden");
   if (back) back.classList.toggle("hidden", view === "dashboard");
 }
 

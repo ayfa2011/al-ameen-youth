@@ -2277,6 +2277,17 @@ body{display:flex;align-items:center;justify-content:center;background:#eef2f1}
    ACTIVITY REPORTS — FULL PAGE FIX (buttons + thumbnails + PDFs)
    ============================================================ */
 #activityReportsView{display:grid;gap:16px}
+
+/* ============================================================
+   TOP BAR UNIFORM — Left Logo + Right Logout (all pages)
+   ============================================================ */
+.app-top-bar-uniform{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;align-items:center!important;gap:10px!important;min-height:64px!important;padding-top:10px!important;padding-bottom:10px!important}
+.app-top-bar-uniform #appPageTitle{display:none!important}
+.app-topbar-left{display:flex!important;align-items:center!important;gap:10px!important;min-width:0!important}
+.app-top-bar-uniform .app-back-button{flex:0 0 auto;min-height:40px;min-width:40px;font-size:18px}
+.app-top-bar-uniform .header-brand-image{height:42px!important;max-height:42px!important;width:auto!important;max-width:min(62vw,300px)!important;object-fit:contain!important;object-position:left center!important}
+.app-top-bar-uniform .header-logout{justify-self:end}
+
 .annual-activity-reports{margin-bottom:4px;padding:18px}
 .annual-activity-heading{margin-bottom:14px}
 .annual-activity-badge{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;background:#fdecec;color:#c84842;font-size:12px;font-weight:800;letter-spacing:.04em}
