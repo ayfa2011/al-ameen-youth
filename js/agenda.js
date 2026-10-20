@@ -1,314 +1,125 @@
-const agendaState = { items: [], deletedItems: [] };
-
-async function openAgendaManagement() {
-  if (typeof navigateAppView === "function" && history.state?.appView !== "agenda") history.pushState({ appView: "agenda" }, "", location.pathname + location.search + "#agenda");
-  updateAppTopBar("agenda");
-  hideAllViews();
-  document.getElementById("agendaView")?.classList.remove("hidden");
-  window.scrollTo({ top: 0, behavior: "smooth" });
-  try {
-    await window.firebaseReady;
-    const data = (await window.firebaseDb.ref("meetingAgendas").once("value")).val() || {};
-    const records = Object.entries(data).map(([id, value]) => ({ id, ...value }));
-    agendaState.deletedItems = records.filter(item => item.deleted === true);
-    agendaState.items = records.filter(item => item.deleted !== true);
-    agendaState.items.sort((a,b) => String(b.createdAt || b.meetingDate || "").localeCompare(String(a.createdAt || a.meetingDate || "")));
-    renderAgendas();
-  } catch (error) {
-    console.error("Agenda load error:", error);
-    const el = document.getElementById("agendaError");
-    if (el) el.textContent = "Agenda could not be loaded. Check your connection and try again.";
-  }
-}
-
-function agendaStatus(item) {
-  return item.status || "Upcoming";
-}
-
-function agendaInjectStyles() {
-  if (document.getElementById("agendaEnhancedStyles")) return;
-  document.head.insertAdjacentHTML("beforeend", `<style id="agendaEnhancedStyles">
-    .agenda-item{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:8px;margin:0;padding:9px 14px;border:0;border-bottom:1px solid #e1e7ed;background:#fff}
-    .agenda-item:last-child{border-bottom:0}
-    .agenda-item-number{display:none}
-    .agenda-item-title{min-width:0;color:#263b31;font-size:14px;font-weight:600;line-height:1.4;overflow-wrap:anywhere;text-align:left}
-    .agenda-item-date{color:#53665b;font-size:12px;white-space:nowrap;padding-top:2px}
-    .agenda-expand{width:100%;padding:0;border:0;background:transparent;text-align:left;color:inherit;font:inherit;cursor:pointer}
-    .agenda-detail{grid-column:1/-1;width:100%;padding:8px 0 2px;color:#566a5e;font-size:12px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
-    .agenda-detail[hidden]{display:none}
-    .agenda-item-actions{display:flex;grid-column:1/-1;gap:8px;flex-wrap:wrap;margin-top:2px}
-    .agenda-item-actions button{border:0;border-radius:0;padding:3px 4px;min-height:27px;background:transparent;cursor:pointer;font-weight:700;font-size:11px;display:inline-flex;align-items:center;gap:5px}
-    .agenda-edit-btn{color:#175ea8}.agenda-delete-btn{color:#b42318}
-    .agenda-discussed-btn{color:#165a9e}.agenda-back-btn{color:#46544b}.agenda-complete-btn{color:#177245}
-    .agenda-completed{display:inline-flex;align-items:center;margin-left:5px;padding:3px 6px;border-radius:999px;background:#e6f7ed;color:#177245;font-size:10px;font-weight:800;vertical-align:middle}
-    @media(max-width:640px){.agenda-item{grid-template-columns:minmax(0,1fr) auto;gap:5px;padding:9px 10px}.agenda-item-date{grid-column:2;grid-row:1;white-space:nowrap;font-size:11px}.agenda-item-actions{grid-column:1/-1}.agenda-item-title{font-size:14px}.agenda-item-actions button{min-height:30px}}
-  </style>`);
-}
-
-function agendaItemHTML(item, index) {
-  const status = agendaStatus(item);
-  const isDecision = ["Decision Taken", "Under Action", "Completed"].includes(status);
-  const isCompleted = status === "Completed" || item.decisionStatus === "Completed";
-  const actions = `
-    ${isSupervisorLoggedIn() ? `<button type="button" class="agenda-edit-btn" onclick="editAgenda('${item.id}')"><i class="fa-solid fa-pen"></i><span>Edit</span></button>` : ""}
-    ${isSupervisorLoggedIn() && !isDecision && status !== "Cancelled" ? `<button type="button" class="agenda-discussed-btn" onclick="moveAgendaToDecision('${item.id}')">Discussed</button>` : ""}
-    ${isSupervisorLoggedIn() && isDecision && !isCompleted ? `<button type="button" class="agenda-complete-btn" onclick="completeAgenda('${item.id}')">Implemented</button>` : ""}
-    ${isSupervisorLoggedIn() && isCompleted ? `<button type="button" class="agenda-discussed-btn" onclick="moveAgendaToDecision('${item.id}')">Move back to Topics Discussed</button>` : ""}
-    ${isSupervisorLoggedIn() && isDecision ? `<button type="button" class="agenda-back-btn" onclick="moveAgendaBackToAgenda('${item.id}')">Move back to Meeting Agenda</button>` : ""}
-    ${isSupervisorLoggedIn() ? `<button type="button" class="agenda-delete-btn" onclick="deleteAgenda('${item.id}')"><i class="fa-solid fa-trash"></i> Delete</button>` : ""}
-  `;
-  const addedDate = String(item.createdAt || item.meetingDate || "—").slice(0, 10);
-  const detail = [item.description, item.decision ? `Decision: ${item.decision}` : "", item.responsible ? `Responsible: ${item.responsible}` : "", item.targetDate ? `Target date: ${item.targetDate}` : ""].filter(Boolean).join("\n") || "No additional details.";
-  return `<article class="agenda-item">
-    <div class="agenda-item-title"><button class="agenda-expand" type="button" aria-expanded="false" onclick="toggleAgendaDetails('${item.id}', this)">${escapeHTML(item.title || "—")}${isCompleted ? ` <span class="agenda-completed">Completed</span>` : ""}</button></div>
-    <time class="agenda-item-date" datetime="${escapeHTML(addedDate)}">${escapeHTML(addedDate)}</time>
-    <div class="agenda-detail" hidden>${escapeHTML(detail)}</div>
-    ${isSupervisorLoggedIn() ? `<div class="agenda-item-actions" hidden>${actions}</div>` : ""}
-  </article>`;
-}
-
-function toggleAgendaDetails(id, button) {
-  const card = button.closest(".agenda-item");
-  const expanded = button.getAttribute("aria-expanded") !== "true";
-  button.setAttribute("aria-expanded", String(expanded));
-  const details = card?.querySelector(".agenda-detail");
-  const actions = card?.querySelector(".agenda-item-actions");
-  if (details) details.hidden = !expanded;
-  if (actions) actions.hidden = !expanded;
-}
-
-function renderAgendas() { agendaInjectStyles(); const b=document.querySelector("#agendaView .agenda-add-button"); if(b)b.style.display=isSupervisorLoggedIn()?"inline-flex":"none";
-  const importButton=document.getElementById("agendaImportButton"); if(importButton) importButton.hidden=!isSupervisorLoggedIn();
-
-  const allAgendas = agendaState.items.filter(item => !["Decision Taken", "Under Action", "Completed"].includes(agendaStatus(item)));
-  const underAction = agendaState.items.filter(item => ["Decision Taken", "Under Action"].includes(agendaStatus(item)) && item.decisionStatus !== "Completed");
-  const completed = agendaState.items.filter(item => agendaStatus(item) === "Completed" || item.decisionStatus === "Completed");
-
-  const put = (id, data, empty) => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.innerHTML = data.length
-        ? data.map((item, index) => agendaItemHTML(item, index)).join("")
-        : `<p class="agenda-empty">${empty}</p>`;
-    }
-  };
-
-  put("allAgendaList", allAgendas, "No agenda items yet.");
-  put("actionAgendaList", underAction, "No topics discussed yet.");
-  put("completedAgendaList", completed, "No decisions taken yet.");
-  const trashPanel = document.getElementById("agendaTrashList");
-  const trashSection = document.getElementById("agendaTrashPanel");
-  if (trashSection) trashSection.hidden = !isSupervisorLoggedIn();
-  if (trashPanel) trashPanel.innerHTML = isSupervisorLoggedIn() && agendaState.deletedItems.length
-    ? agendaState.deletedItems.map(item => `<article class="agenda-item"><div class="agenda-item-title">${escapeHTML(item.title || "Untitled")}</div><time class="agenda-item-date">${escapeHTML(String(item.meetingDate || "").slice(0,10))}</time><div class="agenda-item-actions"><button type="button" onclick="restoreAgenda(${JSON.stringify(item.id)})">Restore</button></div></article>`).join("")
-    : "<p class=\"agenda-empty\">Trash is empty.</p>";
-}
-
-async function importLegacyAgendas() {
-  if (!requireSupervisor()) return;
-  const button = document.getElementById("agendaImportButton");
-  if (!button || button.dataset.importing === "true") return;
-  button.dataset.importing = "true";
-  button.disabled = true;
-  button.textContent = "Backing up and importing…";
-  try {
-    await window.firebaseReady;
-    const firebaseRef = window.firebaseDb.ref("meetingAgendas");
-    const current = (await firebaseRef.once("value")).val() || {};
-    const backupId = new Date().toISOString().replace(/[:.]/g,"-");
-    await auditedFirebaseUpdate({
-      [`meetingAgendasMigrationBackups/${backupId}`]: {createdAt:new Date().toISOString(),source:"pre-legacy-agenda-import",items:Object.keys(current).length ? current : null}
-    }, { action: "agenda.migrationBackup", path: "meetingAgendasMigrationBackups", recordId: backupId });
-    const authToken = await window.firebaseAuth.currentUser.getIdToken();
-    const response = await fetch(SCRIPT_URL,{method:"POST",mode:"cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"getAgendas",authToken})});
-    const legacy = await response.json();
-    if (!response.ok || legacy.success === false || legacy.error || !Array.isArray(legacy)) throw new Error(legacy.error || "Legacy agenda source returned invalid data.");
-    const additions = {};
-    legacy.forEach(item => {
-      const id=String(item.id || "").trim();
-      const title=String(item.title || "").trim();
-      const meetingDate=String(item.meetingDate || "").trim();
-      if (!id || !title || !meetingDate || current[id]) return;
-      additions[id]={...item,id,title,meetingDate,createdAt:item.createdAt || new Date().toISOString(),updatedAt:item.updatedAt || new Date().toISOString()};
-    });
-    if (Object.keys(additions).length) await auditedFirebaseUpdate(Object.fromEntries(Object.entries(additions).map(([id, item]) => [`meetingAgendas/${id}`, item])), { action: "agenda.legacyImport", path: "meetingAgendas", recordId: Object.keys(additions).join(",") });
-    await openAgendaManagement();
-    alert(`${Object.keys(additions).length} legacy agenda record(s) imported. Existing Firebase records were kept. Backup: ${backupId}`);
-  } catch(error) {
-    console.error("Legacy agenda import error:",error);
-    alert(`Legacy agenda import failed: ${error.message || error}. Firebase data was not overwritten; the pre-import backup is retained if it completed.`);
-  } finally {
-    delete button.dataset.importing;
-    button.disabled = false;
-    button.innerHTML = "Import legacy records";
-  }
-}
-
-function openAgendaForm(editId = "") { if(!requireSupervisor())return; const existing = editId ? agendaState.items.find(item => item.id === editId) : null;
-  const isEdit = !!existing;
-
-  document.getElementById("agendaModal")?.remove();
-
-  const title = isEdit ? "Edit agenda item" : "Add new agenda";
-
-  document.body.insertAdjacentHTML(
-    "beforeend",
-    `
-    <div class="program-modal" id="agendaModal">
-      <div class="program-modal-card">
-        <div class="program-modal-header">
-          <div>
-            <h3>${title}</h3>
-          </div>
-          <button class="program-close" type="button" onclick="document.getElementById('agendaModal').remove()" aria-label="Close">
-            <i class="fa-solid fa-xmark"></i>
-          </button>
-        </div>
-
-        <form class="program-report-form" onsubmit="saveAgenda(event, '${editId}')">
-
-          <label>
-            Title *
-            <input name="title" required value="${escapeHTML(existing?.title || "")}" placeholder="e.g. Book release">
-          </label>
-
-          <label>
-            Details
-            <textarea name="description" placeholder="Optional details">${escapeHTML(existing?.description || "")}</textarea>
-          </label>
-
-          <label>
-            Meeting date *
-            <input name="meetingDate" type="date" required value="${escapeHTML(existing?.meetingDate || "")}">
-          </label>
-
-          <div class="program-form-actions">
-            <button type="button" class="program-cancel" onclick="document.getElementById('agendaModal').remove()">Cancel</button>
-            <button class="program-submit" type="submit">
-              <i class="fa-solid fa-check"></i>
-              ${isEdit ? "Save changes" : "Add agenda"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-    `
-  );
-}
-
-function editAgenda(id) {
-  openAgendaForm(id);
-}
-
-function moveAgendaToDecision(id) {
-  updateAgendaStage(id, "Under Action");
-}
-
-function moveAgendaBackToAgenda(id) {
-  updateAgendaStage(id, "Upcoming");
-}
-
-async function saveAgenda(event, editId = "") {
-  event.preventDefault(); if(!requireSupervisor())return;
-
-  const values = Object.fromEntries(new FormData(event.target).entries());
-  const oldItem = editId ? (agendaState.items.find(item => item.id === editId) || {}) : {};
-
-  const payload = {
-    title: String(values.title || oldItem.title || "").trim(),
-    description: String(values.description || oldItem.description || "").trim(),
-    meetingDate: values.meetingDate || oldItem.meetingDate || "",
-    priority: values.priority || oldItem.priority || "Normal",
-    status: oldItem.status === "Completed" ? "Completed" : (oldItem.status === "Decision Taken" || oldItem.status === "Under Action" ? oldItem.status : "Upcoming"),
-    discussedDate: oldItem.discussedDate || "",
-    implementedDate: oldItem.implementedDate || "",
-    decision: String(oldItem.decision || "").trim(),
-    decisionStatus: oldItem.decisionStatus || "Pending",
-    responsible: String(values.responsible || oldItem.responsible || "").trim(),
-    targetDate: values.targetDate || oldItem.targetDate || "",
-    updatedAt: new Date().toISOString()
-  };
-
-  if (!payload.title || !payload.meetingDate) {
-    alert("Title and meeting date are required.");
-    return;
-  }
-
-  let savedId = editId;
-  try {
-    await window.firebaseReady;
-
-    if (editId) {
-      const expectedUpdatedAt = String(oldItem.updatedAt || "");
-      const result = await window.firebaseDb.ref(`meetingAgendas/${editId}`).transaction(current => {
-        if (!current || current.deleted === true || String(current.updatedAt || "") !== expectedUpdatedAt) return;
-        return { ...current, ...payload, createdAt: current.createdAt || oldItem.createdAt || new Date().toISOString() };
-      });
-      if (!result.committed) throw new Error("Agenda changed while this form was open. Refresh and reapply your edits.");
-      await appendFirebaseAudit({ action: "agenda.update", path: "meetingAgendas", recordId: editId, beforeUpdatedAt: expectedUpdatedAt, afterUpdatedAt: payload.updatedAt });
-    } else {
-      payload.createdAt = new Date().toISOString();
-      const savedRef = window.firebaseDb.ref("meetingAgendas").push();
-      savedId = savedRef.key;
-      await auditedFirebaseUpdate({ [`meetingAgendas/${savedId}`]: { ...payload, id: savedId, createdAt: payload.createdAt } }, { action: "agenda.create", path: "meetingAgendas", recordId: savedId, afterUpdatedAt: payload.updatedAt });
-    }
-
-    const savedItem = { ...payload, id: savedId, createdAt: payload.createdAt || oldItem.createdAt || new Date().toISOString() };
-    document.getElementById("agendaModal")?.remove();
-    await openAgendaManagement();
-
-  } catch (error) {
-    console.error("Agenda save error:", error);
-    alert(error.message?.includes("changed while") ? "Another official changed this agenda. Refresh and reapply your edits." : "Agenda could not be saved. Check your connection and try again.");
-  }
-}
-
-async function completeAgenda(id) {
-  return updateAgendaStage(id, "Completed");
-}
-
-async function updateAgendaStage(id, status) {
-  if (!requireSupervisor()) return;
-  const item = agendaState.items.find(entry => entry.id === id);
-  if (!item) return;
-  const now = new Date().toISOString();
-  const payload = { status, decisionStatus: status === "Completed" ? "Completed" : (item.decisionStatus || "Pending"), updatedAt: now };
-  if (status === "Under Action") payload.discussedDate = now;
-  if (status === "Upcoming") { payload.discussedDate = ""; payload.implementedDate = ""; payload.decisionStatus = "Pending"; }
-  if (status === "Under Action" && item.status === "Completed") payload.implementedDate = "";
-  if (status === "Completed") payload.implementedDate = now;
-  try {
-    await window.firebaseReady;
-    const expectedUpdatedAt = String(item.updatedAt || "");
-    const result = await window.firebaseDb.ref(`meetingAgendas/${id}`).transaction(current => {
-      if (!current || current.deleted === true || String(current.updatedAt || "") !== expectedUpdatedAt) return;
-      return { ...current, ...payload };
-    });
-    if (!result.committed) throw new Error("Agenda changed before this status update. Refresh and try again.");
-    await appendFirebaseAudit({ action: "agenda.status", path: "meetingAgendas", recordId: id, beforeUpdatedAt: expectedUpdatedAt, afterUpdatedAt: now });
-    await openAgendaManagement();
-  } catch (error) { console.error("Agenda stage update error:", error); alert("Agenda update failed. Check your connection and try again."); }
-}
-
-async function deleteAgenda(id) { if(!requireSupervisor())return; const item = agendaState.items.find(entry => entry.id === id);
-  if (!item) return;
-  if (!confirm(`Hide "${item.title}"? It can be restored later.`)) return;
-  try {
-    await window.firebaseReady;
-    const updatedAt = new Date().toISOString();
-    const result = await window.firebaseDb.ref(`meetingAgendas/${id}`).transaction(current => current && current.deleted !== true ? { ...current, deleted: true, deletedAt: updatedAt, updatedAt } : undefined);
-    if (!result.committed) throw new Error("Agenda changed before it could be hidden.");
-    await appendFirebaseAudit({ action: "agenda.hide", path: "meetingAgendas", recordId: id, afterUpdatedAt: updatedAt });
-    await openAgendaManagement();
-  } catch (error) { console.error("Agenda delete error:", error); alert("Agenda could not be deleted. Check your connection and try again."); }
-}
-
-async function restoreAgenda(id) {
-  if (!requireSupervisor()) return;
-  try {
-    const result = await window.firebaseDb.ref(`meetingAgendas/${id}`).transaction(current => current?.deleted === true ? { ...current, deleted: false, restoredAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : undefined);
-    if (!result.committed) throw new Error("Agenda item is no longer in Trash.");
-    await appendFirebaseAudit({ action: "agenda.restore", path: "meetingAgendas", recordId: id });
-    await openAgendaManagement();
-  } catch (error) { console.error("Agenda restore error:", error); alert("Agenda could not be restored. Refresh and try again."); }
-}
+const agendaState={items:[],deletedItems:[],view:"list",activeId:"",search:"",editTitle:false,editDesc:false,adding:false};
+async function openAgendaManagement(){agendaState.view="list";agendaState.activeId="";agendaState.search="";agendaState.editTitle=false;agendaState.editDesc=false;agendaState.adding=false;
+if(typeof navigateAppView==="function"&&history.state?.appView!=="agenda")history.pushState({appView:"agenda"},"",location.pathname+location.search+"#agenda");
+updateAppTopBar("agenda");hideAllViews();document.getElementById("agendaView")?.classList.remove("hidden");window.scrollTo({top:0});
+try{await window.firebaseReady;const data=(await window.firebaseDb.ref("meetingAgendas").once("value")).val()||{};
+const recs=Object.entries(data).map(([id,v])=>({id,...v}));
+agendaState.deletedItems=recs.filter(x=>x.deleted===true);agendaState.items=recs.filter(x=>x.deleted!==true);
+agendaState.items.sort((a,b)=>String(b.createdAt||b.meetingDate||"").localeCompare(String(a.createdAt||a.meetingDate||"")));
+renderAgendas();}catch(e){console.error(e);const v=document.getElementById("agendaView");if(v)v.innerHTML='<section class="agW"><p class="agEmpty">Load failed. Check connection.</p><button class="agBack" onclick="openAgendaManagement()">Retry</button></section>';}}
+function agendaStatus(i){return i.status||"Upcoming";}
+function agendaStage(i){const s=agendaStatus(i);if(s==="Completed"||i.decisionStatus==="Completed")return"done";if(s==="Decision Taken"||s==="Under Action")return"disc";return"age";}
+function agCanEdit(){return typeof isSupervisorLoggedIn==="function"?isSupervisorLoggedIn():true;}
+function agFilter(list){const q=String(agendaState.search||"").trim().toLowerCase();if(!q)return list;return list.filter(x=>((x.title||"")+" "+(x.description||"")).toLowerCase().includes(q));}
+function agendaInjectStyles(){if(document.getElementById("agMinCss"))return;
+document.head.insertAdjacentHTML("beforeend",'<style id="agMinCss">#agendaView{padding:0;background:#eef1ef}.agW{max-width:430px;margin:0 auto;min-height:92dvh;background:#fbfdfb;padding:14px 14px 30px}.agTop{display:flex;align-items:center;margin:2px 0 6px}.agBk{width:34px;height:34px;display:grid;place-items:center;border:0;background:transparent;color:#12372a;font-size:22px;cursor:pointer}.agKick{margin:0;color:#7d8b83;font-size:14px}.agH{margin:0 0 2px;color:#12372a;font-size:25px;font-weight:800;letter-spacing:-.02em}.agSrch{display:flex;align-items:center;gap:8px;margin:12px 0 12px;padding:11px 14px;border:1px solid #e3eae6;border-radius:999px;background:#fff;color:#7d8b83}.agSrch input{flex:1;min-width:0;border:0;outline:0;background:transparent;font:inherit;font-size:14px;color:#12372a}.agPill{display:inline-block;margin:10px 0 8px;padding:7px 20px;border-radius:999px;background:#0b6b4f;color:#fff;font-size:15px;font-weight:800}.agCard{display:flex;align-items:center;gap:8px;width:100%;margin:0 0 10px;padding:13px 12px;border:1px solid #e5ece8;border-radius:14px;background:#fff;color:#12372a;font:inherit;text-align:left;cursor:pointer}.agCard .n{white-space:nowrap;font-size:15px}.agCard .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px}.agCard i{color:#5f6f66;font-size:13px}.agEmpty{margin:4px 2px 10px;color:#8a978f;font-size:13px;text-align:center}.agAdd{width:100%;margin:0 0 14px;padding:10px;border:1px dashed #b9ccc1;border-radius:12px;background:transparent;color:#0b6b4f;font:inherit;font-size:13px;font-weight:700;cursor:pointer}.agRow{display:flex;gap:8px;margin:0 0 12px}.agRow input{flex:1;min-width:0;padding:11px 13px;border:1px solid #0b6b4f;border-radius:12px;font:inherit;font-size:14px;outline:0}.agRow button{padding:0 16px;border:0;border-radius:12px;background:#0b6b4f;color:#fff;font:inherit;font-weight:700;cursor:pointer}.agHint{margin:2px;color:#8a978f;font-size:11px;line-height:1.5}.agDT{margin:6px 0 10px;color:#12372a;font-size:27px;font-weight:800;line-height:1.2;overflow-wrap:anywhere}.agDT.tap,.agDB.tap{cursor:pointer}.agDB{margin:0;color:#2f3f37;font-size:17px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere}.agIn{width:100%;padding:10px 12px;border:1px solid #0b6b4f;border-radius:10px;font:inherit;color:#12372a;outline:0}.agIn.t{font-size:20px;font-weight:700}textarea.agIn{min-height:140px;font-size:15px;line-height:1.6;resize:vertical}.agER{display:flex;gap:8px;margin-top:8px}.agSv{flex:1;padding:11px;border:0;border-radius:10px;background:#0b6b4f;color:#fff;font:inherit;font-weight:800;cursor:pointer}.agCn{padding:11px 16px;border:1px solid #d8e2dc;border-radius:10px;background:#fff;font:inherit;font-weight:700;cursor:pointer}.agMt{margin:12px 0 0;color:#8a978f;font-size:12px}.agFt{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:26px}.agPm{padding:13px;border:0;border-radius:999px;background:#0b6b4f;color:#fff;font:inherit;font-size:15px;font-weight:800;cursor:pointer}.agDl{padding:13px;border:1px solid #e5a49e;border-radius:999px;background:#fdeeee;color:#c0493f;font:inherit;font-size:15px;font-weight:800;cursor:pointer}.agGh{grid-column:1/-1;padding:10px;border:1px solid #d8e2dc;border-radius:999px;background:#fff;color:#43554b;font:inherit;font-size:13px;font-weight:700;cursor:pointer}.agBack{padding:10px 18px;border:1px solid #d8e2dc;border-radius:999px;background:#fff;font:inherit;font-weight:700;cursor:pointer}</style>');}
+function agRow(it,i){return '<button type="button" class="agCard" onclick="openAgendaDetail('+JSON.stringify(it.id)+')"><span class="n">'+(i+1)+'.</span><span class="t">'+escapeHTML(it.title||"Untitled")+'</span><i class="fa-solid fa-chevron-right"></i></button>';}
+function agSec(stage,pill,list,empty,canAdd){const ce=agCanEdit();let h='<span class="agPill">'+pill+'</span>';
+h+=list.length?list.map((x,i)=>agRow(x,i)).join(""):'<p class="agEmpty">'+empty+'</p>';
+if(ce&&canAdd){if(agendaState.adding===stage){h+='<div class="agRow"><input id="agAdd-'+stage+'" placeholder="New title..." maxlength="120" onkeydown="if(event.key===\'Enter\')addAgendaInline(\''+stage+'\')"><button type="button" onclick="addAgendaInline(\''+stage+'\')">Add</button></div><button type="button" class="agGh" onclick="agendaState.adding=false;renderAgendas()">Cancel</button>';}
+else{h+='<button type="button" class="agAdd" onclick="agendaState.adding=\''+stage+'\';renderAgendas();setTimeout(()=>document.getElementById(\'agAdd-'+stage+'\')?.focus(),60)">+ Add new</button>';}}
+return h;}
+function renderAgendas(){agendaInjectStyles();const v=document.getElementById("agendaView");if(!v)return;
+document.getElementById("agendaModal")?.remove();
+if(agendaState.view==="detail")return renderAgendaDetail();
+const A=agFilter(agendaState.items.filter(x=>agendaStage(x)==="age"));
+const D=agFilter(agendaState.items.filter(x=>agendaStage(x)==="disc"));
+const C=agFilter(agendaState.items.filter(x=>agendaStage(x)==="done"));
+let trash="";if(agCanEdit()&&agendaState.deletedItems.length){trash='<span class="agPill">Trash ('+agendaState.deletedItems.length+')</span>'+agendaState.deletedItems.map(x=>'<div class="agCard" style="cursor:default"><span class="t">'+escapeHTML(x.title||"Untitled")+'</span><button type="button" class="agBack" style="padding:7px 12px" onclick="restoreAgenda('+JSON.stringify(x.id)+')">Restore</button></div>').join("");}
+v.innerHTML='<section class="agW"><div class="agTop"><button type="button" class="agBk" onclick="showDashboard()">&#8592;</button></div><p class="agKick">Meeting</p><h2 class="agH">Agenda &amp; Action Plan</h2><label class="agSrch"><i class="fa-solid fa-magnifying-glass"></i><input type="search" placeholder="Search Program" value="'+escapeHTML(agendaState.search)+'" oninput="agendaState.search=this.value;agKeepFocus()"></label>'
++agSec("age","Agenda",A,"No agenda items yet.",true)+agSec("disc","On Discussion",D,"Nothing on discussion.",false)+agSec("done","Completed",C,"Nothing completed yet.",false)+trash
++'<p class="agHint">'+(agCanEdit()?"Tip: title/vivarane mele tap madi - page-nalliye edit agutte. Popup illa.":"Tap any item to read details.")+'</p></section>';}
+function agKeepFocus(){const a=document.activeElement?.value??"";renderAgendas();const n=document.querySelector(".agSrch input");if(n){n.focus();try{n.setSelectionRange(n.value.length,n.value.length);}catch(e){}}void a;}
+function openAgendaDetail(id){agendaState.view="detail";agendaState.activeId=id;agendaState.editTitle=false;agendaState.editDesc=false;renderAgendas();window.scrollTo({top:0});}
+function backToAgendaList(){agendaState.view="list";agendaState.activeId="";agendaState.editTitle=false;agendaState.editDesc=false;renderAgendas();}
+function renderAgendaDetail(){const v=document.getElementById("agendaView");const it=agendaState.items.find(x=>x.id===agendaState.activeId);if(!it){backToAgendaList();return;}
+const st=agendaStage(it);const ce=agCanEdit();const pill=st==="age"?"Agenda":st==="disc"?"On Discussion":"Completed";
+const desc=String(it.description||"").trim()||"No description yet.";
+const tB=(agendaState.editTitle&&ce)?'<input id="agT" class="agIn t" value="'+escapeHTML(it.title||"")+'" maxlength="120"><div class="agER"><button type="button" class="agSv" onclick="saveAgendaTitle()">Save</button><button type="button" class="agCn" onclick="agendaState.editTitle=false;renderAgendas()">Cancel</button></div>'
+:'<h2 class="agDT '+(ce?"tap":"")+'" '+(ce?'onclick="agendaState.editTitle=true;renderAgendas();setTimeout(()=>{const e=document.getElementById(\'agT\');if(e){e.focus();e.select();}},60)"':"")+'>'+escapeHTML(it.title||"Untitled")+'</h2>';
+const dB=(agendaState.editDesc&&ce)?'<textarea id="agD" class="agIn" placeholder="Vivarane bareyiri...">'+escapeHTML(it.description||"")+'</textarea><div class="agER"><button type="button" class="agSv" onclick="saveAgendaDesc()">Save</button><button type="button" class="agCn" onclick="agendaState.editDesc=false;renderAgendas()">Cancel</button></div>'
+:'<p class="agDB '+(ce?"tap":"")+'" '+(ce?'onclick="agendaState.editDesc=true;renderAgendas();setTimeout(()=>document.getElementById(\'agD\')?.focus(),60)"':"")+'>'+escapeHTML(desc)+'</p>';
+let ft="";const id=JSON.stringify(it.id);
+if(ce){if(st==="age")ft='<div class="agFt"><button type="button" class="agPm" onclick="moveAgendaToDecision('+id+')">Discussed</button><button type="button" class="agDl" onclick="deleteAgenda('+id+')">Delete</button></div>';
+else if(st==="disc")ft='<div class="agFt"><button type="button" class="agPm" onclick="completeAgenda('+id+')">Completed</button><button type="button" class="agDl" onclick="deleteAgenda('+id+')">Delete</button><button type="button" class="agGh" onclick="moveAgendaBackToAgenda('+id+')">Move back to Agenda</button></div>';
+else ft='<div class="agFt"><button type="button" class="agPm" onclick="moveAgendaToDecision('+id+')">Move to Discussion</button><button type="button" class="agDl" onclick="deleteAgenda('+id+')">Delete</button></div>';}
+v.innerHTML='<section class="agW"><div class="agTop"><button type="button" class="agBk" onclick="backToAgendaList()">&#8592;</button></div><span class="agPill">'+pill+'</span>'+tB+dB+'<p class="agMt">Added: '+escapeHTML(String(it.createdAt||it.meetingDate||"").slice(0,10)||"-")+'</p>'+ft+'</section>';}
+async function saveAgendaField(id,field,val){if(!requireSupervisor())return false;
+const old=agendaState.items.find(x=>x.id===id)||{};const now=new Date().toISOString();
+try{await window.firebaseReady;const exp=String(old.updatedAt||"");
+const r=await window.firebaseDb.ref("meetingAgendas/"+id).transaction(cur=>{if(!cur||cur.deleted===true||String(cur.updatedAt||"")!==exp)return;const o={...cur};o[field]=val;o.updatedAt=now;return o;});
+if(!r.committed)throw new Error("changed");
+await appendFirebaseAudit({action:"agenda.update",path:"meetingAgendas",recordId:id,beforeUpdatedAt:exp,afterUpdatedAt:now});
+const loc=agendaState.items.find(x=>x.id===id);if(loc){loc[field]=val;loc.updatedAt=now;}return true;}
+catch(e){console.error(e);alert("Save failed. Refresh and try again.");return false;}}
+async function saveAgendaTitle(){const e=document.getElementById("agT");const v=String(e?.value||"").trim();if(!v){alert("Title required.");return;}
+if(await saveAgendaField(agendaState.activeId,"title",v)){agendaState.editTitle=false;renderAgendas();}}
+async function saveAgendaDesc(){const e=document.getElementById("agD");const v=String(e?.value||"").trim();
+if(await saveAgendaField(agendaState.activeId,"description",v)){agendaState.editDesc=false;renderAgendas();}}
+async function addAgendaInline(stage){if(!requireSupervisor())return;
+const e=document.getElementById("agAdd-"+stage);const title=String(e?.value||"").trim();
+if(!title){alert("Title bareyiri.");e?.focus();return;}
+try{await window.firebaseReady;const now=new Date().toISOString();
+const st=stage==="disc"?"Under Action":stage==="done"?"Completed":"Upcoming";
+const p={title,description:"",meetingDate:now.slice(0,10),priority:"Normal",status:st,discussedDate:st==="Under Action"?now:"",implementedDate:st==="Completed"?now:"",decision:"",decisionStatus:st==="Completed"?"Completed":"Pending",responsible:"",targetDate:"",createdAt:now,updatedAt:now};
+const ref=window.firebaseDb.ref("meetingAgendas").push();
+await auditedFirebaseUpdate({["meetingAgendas/"+ref.key]:{...p,id:ref.key}},{action:"agenda.create",path:"meetingAgendas",recordId:ref.key,afterUpdatedAt:now});
+agendaState.adding=false;await reloadAgendaKeep();}catch(e){console.error(e);alert("Add failed. Check connection.");}}
+async function reloadAgendaKeep(){try{await window.firebaseReady;
+const d=(await window.firebaseDb.ref("meetingAgendas").once("value")).val()||{};
+const r=Object.entries(d).map(([id,v])=>({id,...v}));
+agendaState.deletedItems=r.filter(x=>x.deleted===true);agendaState.items=r.filter(x=>x.deleted!==true);
+agendaState.items.sort((a,b)=>String(b.createdAt||b.meetingDate||"").localeCompare(String(a.createdAt||a.meetingDate||"")));}catch(e){console.error(e);}renderAgendas();}
+function openAgendaForm(editId){if(!requireSupervisor())return;
+if(editId){openAgendaDetail(editId);agendaState.editTitle=true;renderAgendas();}else{agendaState.view="list";agendaState.adding="age";renderAgendas();setTimeout(()=>document.getElementById("agAdd-age")?.focus(),80);}}
+function editAgenda(id){openAgendaForm(id);}
+function toggleAgendaDetails(id){openAgendaDetail(id);}
+async function saveAgenda(ev,editId){if(ev)ev.preventDefault();return;}
+function moveAgendaToDecision(id){return updateAgendaStage(id,"Under Action");}
+function moveAgendaBackToAgenda(id){return updateAgendaStage(id,"Upcoming");}
+function completeAgenda(id){return updateAgendaStage(id,"Completed");}
+async function updateAgendaStage(id,status){if(!requireSupervisor())return;
+const it=agendaState.items.find(x=>x.id===id);if(!it)return;
+const now=new Date().toISOString();
+const p={status,decisionStatus:status==="Completed"?"Completed":(it.decisionStatus||"Pending"),updatedAt:now};
+if(status==="Under Action")p.discussedDate=now;
+if(status==="Upcoming"){p.discussedDate="";p.implementedDate="";p.decisionStatus="Pending";}
+if(status==="Completed")p.implementedDate=now;
+try{await window.firebaseReady;const exp=String(it.updatedAt||"");
+const r=await window.firebaseDb.ref("meetingAgendas/"+id).transaction(cur=>{if(!cur||cur.deleted===true||String(cur.updatedAt||"")!==exp)return;return{...cur,...p};});
+if(!r.committed)throw new Error("changed");
+await appendFirebaseAudit({action:"agenda.status",path:"meetingAgendas",recordId:id,beforeUpdatedAt:exp,afterUpdatedAt:now});
+const wasD=agendaState.view==="detail";await reloadAgendaKeepSilent();
+if(wasD&&agendaState.items.find(x=>x.id===id)){agendaState.view="detail";agendaState.activeId=id;agendaState.editTitle=false;agendaState.editDesc=false;renderAgendas();}
+else{agendaState.view="list";renderAgendas();}}catch(e){console.error(e);alert("Update failed.");}}
+async function reloadAgendaKeepSilent(){try{await window.firebaseReady;
+const d=(await window.firebaseDb.ref("meetingAgendas").once("value")).val()||{};
+const r=Object.entries(d).map(([id,v])=>({id,...v}));
+agendaState.deletedItems=r.filter(x=>x.deleted===true);agendaState.items=r.filter(x=>x.deleted!==true);
+agendaState.items.sort((a,b)=>String(b.createdAt||b.meetingDate||"").localeCompare(String(a.createdAt||a.meetingDate||"")));}catch(e){console.error(e);}}
+async function deleteAgenda(id){if(!requireSupervisor())return;
+const it=agendaState.items.find(x=>x.id===id);if(!it)return;
+if(!confirm('Delete "'+(it.title||"")+'"? Trash-ge hogutte.'))return;
+try{await window.firebaseReady;const now=new Date().toISOString();
+const r=await window.firebaseDb.ref("meetingAgendas/"+id).transaction(cur=>cur&&cur.deleted!==true?{...cur,deleted:true,deletedAt:now,updatedAt:now}:undefined);
+if(!r.committed)throw new Error("changed");
+await appendFirebaseAudit({action:"agenda.hide",path:"meetingAgendas",recordId:id,afterUpdatedAt:now});
+agendaState.view="list";agendaState.activeId="";await reloadAgendaKeep();}catch(e){console.error(e);alert("Delete failed.");}}
+async function restoreAgenda(id){if(!requireSupervisor())return;
+try{const r=await window.firebaseDb.ref("meetingAgendas/"+id).transaction(cur=>cur?.deleted===true?{...cur,deleted:false,restoredAt:new Date().toISOString(),updatedAt:new Date().toISOString()}:undefined);
+if(!r.committed)throw new Error("no trash");
+await appendFirebaseAudit({action:"agenda.restore",path:"meetingAgendas",recordId:id});
+await reloadAgendaKeep();}catch(e){console.error(e);alert("Restore failed.");}}
+async function importLegacyAgendas(){if(!requireSupervisor())return;
+try{await window.firebaseReady;const ref=window.firebaseDb.ref("meetingAgendas");
+const cur=(await ref.once("value")).val()||{};
+const bk=new Date().toISOString().replace(/[:.]/g,"-");
+await auditedFirebaseUpdate({["meetingAgendasMigrationBackups/"+bk]:{createdAt:new Date().toISOString(),source:"pre-import",items:Object.keys(cur).length?cur:null}},{action:"agenda.migrationBackup",path:"meetingAgendasMigrationBackups",recordId:bk});
+const tok=await window.firebaseAuth.currentUser.getIdToken();
+const resp=await fetch(SCRIPT_URL,{method:"POST",mode:"cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"getAgendas",authToken:tok})});
+const leg=await resp.json();
+if(!resp.ok||leg.success===false||leg.error||!Array.isArray(leg))throw new Error(leg.error||"Invalid data");
+const add={};leg.forEach(x=>{const id=String(x.id||"").trim();const t=String(x.title||"").trim();const md=String(x.meetingDate||"").trim();if(!id||!t||!md||cur[id])return;add[id]={...x,id,title:t,meetingDate:md,createdAt:x.createdAt||new Date().toISOString(),updatedAt:x.updatedAt||new Date().toISOString()};});
+if(Object.keys(add).length)await auditedFirebaseUpdate(Object.fromEntries(Object.entries(add).map(([k,v])=>["meetingAgendas/"+k,v])),{action:"agenda.legacyImport",path:"meetingAgendas",recordId:Object.keys(add).join(",")});
+await reloadAgendaKeep();alert(Object.keys(add).length+" imported.");}
+catch(e){console.error(e);alert("Import failed: "+(e.message||e));}}
