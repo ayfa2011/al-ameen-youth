@@ -91,6 +91,14 @@ function navigateAppView(viewName, callback) {
   updateAppTopBar(viewName);
 }
 
+// Universal back button on every page (top bar)
+function goBackToDashboard() {
+  showDashboard();
+  history.replaceState({ appView: "dashboard" }, "", location.pathname + location.search + "#dashboard");
+  updateAppTopBar("dashboard");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
 // Back icon in the top bar: visible on every page except the dashboard.
 // Uses history.back() when there is a previous in-app view, otherwise goes to the dashboard.
 function goBackToDashboard() {
