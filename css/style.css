@@ -2349,7 +2349,7 @@ body{display:flex;align-items:center;justify-content:center;background:#eef2f1}
 }
 
 /* ============================================================
-   DASHBOARD v11 — creative compact cards, small icons
+   DASHBOARD v12 — minimal flat cards (original design restored)
 ============================================================ */
 
 .banner-container{padding:10px 12px 4px}
@@ -2358,87 +2358,39 @@ body{display:flex;align-items:center;justify-content:center;background:#eef2f1}
 
 .view-section{padding:14px 12px 22px}
 
-.buttons-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
-
+/* Minimal flat card — restored original design */
+.buttons-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .grid-card{
-  min-height:0;
-  padding:13px 8px 11px;
-  border-radius:16px;
-  background:linear-gradient(160deg,color-mix(in srgb,var(--card-accent,#1b4332) 7%,#fff) 0%,#fff 62%);
-  border:1px solid color-mix(in srgb,var(--card-accent,#1b4332) 18%,#e7ece9);
-  box-shadow:0 2px 6px rgba(27,67,50,.06);
-  gap:7px;
-  position:relative;
-  overflow:hidden;
-  transition:transform .22s cubic-bezier(.2,.8,.3,1),box-shadow .22s ease,border-color .22s ease;
+  min-height:105px;
+  padding:15px 10px;
+  border:1px solid #e4e9e7;
+  border-radius:14px;
+  background:#ffffff;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:9px;
+  text-align:center;
+  color:#333;
+  transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;
 }
-/* soft glow blob in the corner, tinted per card */
-.grid-card::before{
-  content:"";
-  position:absolute;
-  top:-22px;right:-22px;
-  width:64px;height:64px;
-  border-radius:50%;
-  background:radial-gradient(circle,color-mix(in srgb,var(--card-accent,#1b4332) 22%,transparent) 0%,transparent 70%);
-  opacity:.9;
-  transition:transform .3s ease,opacity .3s ease;
-  pointer-events:none;
-}
-.grid-card:hover{
-  transform:translateY(-4px);
-  border-color:color-mix(in srgb,var(--card-accent,#1b4332) 45%,#fff);
-  box-shadow:0 12px 24px -8px color-mix(in srgb,var(--card-accent,#1b4332) 32%,transparent);
-}
-.grid-card:hover::before{transform:scale(1.45);opacity:1}
-.grid-card:active{transform:scale(.96)}
-
+.grid-card:hover{transform:translateY(-2px);border-color:#b8ccc1;box-shadow:0 7px 20px rgba(0,0,0,.07)}
+.grid-card:active{transform:scale(.98)}
 .card-icon{
-  width:33px;height:33px;
-  display:flex;align-items:center;justify-content:center;
-  border-radius:10px;
-  font-size:14px !important;
-  background:linear-gradient(140deg,color-mix(in srgb,var(--card-accent,#1b4332) 88%,#fff),color-mix(in srgb,var(--card-accent,#1b4332) 62%,#fff));
-  color:#fff !important;
-  box-shadow:0 3px 8px -2px color-mix(in srgb,var(--card-accent,#1b4332) 45%,transparent);
-  transition:transform .22s ease;
+  width:auto;height:auto;
+  border-radius:0;
+  font-size:25px !important;
+  background:none;
+  color:#1b4332;
+  box-shadow:none;
 }
-.grid-card:hover .card-icon{transform:scale(1.1) rotate(-4deg)}
-
+.red-icon{color:#d90429 !important}
 .grid-card span{
-  font-size:11.5px;
+  font-size:12px;
   font-weight:700;
-  color:#2b3a33;
+  color:#333;
   line-height:1.3;
-  letter-spacing:.1px;
-  position:relative;
-  z-index:1;
+  letter-spacing:normal;
+  position:static;
 }
-/* tiny chevron appears on hover */
-.grid-card::after{
-  content:"\f105";
-  font-family:"Font Awesome 6 Free";
-  font-weight:900;
-  position:absolute;
-  right:8px;bottom:7px;
-  font-size:9px;
-  color:var(--card-accent,#1b4332);
-  opacity:0;
-  transform:translateX(-4px);
-  transition:all .22s ease;
-}
-.grid-card:hover::after{opacity:.8;transform:translateX(0)}
-
-/* Per-card accent colors */
-.grid-card:nth-child(1) .card-icon{--card-accent:#1b4332}  /* Office Bearers  */
-.grid-card:nth-child(2) .card-icon{--card-accent:#0f6db4}  /* Members         */
-.grid-card:nth-child(3) .card-icon{--card-accent:#8a5cf6}  /* Activity        */
-.grid-card:nth-child(4) .card-icon{--card-accent:#d90429}  /* Blood Donors    */
-.grid-card:nth-child(5) .card-icon{--card-accent:#b57a14}  /* Agenda          */
-.grid-card:nth-child(6) .card-icon{--card-accent:#147a4b}  /* Finance         */
-.grid-card:nth-child(7) .card-icon{--card-accent:#5b6a79}  /* Assets          */
-.grid-card:nth-child(8) .card-icon{--card-accent:#e2711d}  /* Attendance      */
-.grid-card:nth-child(9) .card-icon{--card-accent:#0891b2}  /* Photos          */
-.grid-card:nth-child(10) .card-icon{--card-accent:#16794c} /* Masjid          */
 
 /* Quick action tiles: smaller, tighter, same gradient language */
 .quick-action-featured,.quick-action-contribution{
@@ -2472,14 +2424,8 @@ body{display:flex;align-items:center;justify-content:center;background:#eef2f1}
 
 @media(max-width:700px){
   .buttons-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
-  .grid-card{padding:10px 5px 9px;border-radius:12px}
-  .card-icon{width:30px;height:30px;font-size:13px !important;border-radius:9px}
-  .grid-card span{font-size:10.5px}
+  .grid-card{padding:12px 6px;min-height:96px;border-radius:13px}
+  .card-icon{font-size:22px !important}
+  .grid-card span{font-size:11px}
   .group-banner-image{height:125px}
-}
-@media(max-width:400px){
-  .buttons-grid{gap:6px}
-  .grid-card{padding:9px 4px 8px}
-  .card-icon{width:27px;height:27px;font-size:12px !important}
-  .grid-card span{font-size:10px}
 }
