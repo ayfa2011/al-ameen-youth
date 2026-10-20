@@ -12,8 +12,10 @@ async function loadFinanceData() {
     AYFA_FINANCE_DATA = reports || {};
     financeDataReady = true;
   } catch (error) {
-    console.error("Finance report read failed:", error);
     financeDataReady = false;
+    if (window.firebaseAuth?.currentUser) {
+      console.error("Finance report read failed:", error);
+    }
   }
 }
 
@@ -330,4 +332,16 @@ async function downloadFinancePDF() {
 
 document.addEventListener("DOMContentLoaded", function () {
   showFinanceYear("2026");
+  if (window.firebaseAuth) {
+    window.firebaseAuth.onAuthStateChanged(user => {
+      if (user) {
+        financeDataReady = false;
+        showFinanceYear(currentFinanceYear);
+      } else {
+        AYFA_FINANCE_DATA = {};
+        financeDataReady = false;
+        showFinanceYear(currentFinanceYear);
+      }
+    });
+  }
 });

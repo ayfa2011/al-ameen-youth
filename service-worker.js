@@ -19,13 +19,16 @@ self.addEventListener("fetch", event => {
   if (request.mode === "navigate") {
     event.respondWith(fetch(request).then(response => {
       const copy = response.clone();
-      caches.open(CACHE_NAME).then(cache => cache.put("./index.html", copy));
+      event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.put("./index.html", copy)).catch(() => {}));
       return response;
     }).catch(() => caches.match("./index.html")));
     return;
   }
   event.respondWith(caches.match(request).then(cached => cached || fetch(request).then(response => {
-    if (response.ok) caches.open(CACHE_NAME).then(cache => cache.put(request, response.clone()));
+    if (response.ok) {
+      const copy = response.clone();
+      event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.put(request, copy)).catch(() => {}));
+    }
     return response;
   })));
 });
