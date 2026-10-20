@@ -91,6 +91,21 @@ function navigateAppView(viewName, callback) {
   updateAppTopBar(viewName);
 }
 
+// Back icon in the top bar: visible on every page except the dashboard.
+// Uses history.back() when there is a previous in-app view, otherwise goes to the dashboard.
+function goBackToDashboard() {
+  const view = history.state?.appView || "dashboard";
+  if (view !== "dashboard") {
+    history.back();
+    // Fallback: if browser history has no in-app entry, force the dashboard.
+    setTimeout(() => {
+      if ((history.state?.appView || "dashboard") === view && document.getElementById("dashboardView")?.classList.contains("hidden")) showDashboard();
+    }, 350);
+  } else {
+    showDashboard();
+  }
+}
+
 window.addEventListener("popstate", event => {
   if (!isRoleAuthenticated()) return;
   const view = event.state?.appView || "dashboard";
