@@ -465,35 +465,180 @@ button { min-height: 44px; }
 
 
 /* ============================================================
-   OFFICE BEARERS YEAR LIST
+   OFFICE BEARERS YEAR LIST — minimalist, creative, large cards
 ============================================================ */
 
-.select-instruction {
-  margin: 0 0 16px;
-  font-size: 12px;
-  color: #777;
+#yearSelectView {
+  padding-bottom: 30px;
+}
+
+.year-hero {
+  margin: 2px 0 16px;
+  padding: 20px 18px 18px;
+  border: 1px solid #dce8e1;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #0d5c41 0%, #12795a 60%, #1a8f6a 100%);
+  color: #fff;
+  box-shadow: 0 10px 28px rgba(13, 92, 65, .22);
+  overflow: hidden;
+  position: relative;
+}
+
+.year-hero::after {
+  content: "";
+  position: absolute;
+  right: -46px;
+  top: -46px;
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .12);
+}
+
+.year-hero::before {
+  content: "";
+  position: absolute;
+  right: 34px;
+  bottom: -58px;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .08);
+}
+
+.year-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .18);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.year-hero h2 {
+  margin: 10px 0 4px;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -.02em;
+  line-height: 1.1;
+}
+
+.year-hero .select-instruction {
+  margin: 0;
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, .85);
 }
 
 .year-list {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
 }
 
 .year-btn {
-  min-height: 48px;
+  min-height: 118px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 4px;
+  padding: 14px 15px;
   border: 1px solid #dbe5df;
-  border-radius: 10px;
+  border-radius: 18px;
   background: #ffffff;
   color: #1b4332;
-  font-size: 14px;
-  font-weight: 800;
+  font-family: inherit;
+  text-align: left;
   cursor: pointer;
+  box-shadow: 0 4px 16px rgba(23, 65, 48, .06);
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
 }
 
 .year-btn:hover {
-  background: #edf5f1;
-  border-color: #b8ccc1;
+  background: #f2faf6;
+  border-color: #9dc3ae;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(23, 65, 48, .12);
+}
+
+.year-btn:active {
+  transform: translateY(0);
+}
+
+.year-btn-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #6d8577;
+  font-size: 14px;
+}
+
+.year-btn-top .fa-arrow-right {
+  font-size: 12px;
+  color: #9db5a7;
+  transition: transform .15s ease, color .15s ease;
+}
+
+.year-btn:hover .year-btn-top .fa-arrow-right {
+  transform: translateX(3px);
+  color: #0d5c41;
+}
+
+.year-num {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -.02em;
+  line-height: 1.1;
+  color: #123f2e;
+}
+
+.year-sub {
+  font-size: 12px;
+  font-weight: 600;
+  color: #7b8f83;
+}
+
+.year-btn-latest {
+  border: 1.5px solid #0d5c41;
+  background: linear-gradient(160deg, #eef8f2 0%, #ffffff 70%);
+}
+
+.year-btn-latest .year-num {
+  color: #0d5c41;
+}
+
+.year-current-tag {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #0d5c41;
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.year-btn-latest .year-btn-top .fa-arrow-right {
+  color: #0d5c41;
+}
+
+@media (max-width: 380px) {
+  .year-hero h2 {
+    font-size: 26px;
+  }
+
+  .year-num {
+    font-size: 25px;
+  }
+
+  .year-btn {
+    min-height: 108px;
+    padding: 12px 13px;
+  }
 }
 
 
