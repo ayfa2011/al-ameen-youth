@@ -1150,20 +1150,24 @@ body {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 12px;
+  gap: 10px;
   position: relative;
-  padding: 10px 22px;
+  padding: 12px 14px;
 }
 
 .header-brand-image {
   display: block;
-  width: min(100%, 920px);
-  max-width: calc(100% - 88px);
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: calc(100% - 78px);
   height: auto;
+  min-height: 56px;
+  max-height: 96px;
   object-fit: contain;
+  object-position: left center;
 }
 
-.header-logout{flex:0 0 auto;margin-left:auto;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:36px;padding:7px 10px;border:0;border-radius:9px;background:#edf6f0;color:#175b3e;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.header-logout{flex:0 0 auto;margin-left:auto;display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:34px;padding:6px 9px;border:0;border-radius:9px;background:#edf6f0;color:#175b3e;font:inherit;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
 .inner-page-header{justify-content:flex-start;min-height:38px;padding:4px 0 10px!important}
 .inner-page-header .btn-back{min-height:30px;padding:5px 9px;border:0;border-radius:8px;background:#edf4ef;color:#24543b;font-size:12px}
 .agenda-toolbar-actions{display:flex;align-items:center;gap:7px}.agenda-import-button{min-height:36px;padding:0 9px;border:1px solid #dbe6df;border-radius:8px;background:#f6faf7;color:#355d46;font:inherit;font-size:11px;font-weight:600;cursor:pointer}.agenda-import-button[hidden]{display:none}
@@ -2016,8 +2020,8 @@ body{display:flex;align-items:center;justify-content:center;background:#eef2f1}
 #appContainer{overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-width:thin;scrollbar-color:#cbd8d0 transparent;background:#f5f7f9;padding-bottom:env(safe-area-inset-bottom)}
 #appContainer .app-header{padding-top:max(10px,env(safe-area-inset-top))}
 #appContainer .app-header{padding-right:max(12px,env(safe-area-inset-right));padding-left:max(12px,env(safe-area-inset-left))}
-#appContainer .header-brand-image{width:auto;max-width:calc(100% - 82px);height:auto;max-height:64px;object-fit:contain;object-position:left center}
-#appContainer .app-top-bar .header-brand-image{width:130px;max-width:130px;max-height:42px;flex:0 0 auto}
+#appContainer .header-brand-image{flex:1 1 auto;width:100%;max-width:calc(100% - 78px);height:auto;max-height:88px;object-fit:contain;object-position:left center}
+#appContainer .app-top-bar .header-brand-image{width:100%;max-width:calc(100% - 78px);max-height:88px;flex:1 1 auto}
 #appContainer .header-logout{white-space:nowrap}
 #appContainer .view-section{padding-bottom:calc(25px + env(safe-area-inset-bottom))}
 #appContainer img{max-width:100%;height:auto}
