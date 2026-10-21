@@ -218,17 +218,21 @@ async function saveMemberEdit(event, memberId) {
     const expectedUpdatedAt = String(member.updatedAt || "");
     const updatedAt = new Date().toISOString();
     const result = await MembersRepository.transaction(`members/${databaseKey}`, current => {
-      if (!current || String(current.updatedAt || "") !== expectedUpdatedAt) return;
+      if (!current) return;
+      const latest = normalizeMember(current);
+      const editedFields = ["name", "designation", "fatherName", "education", "location", "bloodGroup", "mobile", "contribution"];
+      const changedField = editedFields.some(field => String(latest[field] ?? "").trim() !== String(member[field] ?? "").trim());
+      if (changedField) return;
       return { ...current, ...update, updatedAt };
     });
-    if (!result.committed) throw new Error("Member changed after you opened this form. Refresh and reapply your edits.");
+    if (!result.committed) throw new Error("A member field changed after you opened this form. Refresh and reapply your edits.");
     await MembersRepository.audit({ action: "member.update", path: "members", recordId: databaseKey, beforeUpdatedAt: expectedUpdatedAt, afterUpdatedAt: updatedAt });
     closeMemberEdit();
     await fetchMembersFromFirebase(true);
     await renderMemberCards();
   } catch (error) {
     console.error("Member update error:", error);
-    alert(error.message?.includes("changed after") ? "Another official changed this member. Refresh and reapply your edits." : "Member details could not be updated. Check the connection and try again.");
+    alert(error.message?.includes("changed after") ? "Another official changed one of these member fields. Refresh and reapply your edits." : "Member details could not be updated. Check the connection and try again.");
   }
 }
 
