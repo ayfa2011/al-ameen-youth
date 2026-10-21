@@ -8,7 +8,6 @@ const RENTAL_CURRENT_FINANCIAL_YEAR = String(new Date().getFullYear() + (new Dat
 const rentalState = {
   rentals: [],
   deletedRentals: [],
-  role: "viewer",
   category: "",
   filter: "all",
   search: "",
@@ -57,11 +56,7 @@ function rentalBelongsToFinancialYear(rental, year) {
 }
 
 function rentalStatus(rental) {
-  const total = Number(rental.totalAmount) || 0;
-  const paid = Number(rental.paidAmount) || 0;
-  if (paid >= total && total > 0) return "paid";
-  if (paid > 0) return "partial";
-  return "pending";
+  return RentalsService.status(rental.totalAmount, rental.paidAmount);
 }
 
 function rentalStatusLabel(status) {
@@ -69,23 +64,22 @@ function rentalStatusLabel(status) {
 }
 
 function rentalCanManage(category) {
-  return isSupervisorLoggedIn() || rentalState.role === "admin" || rentalState.role === category;
+  // The configured Firebase rules grant rental writes to official accounts only.
+  return isSupervisorLoggedIn();
 }
 
 function syncRentalRole() {
-  rentalState.role = isSupervisorLoggedIn() ? "admin" : "viewer";
   if (document.getElementById("rentalView") && !document.getElementById("rentalView").classList.contains("hidden")) renderRentalDashboard();
 }
 
 async function waitForRentalFirebase() {
-  if (!window.firebaseReady || !window.firebaseDb) throw new Error("Firebase is not ready.");
-  await window.firebaseReady;
+  await RentalsRepository.ready();
 }
 
 async function loadRentals() {
   await waitForRentalFirebase();
   try { await loadReferenceData("historicalRentals", "historicalRentals"); } catch (error) { console.warn("Historical rental summaries unavailable:", error); }
-  const snapshot = await window.firebaseDb.ref("rentals").once("value");
+  const snapshot = await RentalsRepository.read("rentals");
   const data = snapshot.val() || {};
   const records = Object.entries(data)
     .map(([id, value]) => ({ id, ...value }))
@@ -96,13 +90,7 @@ async function loadRentals() {
 }
 
 function rentalTotals(rentals) {
-  return rentals.reduce((totals, rental) => {
-    totals.total += Number(rental.totalAmount) || 0;
-    totals.paid += Number(rental.paidAmount) || 0;
-    totals.advance += Number(rental.advanceAmount ?? rental.initialAdvance ?? rental.paidAmount) || 0;
-    totals.balance += Math.max(0, Number(rental.balance ?? ((Number(rental.totalAmount) || 0) - (Number(rental.paidAmount) || 0))));
-    return totals;
-  }, { total: 0, paid: 0, advance: 0, balance: 0 });
+  return RentalsService.totals(rentals);
 }
 
 function rentalReportYearOptions() {
@@ -141,10 +129,10 @@ function renderRentalLoading() {
 function updateRentalLoginButton() {
   const button = document.getElementById("rentalLoginButton");
   if (!button) return;
-  const isSupervisor = rentalState.role !== "viewer";
+  const isSupervisor = isSupervisorLoggedIn();
   button.classList.toggle("is-active", isSupervisor);
   button.innerHTML = isSupervisor
-    ? '<i class="fa-solid fa-unlock"></i> ' + (RENTAL_CATEGORY[rentalState.role]?.label || "Supervisor")
+    ? '<i class="fa-solid fa-unlock"></i> Supervisor'
     : '<i class="fa-solid fa-lock"></i> Supervisor Login';
 }
 
@@ -300,8 +288,8 @@ function openRentalEntry(id = "") {
       const total = Number(totalInput?.value) || 0;
       const advance = Math.min(total, Number(advanceInput?.value) || 0);
       const paid = existing ? Number(existing.paidAmount) || 0 : advance;
-      if (balancePreview) balancePreview.value = rentalCurrency(Math.max(0, total - paid));
-      if (statusPreview) statusPreview.value = rentalStatusLabel(paid >= total && total ? "paid" : paid ? "partial" : "pending");
+      if (balancePreview) balancePreview.value = rentalCurrency(RentalsService.balance(total, paid));
+      if (statusPreview) statusPreview.value = rentalStatusLabel(RentalsService.status(total, paid));
     };
     totalInput?.addEventListener("input", updatePaymentPreview);
     advanceInput?.addEventListener("input", updatePaymentPreview);
@@ -313,12 +301,11 @@ async function saveRentalEntry(event, id = "") {
   event.preventDefault();
   if (!requireSupervisor()) return;
   const values = Object.fromEntries(new FormData(event.target).entries());
-  const total = Number(values.totalAmount) || 0;
-  const requestedAdvance = Math.max(0, Number(values.advanceAmount) || 0);
-  if (requestedAdvance > total) { alert("Advance amount cannot be greater than the total rental amount."); return; }
   const existing = id ? rentalState.rentals.find(rental => rental.id === id) : null;
-  const paid = existing ? (Number(existing.paidAmount) || 0) : requestedAdvance;
-  if (paid > total) { alert("Total amount cannot be less than the payments already received."); return; }
+  const amounts = RentalsService.prepareEntry(values.totalAmount, values.advanceAmount, existing ? existing.paidAmount : null);
+  const { total, requestedAdvance, paid } = amounts;
+  if (amounts.advanceExceedsTotal) { alert("Advance amount cannot be greater than the total rental amount."); return; }
+  if (amounts.paidExceedsTotal) { alert("Total amount cannot be less than the payments already received."); return; }
   const start = new Date(`${values.startDate}T00:00:00`);
   const end = new Date(`${values.returnDate}T00:00:00`);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) { alert("Return date must be on or after the rental date."); return; }
@@ -332,24 +319,23 @@ async function saveRentalEntry(event, id = "") {
     ...existing, ...values, days, mobile: String(values.mobile || "").trim(), totalAmount: total,
     advanceAmount: existing ? Number(existing.advanceAmount ?? existing.initialAdvance ?? existing.paidAmount ?? paid) : requestedAdvance,
     initialAdvance: existing ? Number(existing.initialAdvance ?? existing.advanceAmount ?? paid) : requestedAdvance,
-    paidAmount: paid, balance: total - paid, status: paid >= total && total ? "paid" : paid ? "partial" : "pending",
+    paidAmount: paid, balance: amounts.balance, status: amounts.status,
     equipmentProvided: equipmentProvided.length ? equipmentProvided : (Array.isArray(existing?.equipmentProvided) ? existing.equipmentProvided : []), paymentDate, collectedBy, maintenanceCost: Number(existing?.maintenanceCost) || 0,
-    createdAt: existing?.createdAt || new Date().toISOString(), createdBy: existing?.createdBy || rentalState.role, updatedAt: new Date().toISOString(), payments
+    createdAt: existing?.createdAt || new Date().toISOString(), createdBy: existing?.createdBy || "AYFA Supervisor", updatedAt: new Date().toISOString(), payments
   };
   try {
     if (id) {
-      const ref = window.firebaseDb.ref(`rentals/${id}`);
       const expectedUpdatedAt = existing?.updatedAt;
       const updatedAt = record.updatedAt;
-      const result = await ref.transaction(current => {
+      const result = await RentalsRepository.transaction(`rentals/${id}`, current => {
         if (!current || current.deleted === true || current.updatedAt !== expectedUpdatedAt) return;
         return { ...current, ...record, updatedAt };
       });
       if (!result.committed) throw new Error("Rental changed while this form was open. Reload it and apply your edits again.");
-      await appendFirebaseAudit({ action: "rental.update", path: "rentals", recordId: id, beforeUpdatedAt: expectedUpdatedAt, afterUpdatedAt: updatedAt });
+      await RentalsRepository.audit({ action: "rental.update", path: "rentals", recordId: id, beforeUpdatedAt: expectedUpdatedAt, afterUpdatedAt: updatedAt });
     } else {
-      const ref = window.firebaseDb.ref("rentals").push();
-      await auditedFirebaseUpdate({ [`rentals/${ref.key}`]: record }, { action: "rental.create", path: "rentals", recordId: ref.key, afterUpdatedAt: record.updatedAt });
+      const rentalId = RentalsRepository.key("rentals");
+      await RentalsRepository.create({ [`rentals/${rentalId}`]: record }, { action: "rental.create", path: "rentals", recordId: rentalId, afterUpdatedAt: record.updatedAt });
     }
     closeRentalModal(); await loadRentals(); renderRentalDashboard();
   }
@@ -363,9 +349,9 @@ async function deleteRental(id) {
   if (!confirm(`Hide the rental record for "${rental.customerName}"? It can be restored later.`)) return;
   try {
     const updatedAt = new Date().toISOString();
-    const result = await window.firebaseDb.ref(`rentals/${id}`).transaction(current => current && current.deleted !== true ? { ...current, deleted: true, deletedAt: updatedAt, updatedAt } : undefined);
+    const result = await RentalsRepository.transaction(`rentals/${id}`, current => current && current.deleted !== true ? { ...current, deleted: true, deletedAt: updatedAt, updatedAt } : undefined);
     if (!result.committed) throw new Error("Rental changed before it could be hidden.");
-    await appendFirebaseAudit({ action: "rental.hide", path: "rentals", recordId: id, afterUpdatedAt: updatedAt });
+    await RentalsRepository.audit({ action: "rental.hide", path: "rentals", recordId: id, afterUpdatedAt: updatedAt });
     await loadRentals();
     renderRentalDashboard();
   } catch (error) {
@@ -379,9 +365,9 @@ async function restoreRental(id) {
   const rental = rentalState.deletedRentals.find(item => item.id === id);
   if (!rental || !rentalCanManage(rental.category)) return;
   try {
-    const result = await window.firebaseDb.ref(`rentals/${id}`).transaction(current => current?.deleted === true ? { ...current, deleted: false, restoredAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : undefined);
+    const result = await RentalsRepository.transaction(`rentals/${id}`, current => current?.deleted === true ? { ...current, deleted: false, restoredAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : undefined);
     if (!result.committed) throw new Error("The rental is no longer in the trash. Refresh and try again.");
-    await appendFirebaseAudit({ action: "rental.restore", path: "rentals", recordId: id });
+    await RentalsRepository.audit({ action: "rental.restore", path: "rentals", recordId: id });
     await loadRentals();
     renderRentalDashboard();
   } catch (error) {
@@ -405,24 +391,18 @@ async function saveRentalPayment(event, id) {
   if (!rental) return;
   const values = Object.fromEntries(new FormData(event.target).entries());
   const amount = Number(values.amount) || 0;
-  const total = Number(rental.totalAmount) || 0;
-  const paid = Math.min(total, (Number(rental.paidAmount) || 0) + amount);
-  const balance = Math.max(0, total - paid);
-  const status = paid >= total && total ? "paid" : paid ? "partial" : "pending";
   try {
-    const ref = window.firebaseDb.ref(`rentals/${id}`);
-    const paymentRef = ref.child("payments").push();
+    const paymentId = RentalsRepository.key(`rentals/${id}/payments`);
     const payment = { amount, date: values.date, collectedBy: String(values.collectedBy || "").trim(), createdAt: new Date().toISOString() };
-    const result = await ref.transaction(current => {
+    const result = await RentalsRepository.transaction(`rentals/${id}`, current => {
       if (!current || current.deleted === true || current.updatedAt !== rental.updatedAt) return;
-      const currentPaid = Number(current.paidAmount) || 0;
-      const currentBalance = Math.max(0, (Number(current.totalAmount) || 0) - currentPaid);
-      if (amount <= 0 || amount > currentBalance) return;
-      const nextPaid = currentPaid + amount;
-      return { ...current, paidAmount: nextPaid, balance: Math.max(0, (Number(current.totalAmount) || 0) - nextPaid), status: nextPaid >= Number(current.totalAmount) ? "paid" : "partial", payments: { ...(current.payments || {}), [paymentRef.key]: payment }, updatedAt: new Date().toISOString() };
+      const currentPaid = RentalsService.number(current.paidAmount);
+      if (!RentalsService.canApplyPayment(current.totalAmount, currentPaid, amount)) return;
+      const next = RentalsService.paymentResult(current.totalAmount, currentPaid, amount);
+      return { ...current, paidAmount: next.paid, balance: next.balance, status: next.status, payments: { ...(current.payments || {}), [paymentId]: payment }, updatedAt: new Date().toISOString() };
     });
     if (!result.committed) throw new Error("Another official changed this rental, or the amount exceeds its current balance. Refresh and try again.");
-    await appendFirebaseAudit({ action: "rental.payment", path: "rentals", recordId: id, beforeUpdatedAt: rental.updatedAt });
+    await RentalsRepository.audit({ action: "rental.payment", path: "rentals", recordId: id, beforeUpdatedAt: rental.updatedAt });
     closeRentalModal(); await loadRentals(); renderRentalDashboard();
   }
   catch (error) { console.error(error); alert(error.message?.includes("Another official changed") ? error.message : "Payment could not be updated. Check your connection and permissions."); }
@@ -434,7 +414,7 @@ function downloadRentalReport(category, selectedYear) {
   const historicalReport = importedRentalReport(category, String(year));
   const rentals = historicalReport ? [] : rentalState.rentals.filter(rental => rental.category === category && rentalBelongsToFinancialYear(rental, year));
   const totals = rentalTotals(rentals);
-  const maintenance = rentals.reduce((sum, rental) => sum + (Number(rental.maintenanceCost) || 0), 0);
+  const maintenance = RentalsService.maintenanceTotal(rentals);
   const title = category === "chairTable" ? "Chair & Table Rental Report" : "Speaker Rental Report";
   const summary = [[title], ["Year", year], ["Report generated", new Date().toLocaleDateString("en-IN")], [], ["Financial summary", "Amount (INR)"], ["Total rentals", historicalReport?.rentalCount ?? rentals.length], [historicalReport ? "Total revenue" : "Total rental amount", historicalReport?.revenue ?? totals.total]];
   if (historicalReport) {
@@ -444,7 +424,7 @@ function downloadRentalReport(category, selectedYear) {
     summary.push([], ["Rental details"], historicalReport.details.some(detail => detail.status) ? ["Name", "Amount (INR)", "Status"] : ["Name", "Amount (INR)"]);
     historicalReport.details.forEach(detail => summary.push(historicalReport.details.some(item => item.status) ? [detail.customerName, detail.amount ?? "", detail.status] : [detail.customerName, detail.amount ?? ""]));
   } else {
-    summary.push(["Total collected", totals.paid], ["Advance collected", totals.advance], ["Maintenance / repair cost", maintenance], ["Net revenue", totals.paid - maintenance], ["Pending dues", totals.balance], [], ["Pending payment details"], ["Customer", "Place", "Item", "Balance"]);
+    summary.push(["Total collected", totals.paid], ["Advance collected", totals.advance], ["Maintenance / repair cost", maintenance], ["Net revenue", RentalsService.netRevenue(totals.paid, maintenance)], ["Pending dues", totals.balance], [], ["Pending payment details"], ["Customer", "Place", "Item", "Balance"]);
     rentals.filter(rental => (Number(rental.balance) || 0) > 0).forEach(rental => summary.push([rental.customerName, rental.place || "", rental.item || "", Number(rental.balance) || 0]));
   }
   const hasPaymentStatuses = historicalReport?.details.some(detail => detail.status);

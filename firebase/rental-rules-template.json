@@ -1,15 +1,15 @@
 {
   "rules": {
     "rentals": {
-      ".read": "auth != null",
+      ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
+      ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
       "$rentalId": {
-        ".write": "auth != null && (root.child('rentalRoles').child(auth.uid).val() == 'admin' || (root.child('rentalRoles').child(auth.uid).val() == 'chairTable' && (data.child('category').val() == 'chairTable' || newData.child('category').val() == 'chairTable')) || (root.child('rentalRoles').child(auth.uid).val() == 'speaker' && (data.child('category').val() == 'speaker' || newData.child('category').val() == 'speaker')))"
-      }
-    },
-    "rentalRoles": {
-      "$uid": {
-        ".read": "auth != null && (auth.uid == $uid || root.child('rentalRoles').child(auth.uid).val() == 'admin')",
-        ".write": "auth != null && root.child('rentalRoles').child(auth.uid).val() == 'admin'"
+        ".validate": "!newData.exists() || (newData.hasChildren(['category', 'customerName', 'startDate', 'returnDate', 'totalAmount']) && (newData.child('category').val() == 'chairTable' || newData.child('category').val() == 'speaker') && newData.child('customerName').isString() && newData.child('customerName').val().length <= 150 && newData.child('startDate').isString() && newData.child('returnDate').isString() && newData.child('totalAmount').isNumber() && newData.child('totalAmount').val() >= 0 && (!newData.child('paidAmount').exists() || (newData.child('paidAmount').isNumber() && newData.child('paidAmount').val() >= 0)) && (!newData.child('deleted').exists() || newData.child('deleted').isBoolean()))",
+        "payments": {
+          "$paymentId": {
+            ".validate": "newData.hasChildren(['amount', 'date']) && newData.child('amount').isNumber() && newData.child('amount').val() > 0 && newData.child('date').isString()"
+          }
+        }
       }
     }
   }

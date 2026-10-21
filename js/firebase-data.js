@@ -1,5 +1,37 @@
 // Firebase write helpers live separately from page rendering. Keep UI/design
 // changes out of this module and always pass mutation writes through helpers.
+async function firebaseDataReady() {
+  if (!window.firebaseReady || !window.firebaseDb) throw new Error(window.firebaseConfigError || "Firebase Database is unavailable.");
+  await window.firebaseReady;
+  if (!window.firebaseDb) throw new Error(window.firebaseConfigError || "Firebase Database is unavailable.");
+}
+
+async function firebaseRead(path) {
+  await firebaseDataReady();
+  return window.firebaseDb.ref(String(path || "")).once("value");
+}
+
+async function firebaseTransaction(path, updater) {
+  await firebaseDataReady();
+  return window.firebaseDb.ref(String(path || "")).transaction(updater);
+}
+
+async function firebaseAuditedTransaction(path, updater, auditEvent) {
+  const result = await firebaseTransaction(path, updater);
+  if (result.committed && auditEvent) await appendFirebaseAudit(auditEvent);
+  return result;
+}
+
+function firebasePushKey(path) {
+  if (!window.firebaseDb) throw new Error(window.firebaseConfigError || "Firebase Database is unavailable.");
+  return window.firebaseDb.ref(String(path || "")).push().key;
+}
+
+async function firebasePush(path, value) {
+  await firebaseDataReady();
+  return window.firebaseDb.ref(String(path || "")).push(value);
+}
+
 function createFirebaseAuditEvent({ action, path, recordId = "", beforeUpdatedAt = "", afterUpdatedAt = "" }) {
   const user = window.firebaseAuth?.currentUser;
   const role = typeof currentUserRole === "function" ? currentUserRole() : "";

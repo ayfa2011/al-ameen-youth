@@ -22,10 +22,7 @@ async function loadFinanceData() {
 let currentFinanceYear = "2026";
 let currentFinanceSearch = "";
 
-function financeNumber(value) {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
-}
+function financeNumber(value) { return FinanceService.number(value); }
 
 function financeMoney(value) {
   return "₹ " + financeNumber(value).toLocaleString("en-IN", {
@@ -34,94 +31,14 @@ function financeMoney(value) {
   });
 }
 
-function financeCleanText(value) {
-  return String(value ?? "").trim();
-}
-
 function getFinanceRows(year) {
   const rows = Array.isArray(AYFA_FINANCE_DATA[year]) ? AYFA_FINANCE_DATA[year] : [];
-  return rows.map(row => ({
-    label: financeCleanText(row?.[0]),
-    amount: row?.[1] === null || row?.[1] === "" || typeof row?.[1] === "undefined"
-      ? null
-      : financeNumber(row[1])
-  }));
-}
-
-function financeIsHeader(label) {
-  return /Particulars|ವಿವರ/.test(label) && /Amount|ಮೊತ್ತ/.test(label);
+  return FinanceService.normalizeRows(rows);
 }
 
 function calculateFinance(year) {
-  const rows = getFinanceRows(year);
-
-  let income = [];
-  let expense = [];
-  let finalRows = [];
-  let mode = "";
-  let totalAvailable = null;
-  let totalExpenses = null;
-  let closingBalance = null;
-
-  rows.forEach((row, index) => {
-    const label = row.label;
-    if (!label) return;
-
-    if (label.startsWith("1.")) {
-      mode = "income";
-      return;
-    }
-    if (label.startsWith("2.")) {
-      mode = "expense";
-      return;
-    }
-    if (label.startsWith("3.")) {
-      mode = "final";
-      return;
-    }
-    if (financeIsHeader(label)) return;
-
-    if (/Total Available Fund|ಲಭ್ಯವಿರುವ ಮೊತ್ತ/.test(label)) {
-      totalAvailable = row.amount;
-      return;
-    }
-    if (/Total Expenses|ಒಟ್ಟು ಆದ ವೆಚ್ಚ/.test(label)) {
-      if (mode === "expense") totalExpenses = row.amount;
-      else finalRows.push(row);
-      return;
-    }
-    if (/Closing Balance|ಕೈಯಲ್ಲಿರುವ ಉಳಿಕೆ ಹಣ/.test(label)) {
-      closingBalance = row.amount;
-      finalRows.push(row);
-      return;
-    }
-
-    if (mode === "income") income.push(row);
-    else if (mode === "expense") expense.push(row);
-    else if (mode === "final") finalRows.push(row);
-  });
-
-  // Excel total cells may be formula cells and can arrive without a value.
-  // Calculate totals from the supplied numeric rows without inventing data.
-  if (totalAvailable === null) {
-    totalAvailable = income.reduce((sum, r) => sum + financeNumber(r.amount), 0);
-  }
-  if (totalExpenses === null) {
-    totalExpenses = expense.reduce((sum, r) => sum + financeNumber(r.amount), 0);
-  }
-  if (closingBalance === null && (income.some(r => r.amount !== null) || expense.some(r => r.amount !== null))) {
-    closingBalance = totalAvailable - totalExpenses;
-  }
-
-  return {
-    income,
-    expense,
-    finalRows,
-    totalAvailable,
-    totalExpenses,
-    closingBalance,
-    hasData: rows.some(r => r.amount !== null)
-  };
+  const rows = Array.isArray(AYFA_FINANCE_DATA[year]) ? AYFA_FINANCE_DATA[year] : [];
+  return FinanceService.calculate(rows);
 }
 
 function financeRowHTML(row, extraClass = "") {

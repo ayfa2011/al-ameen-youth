@@ -29,8 +29,8 @@ function restoreAttendanceDraft() {
 async function getFirebaseAttendanceReports() {
   await waitForFirebase();
   const [programSnap, attendanceSnap] = await Promise.all([
-    window.firebaseDb.ref("programs").once("value"),
-    window.firebaseDb.ref("attendance").once("value")
+    AttendanceRepository.read("programs"),
+    AttendanceRepository.read("attendance")
   ]);
 
   const programs = programSnap.val() || {};
@@ -132,7 +132,7 @@ async function loadAttendanceReports() {
 
   try {
     const reports = await getFirebaseAttendanceReports();
-    const [programSnapshot, attendanceSnapshot] = await Promise.all([window.firebaseDb.ref("programs").once("value"), window.firebaseDb.ref("attendance").once("value")]);
+    const [programSnapshot, attendanceSnapshot] = await Promise.all([AttendanceRepository.read("programs"), AttendanceRepository.read("attendance")]);
     const programs = programSnapshot.val() || {};
     const attendance = attendanceSnapshot.val() || {};
     const deletedPrograms = Object.entries(programs).filter(([, program]) => program?.deleted === true);
@@ -153,9 +153,9 @@ async function loadAttendanceReports() {
 
 async function editAttendanceProgram(programId) {
   if (!requireSupervisor()) return;
-  const program = (await window.firebaseDb.ref(`programs/${programId}`).once("value")).val();
+  const program = (await AttendanceRepository.read(`programs/${programId}`)).val();
   if (!program || program.deleted) return;
-  const records = (await window.firebaseDb.ref(`attendance/${programId}`).once("value")).val() || {};
+  const records = (await AttendanceRepository.read(`attendance/${programId}`)).val() || {};
   attendanceSelectedMemberIds.clear();
   Object.entries(records).forEach(([memberId, record]) => { if (record?.status === "Present") attendanceSelectedMemberIds.add(String(record.memberId || memberId)); });
   const name = document.getElementById("progName");
@@ -173,7 +173,7 @@ async function deleteAttendanceProgram(programId) {
   if (!requireSupervisor() || !confirm("Hide this attendance record? It will remain in Firebase for recovery.")) return;
   try {
     const updatedAt = new Date().toISOString();
-    await auditedFirebaseUpdate({ [`programs/${programId}/deleted`]: true, [`programs/${programId}/deletedAt`]: updatedAt, [`programs/${programId}/updatedAt`]: updatedAt }, { action: "attendance.hide", path: "programs", recordId: programId, afterUpdatedAt: updatedAt });
+    await AttendanceRepository.update({ [`programs/${programId}/deleted`]: true, [`programs/${programId}/deletedAt`]: updatedAt, [`programs/${programId}/updatedAt`]: updatedAt }, { action: "attendance.hide", path: "programs", recordId: programId, afterUpdatedAt: updatedAt });
     await loadAttendanceReports();
   } catch (error) {
     console.error("Attendance hide error:", error);
@@ -185,9 +185,9 @@ async function restoreAttendanceProgram(programId) {
   if (!requireSupervisor()) return;
   try {
     const restoredAt = new Date().toISOString();
-    const result = await window.firebaseDb.ref(`programs/${programId}`).transaction(current => current?.deleted === true ? { ...current, deleted: false, restoredAt, updatedAt: restoredAt } : undefined);
+    const result = await AttendanceRepository.transaction(`programs/${programId}`, current => current?.deleted === true ? { ...current, deleted: false, restoredAt, updatedAt: restoredAt } : undefined);
     if (!result.committed) throw new Error("Attendance record is no longer in Trash.");
-    await appendFirebaseAudit({ action: "attendance.restore", path: "programs", recordId: programId, afterUpdatedAt: restoredAt });
+    await AttendanceRepository.audit({ action: "attendance.restore", path: "programs", recordId: programId, afterUpdatedAt: restoredAt });
     await loadAttendanceReports();
   } catch (error) {
     console.error("Attendance restore error:", error);
@@ -228,10 +228,10 @@ async function submitAttendance() {
 
     const container = document.getElementById("attendanceList");
     const editingId = container?.dataset.editingProgramId || "";
-    const programRef = editingId ? window.firebaseDb.ref(`programs/${editingId}`) : window.firebaseDb.ref("programs").push();
-    const programId = programRef.key;
+    const programId = editingId || AttendanceRepository.key("programs");
+    const existingProgram = editingId ? ((await AttendanceRepository.read(`programs/${editingId}`)).val() || {}) : {};
     if (!editingId) {
-      const allPrograms = (await window.firebaseDb.ref("programs").once("value")).val() || {};
+      const allPrograms = (await AttendanceRepository.read("programs")).val() || {};
       const duplicate = Object.entries(allPrograms).some(([id, record]) => id !== programId && record?.deleted !== true && String(record?.programName || "").trim().toLowerCase() === progName.toLowerCase() && record?.date === progDate);
       if (duplicate) throw new Error("An attendance entry with this program name and date already exists.");
     }
@@ -239,11 +239,11 @@ async function submitAttendance() {
       id: programId,
       programName: progName,
       date: progDate,
-      createdAt: editingId ? ((await programRef.once("value")).val()?.createdAt || firebase.database.ServerValue.TIMESTAMP) : firebase.database.ServerValue.TIMESTAMP
+      createdAt: editingId ? (existingProgram.createdAt || firebase.database.ServerValue.TIMESTAMP) : firebase.database.ServerValue.TIMESTAMP
     };
 
     const updates = {};
-    updates[`programs/${programId}`] = { ...(editingId ? (await programRef.once("value")).val() : {}), ...programData, updatedAt: firebase.database.ServerValue.TIMESTAMP };
+    updates[`programs/${programId}`] = { ...existingProgram, ...programData, updatedAt: firebase.database.ServerValue.TIMESTAMP };
 
     // Store a record for every member so Present/Absent history is complete.
     const selectedIds = new Set(selected.map(member => String(member.id)));
@@ -256,8 +256,8 @@ async function submitAttendance() {
       };
     });
 
-    const previousUpdatedAt = editingId ? String((await programRef.once("value")).val()?.updatedAt || "") : "";
-    await auditedFirebaseUpdate(updates, { action: editingId ? "attendance.update" : "attendance.create", path: "programs", recordId: programId, beforeUpdatedAt: previousUpdatedAt, afterUpdatedAt: new Date().toISOString() });
+    const previousUpdatedAt = editingId ? String(existingProgram.updatedAt || "") : "";
+    await AttendanceRepository.update(updates, { action: editingId ? "attendance.update" : "attendance.create", path: "programs", recordId: programId, beforeUpdatedAt: previousUpdatedAt, afterUpdatedAt: new Date().toISOString() });
     if (editingId) delete container.dataset.editingProgramId;
     await loadAttendanceReports();
 

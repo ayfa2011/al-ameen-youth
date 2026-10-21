@@ -49,9 +49,7 @@ function normalizeMember(row) {
 }
 
 async function waitForFirebase() {
-  if (!window.firebaseReady) throw new Error("Firebase is not initialized.");
-  await window.firebaseReady;
-  if (!window.firebaseDb) throw new Error("Firebase Database is unavailable.");
+  await MembersRepository.ready();
 }
 
 async function fetchMembersFromFirebase(force = false) {
@@ -59,7 +57,7 @@ async function fetchMembersFromFirebase(force = false) {
 
   await waitForFirebase();
   if (!verifiedMemberBloodGroups.size) await loadVerifiedBloodGroups();
-  const snapshot = await window.firebaseDb.ref("members").once("value");
+  const snapshot = await MembersRepository.read("members");
   const data = snapshot.val() || {};
 
   memberDatabaseKeyById = new Map();
@@ -131,10 +129,7 @@ async function loadMemberAttendanceCounts() {
   attendanceCountsByMemberId = {};
   await waitForFirebase();
 
-  const [attendanceSnapshot, programSnapshot] = await Promise.all([
-    window.firebaseDb.ref("attendance").once("value"),
-    window.firebaseDb.ref("programs").once("value")
-  ]);
+  const { attendance: attendanceSnapshot, programs: programSnapshot } = await AttendanceRepository.readMemberSummarySources();
   const allAttendance = attendanceSnapshot.val() || {};
   const programs = programSnapshot.val() || {};
 
@@ -225,12 +220,12 @@ async function saveMemberEdit(event, memberId) {
     await waitForFirebase();
     const expectedUpdatedAt = String(member.updatedAt || "");
     const updatedAt = new Date().toISOString();
-    const result = await window.firebaseDb.ref(`members/${databaseKey}`).transaction(current => {
+    const result = await MembersRepository.transaction(`members/${databaseKey}`, current => {
       if (!current || String(current.updatedAt || "") !== expectedUpdatedAt) return;
       return { ...current, ...update, updatedAt };
     });
     if (!result.committed) throw new Error("Member changed after you opened this form. Refresh and reapply your edits.");
-    await appendFirebaseAudit({ action: "member.update", path: "members", recordId: databaseKey, beforeUpdatedAt: expectedUpdatedAt, afterUpdatedAt: updatedAt });
+    await MembersRepository.audit({ action: "member.update", path: "members", recordId: databaseKey, beforeUpdatedAt: expectedUpdatedAt, afterUpdatedAt: updatedAt });
     closeMemberEdit();
     await fetchMembersFromFirebase(true);
     await renderMemberCards();
@@ -250,12 +245,12 @@ async function deleteMember(memberId) {
     await waitForFirebase();
     const expectedUpdatedAt = String(member.updatedAt || "");
     const deactivatedAt = new Date().toISOString();
-    const result = await window.firebaseDb.ref(`members/${databaseKey}`).transaction(current => {
+    const result = await MembersRepository.transaction(`members/${databaseKey}`, current => {
       if (!current || current.active === false || String(current.updatedAt || "") !== expectedUpdatedAt) return;
       return { ...current, active: false, deactivatedAt, updatedAt: deactivatedAt };
     });
     if (!result.committed) throw new Error("Member changed before deactivation. Refresh and try again.");
-    await appendFirebaseAudit({ action: "member.deactivate", path: "members", recordId: databaseKey, beforeUpdatedAt: expectedUpdatedAt, afterUpdatedAt: deactivatedAt });
+    await MembersRepository.audit({ action: "member.deactivate", path: "members", recordId: databaseKey, beforeUpdatedAt: expectedUpdatedAt, afterUpdatedAt: deactivatedAt });
     await fetchMembersFromFirebase(true);
     await renderMemberCards();
   } catch (error) {
@@ -271,12 +266,12 @@ async function restoreMember(memberId) {
   const databaseKey = memberDatabaseKeyById.get(String(memberId)) || String(memberId);
   try {
     const restoredAt = new Date().toISOString();
-    const result = await window.firebaseDb.ref(`members/${databaseKey}`).transaction(current => {
+    const result = await MembersRepository.transaction(`members/${databaseKey}`, current => {
       if (!current || current.active !== false || String(current.updatedAt || "") !== String(member.updatedAt || "")) return;
       return { ...current, active: true, restoredAt, updatedAt: restoredAt };
     });
     if (!result.committed) throw new Error("Member changed before restore. Refresh and try again.");
-    await appendFirebaseAudit({ action: "member.restore", path: "members", recordId: databaseKey, beforeUpdatedAt: member.updatedAt, afterUpdatedAt: restoredAt });
+    await MembersRepository.audit({ action: "member.restore", path: "members", recordId: databaseKey, beforeUpdatedAt: member.updatedAt, afterUpdatedAt: restoredAt });
     await fetchMembersFromFirebase(true);
     await renderMemberCards();
   } catch (error) {
@@ -297,7 +292,7 @@ async function renderBloodDonors() {
 
     const members = fullMembersList.filter(m => String(m.name || "").trim());
     await waitForFirebase();
-    const donationSnapshot = await window.firebaseDb.ref("bloodDonations").once("value");
+    const donationSnapshot = await MembersRepository.read("bloodDonations");
     const donationData = donationSnapshot.val() || {};
     members.forEach(member => {
       const records = Object.values(donationData[String(member.id)] || {}).filter(record => record?.deleted !== true);
@@ -383,20 +378,20 @@ async function saveBloodGroup(memberId, group) {
   const message = document.getElementById("bloodGroupMessage");
   const button = document.getElementById("bloodGroupSave");
   try {
-    if (!window.firebaseReady || !window.firebaseDb) throw new Error("Firebase is not initialized.");
+    await MembersRepository.ready();
     if (button) { button.disabled = true; button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...'; }
     if (message) message.textContent = "Saving...";
     await waitForFirebase();
     const databaseKey = memberDatabaseKeyById.get(String(memberId)) || String(memberId);
     const updatedAt = new Date().toISOString();
-    const result = await window.firebaseDb.ref(`members/${databaseKey}`).transaction(current => {
+    const result = await MembersRepository.transaction(`members/${databaseKey}`, current => {
       if (!current) return;
       // Update only the blood-group fields on the latest database value. A
       // stale member updatedAt must not block this independent field edit.
       return { ...current, bloodGroupOverride: String(group || ""), updatedAt };
     });
     if (!result.committed) throw new Error("Member record no longer exists.");
-    await appendFirebaseAudit({ action: "member.bloodGroup.update", path: "members", recordId: databaseKey, afterUpdatedAt: updatedAt });
+    await MembersRepository.audit({ action: "member.bloodGroup.update", path: "members", recordId: databaseKey, afterUpdatedAt: updatedAt });
     member.bloodGroup = String(group || "");
     member.bloodGroupOverride = String(group || "");
     member.updatedAt = updatedAt;
@@ -426,7 +421,7 @@ async function openBloodDonationHistory(memberId) {
   modal.classList.remove("hidden");
   try {
     await waitForFirebase();
-    const snapshot = await window.firebaseDb.ref(`bloodDonations/${member.id}`).once("value");
+    const snapshot = await MembersRepository.read(`bloodDonations/${member.id}`);
     const allRecords = Object.entries(snapshot.val() || {}).map(([id, record]) => ({ id, ...record }));
     const records = allRecords.filter(record => record.deleted !== true)
       .sort((a, b) => String(b.donationDate || b.createdAt || "").localeCompare(String(a.donationDate || a.createdAt || "")));
@@ -463,7 +458,7 @@ async function openAnnualBloodDonationHistory() {
   try {
     await fetchMembersFromFirebase();
     await waitForFirebase();
-    const snapshot = await window.firebaseDb.ref("bloodDonations").once("value");
+    const snapshot = await MembersRepository.read("bloodDonations");
     const data = snapshot.val() || {};
     const memberById = new Map(fullMembersList.map(member => [String(member.id), member]));
     const byYear = {};
@@ -546,8 +541,8 @@ async function saveBloodDonation(event) {
   error.textContent = "";
   try {
     await waitForFirebase();
-    const recordRef = window.firebaseDb.ref(`bloodDonations/${member.id}`).push();
-    await auditedFirebaseUpdate({ [`bloodDonations/${member.id}/${recordRef.key}`]: record }, { action: "bloodDonation.create", path: `bloodDonations/${member.id}`, recordId: recordRef.key, afterUpdatedAt: record.createdAt });
+    const recordId = MembersRepository.key(`bloodDonations/${member.id}`);
+    await MembersRepository.update({ [`bloodDonations/${member.id}/${recordId}`]: record }, { action: "bloodDonation.create", path: `bloodDonations/${member.id}`, recordId, afterUpdatedAt: record.createdAt });
     closeBloodDonationForm();
     await openBloodDonationHistory(member.id);
     renderBloodDonorCards(fullMembersList);
@@ -565,7 +560,7 @@ async function deleteBloodDonation(memberId, recordId) {
     const safeMemberId = String(memberId || "");
     const safeRecordId = String(recordId || "");
     const updatedAt = new Date().toISOString();
-    const result = await window.firebaseDb.ref(`bloodDonations/${safeMemberId}/${safeRecordId}`).transaction(current => {
+    const result = await MembersRepository.transaction(`bloodDonations/${safeMemberId}/${safeRecordId}`, current => {
       if (!current || current.deleted === true) return;
       return { ...current, deleted: true, deletedAt: updatedAt, updatedAt };
     });
@@ -574,7 +569,7 @@ async function deleteBloodDonation(memberId, recordId) {
       if (result.snapshot?.val()?.deleted === true) return;
       throw new Error("Donation record no longer exists or was already hidden.");
     }
-    await appendFirebaseAudit({ action: "bloodDonation.hide", path: `bloodDonations/${safeMemberId}`, recordId: safeRecordId, afterUpdatedAt: updatedAt });
+    await MembersRepository.audit({ action: "bloodDonation.hide", path: `bloodDonations/${safeMemberId}`, recordId: safeRecordId, afterUpdatedAt: updatedAt });
     await openBloodDonationHistory(safeMemberId);
     renderBloodDonorCards(fullMembersList);
   } catch (error) {
@@ -590,9 +585,9 @@ async function restoreBloodDonation(memberId, recordId) {
     const safeMemberId = String(memberId || "");
     const safeRecordId = String(recordId || "");
     const restoredAt = new Date().toISOString();
-    const result = await window.firebaseDb.ref(`bloodDonations/${safeMemberId}/${safeRecordId}`).transaction(current => current?.deleted === true ? { ...current, deleted: false, restoredAt, updatedAt: restoredAt } : undefined);
+    const result = await MembersRepository.transaction(`bloodDonations/${safeMemberId}/${safeRecordId}`, current => current?.deleted === true ? { ...current, deleted: false, restoredAt, updatedAt: restoredAt } : undefined);
     if (!result.committed) throw new Error("Donation record is no longer in Trash.");
-    await appendFirebaseAudit({ action: "bloodDonation.restore", path: `bloodDonations/${safeMemberId}`, recordId: safeRecordId, afterUpdatedAt: restoredAt });
+    await MembersRepository.audit({ action: "bloodDonation.restore", path: `bloodDonations/${safeMemberId}`, recordId: safeRecordId, afterUpdatedAt: restoredAt });
     await openBloodDonationHistory(safeMemberId);
     renderBloodDonorCards(fullMembersList);
   } catch (error) { console.error("Blood donation restore error:", error); alert("Donation record could not be restored. Refresh and try again."); }

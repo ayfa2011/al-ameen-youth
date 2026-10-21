@@ -16,8 +16,8 @@ async function loadProgramReports() {
   const list = document.getElementById("programReportsList");
   if (list) list.innerHTML = '<div class="program-reports-empty"><i class="fa-solid fa-spinner fa-spin"></i> Activities loading...</div>';
   try {
-    await window.firebaseReady;
-    const snapshot = await window.firebaseDb.ref("programReports").once("value");
+    await ActivityReportsRepository.ready();
+    const snapshot = await ActivityReportsRepository.read("programReports");
     const records = Object.entries(snapshot.val() || {}).map(([id, report]) => ({ id, ...report }));
     programReportState.deletedReports = records.filter(report => report.deleted === true);
     programReportState.reports = records.filter(report => report.deleted !== true).sort((a, b) => String(b.date || b.createdAt || "").localeCompare(String(a.date || a.createdAt || "")));
@@ -189,7 +189,7 @@ async function stablePhotoUploadId(file, folderName) {
 async function uploadPhotosToDrive(files, folderName) {
   const results = [];
   const message = document.getElementById("programFormMessage");
-  await window.firebaseReady;
+  await ActivityReportsRepository.ready();
   const authToken = await window.firebaseAuth.currentUser.getIdToken();
   for (const [index, file] of files.entries()) {
     if (message) message.textContent = `Uploading photo ${index + 1} of ${files.length}: ${file.name}`;
@@ -217,10 +217,9 @@ async function uploadPhotosToDrive(files, folderName) {
   if (results.length) {
     const folderId = String(results[0].folderId || "");
     const folderKey = folderId || String(folderName || "Activity Report").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-    const folderRef = window.firebaseDb.ref(`drivePhotoFolders/${folderKey}`);
     const photos = results.map(item => ({ fileId:item.fileId || "", fileName:item.fileName || "", imageUrl:item.imageUrl || "", thumbnailUrl:item.thumbnailUrl || "", webViewLink:item.webViewLink || "", folderUrl:item.folderUrl || "", uploadedAt:new Date().toISOString() }));
     try {
-      const result = await folderRef.transaction(current => {
+      const result = await ActivityReportsRepository.transaction(`drivePhotoFolders/${folderKey}`, current => {
         const previous = current || {};
         const oldPhotos = Array.isArray(previous.photos) ? previous.photos : Object.values(previous.photos || {});
         const byId = new Map(oldPhotos.map(photo => [String(photo.fileId || photo.imageUrl || photo.webViewLink || ""), photo]));
@@ -231,7 +230,7 @@ async function uploadPhotosToDrive(files, folderName) {
         return { ...previous, driveFolderId:folderId || previous.driveFolderId || "", name:String(folderName || previous.name || "Activity Report"), folderUrl:results.find(item => item.folderUrl)?.folderUrl || previous.folderUrl || "", photos:[...byId.values()], updatedAt:new Date().toISOString() };
       });
       if (!result.committed) throw new Error("Photo metadata transaction did not commit.");
-      await appendFirebaseAudit({ action: "drivePhotoFolder.update", path: "drivePhotoFolders", recordId: folderKey, afterUpdatedAt: result.snapshot.val()?.updatedAt });
+      await ActivityReportsRepository.audit({ action: "drivePhotoFolder.update", path: "drivePhotoFolders", recordId: folderKey, afterUpdatedAt: result.snapshot.val()?.updatedAt });
     }
     catch(error) { throw new Error(`Photos uploaded to Google Drive, but Firebase photo metadata could not be saved: ${error.message || error}`); }
   }
@@ -249,10 +248,10 @@ async function loadDriveFolders() {
   const list = document.getElementById("driveFolderList");
   if (!list) return;
   try {
-    await window.firebaseReady;
+    await ActivityReportsRepository.ready();
     let cached = [];
     try {
-      const snapshot = await window.firebaseDb.ref("drivePhotoFolders").once("value");
+      const snapshot = await ActivityReportsRepository.read("drivePhotoFolders");
       cached = Object.entries(snapshot.val() || {}).map(([id, folder]) => ({ id, ...folder }));
     } catch(error) { console.warn("Firebase photo metadata read unavailable; reading Drive folder list:",error); }
     const token = await window.firebaseAuth.currentUser.getIdToken();
@@ -352,13 +351,13 @@ async function submitProgramReport(event, editId = "") {
   if (form.dataset.submitting === "true") return;
   try {
     if (!submit || !message) throw new Error("Form status area is unavailable. Please reopen the form and try again.");
-    if (!window.firebaseReady || !window.firebaseDb) throw new Error("Firebase is not initialized.");
+    await ActivityReportsRepository.ready();
     form.dataset.submitting = "true";
     submit.disabled = true;
     submit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
     message.textContent = photos.length ? "Photos uploading to Google Drive..." : "Report saving...";
-    await window.firebaseReady;
-    const reportRef = editId ? window.firebaseDb.ref(`programReports/${editId}`) : window.firebaseDb.ref("programReports").push();
+    await ActivityReportsRepository.ready();
+    const reportId = editId || ActivityReportsRepository.key("programReports");
     const folderName = `${values.date} - ${values.title.trim()}`;
     const uploaded = photos.length ? await uploadPhotosToDrive(photos, folderName) : [];
     const photoUrls = uploaded.map(item => item.imageUrl || item.thumbnailUrl || item.webViewLink || item.url).filter(Boolean);
@@ -368,7 +367,7 @@ async function submitProgramReport(event, editId = "") {
     const nextFields = { title: values.title.trim(), description: values.description.trim(), date: values.date, driveFolderName: folderName, driveFolderUrl, updatedAt };
     if (editId) {
       const expectedUpdatedAt = String(existing?.updatedAt || "");
-      const result = await reportRef.transaction(current => {
+      const result = await ActivityReportsRepository.transaction(`programReports/${reportId}`, current => {
         if (!current || current.deleted === true || String(current.updatedAt || "") !== expectedUpdatedAt) return;
         const currentPhotos = Array.isArray(current.photos) ? current.photos : Object.values(current.photos || {});
         const mergedPhotos = [...currentPhotos];
@@ -385,11 +384,10 @@ async function submitProgramReport(event, editId = "") {
         return { ...current, ...nextFields, photos:mergedPhotos, photosUploaded:(Number(current.photosUploaded) || currentPhotos.length) + newlyAttached, createdAt:current.createdAt || new Date().toISOString(), submittedBy:current.submittedBy || "AYFA supervisor" };
       });
       if (!result.committed) throw new Error("This activity report changed while you were editing. Refresh and reapply your changes. Uploaded photos are safe in Drive but may need linking again.");
-      await appendFirebaseAudit({ action: "programReport.update", path: "programReports", recordId: editId, beforeUpdatedAt: expectedUpdatedAt, afterUpdatedAt: updatedAt });
+      await ActivityReportsRepository.audit({ action: "programReport.update", path: "programReports", recordId: editId, beforeUpdatedAt: expectedUpdatedAt, afterUpdatedAt: updatedAt });
     } else {
-      const reportId = reportRef.key;
       const newReport = { ...nextFields, photos:photoUrls, photosUploaded:photoUrls.length, createdAt:updatedAt, submittedBy:"AYFA supervisor", deleted:false };
-      await auditedFirebaseUpdate({ [`programReports/${reportId}`]: newReport }, { action: "programReport.create", path: "programReports", recordId: reportId, afterUpdatedAt: updatedAt });
+      await ActivityReportsRepository.create({ [`programReports/${reportId}`]: newReport }, { action: "programReport.create", path: "programReports", recordId: reportId, afterUpdatedAt: updatedAt });
     }
     closeProgramModal();
     await loadProgramReports();
@@ -430,10 +428,9 @@ async function deleteProgramReport(id) {
   const report = programReportState.reports.find(item => String(item.id) === reportId);
   if (!report || !confirm(`Hide "${report.title}"? It can be restored later.`)) return;
   try {
-    if (!window.firebaseDb) throw new Error("Firebase Database is unavailable.");
-    await window.firebaseReady;
+    await ActivityReportsRepository.ready();
     const updatedAt = new Date().toISOString();
-    const result = await window.firebaseDb.ref(`programReports/${reportId}`).transaction(current => {
+    const result = await ActivityReportsRepository.transaction(`programReports/${reportId}`, current => {
       if (!current || current.deleted === true) return;
       return { ...current, deleted: true, deletedAt: updatedAt, updatedAt };
     });
@@ -444,7 +441,7 @@ async function deleteProgramReport(id) {
       if (result.snapshot?.val()?.deleted === true) return;
       throw new Error("Report no longer exists or was already hidden.");
     }
-    await appendFirebaseAudit({ action: "programReport.hide", path: "programReports", recordId: reportId, beforeUpdatedAt: String(report.updatedAt || ""), afterUpdatedAt: updatedAt });
+    await ActivityReportsRepository.audit({ action: "programReport.hide", path: "programReports", recordId: reportId, beforeUpdatedAt: String(report.updatedAt || ""), afterUpdatedAt: updatedAt });
     closeProgramModal();
     await loadProgramReports();
   } catch (error) {
@@ -457,12 +454,11 @@ async function restoreProgramReport(id) {
   if (!requireSupervisor()) return;
   try {
     const reportId = String(id || "");
-    if (!window.firebaseDb) throw new Error("Firebase Database is unavailable.");
-    await window.firebaseReady;
+    await ActivityReportsRepository.ready();
     const restoredAt = new Date().toISOString();
-    const result = await window.firebaseDb.ref(`programReports/${reportId}`).transaction(current => current?.deleted === true ? { ...current, deleted: false, restoredAt, updatedAt: restoredAt } : undefined);
+    const result = await ActivityReportsRepository.transaction(`programReports/${reportId}`, current => current?.deleted === true ? { ...current, deleted: false, restoredAt, updatedAt: restoredAt } : undefined);
     if (!result.committed) throw new Error("Report is no longer in Trash.");
-    await appendFirebaseAudit({ action: "programReport.restore", path: "programReports", recordId: reportId, afterUpdatedAt: restoredAt });
+    await ActivityReportsRepository.audit({ action: "programReport.restore", path: "programReports", recordId: reportId, afterUpdatedAt: restoredAt });
     await loadProgramReports();
   } catch (error) { console.error("Activity restore error:", error); alert("Report could not be restored. Refresh and try again."); }
 }

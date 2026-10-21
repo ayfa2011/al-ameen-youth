@@ -10,6 +10,7 @@
       ".firebaserc",
       "**/.*",
       "**/node_modules/**",
+      "js/firebase-config.local.js",
       "public/**",
       "firebase/**",
       "google-apps-script.gs",
