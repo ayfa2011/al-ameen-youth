@@ -80,10 +80,7 @@ async function fetchMembersFromFirebase(force = false) {
   return fullMembersList;
 }
 
-// Backward-compatible function name used by the existing website.
-async function fetchMembersFromSheet(force = false) {
-  return fetchMembersFromFirebase(force);
-}
+// Backward-compatible function name removed — use fetchMembersFromFirebase directly.
 
 function memberCardHTML(m) {
   const phone = String(m.mobile || "").replace(/[^0-9+]/g, "");

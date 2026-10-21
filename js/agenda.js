@@ -125,8 +125,6 @@ catch(e){console.error(e);alert("Save failed. Refresh and try again.");return fa
 async function saveAgendaOneField(f){const e=document.getElementById("agF");const v=String(e?.value||"").trim();
 if((f==="title"||f==="meetingDate")&&!v){alert(f==="title"?"Title required.":"Meeting date required.");return;}
 if(await saveAgendaField(agendaState.activeId,f,v)){agendaState.editF="";renderAgendas();}}
-async function saveAgendaTitle(){agendaState.editF="title";const e=document.getElementById("agF");if(e){saveAgendaOneField("title");return;}agendaState.editF="title";renderAgendas();}
-async function saveAgendaDesc(){agendaState.editF="description";renderAgendas();}
 async function addAgendaInline(stage){if(!requireSupervisor())return;
 const e=document.getElementById("agAdd-"+stage);const title=String(e?.value||"").trim();
 if(!title){alert("Title bareyiri.");e?.focus();return;}
@@ -144,8 +142,6 @@ agendaState.items.sort((a,b)=>String(b.createdAt||b.meetingDate||"").localeCompa
 function openAgendaForm(editId){if(!requireSupervisor())return;
 if(editId){openAgendaDetail(editId);agendaState.editTitle=true;renderAgendas();}else{agendaState.view="list";agendaState.adding="age";renderAgendas();setTimeout(()=>document.getElementById("agAdd-age")?.focus(),80);}}
 function editAgenda(id){openAgendaForm(id);}
-function toggleAgendaDetails(id){openAgendaDetail(id);}
-async function saveAgenda(ev,editId){if(ev)ev.preventDefault();return;}
 function moveAgendaToDecision(id){return updateAgendaStage(id,"Under Action");}
 function moveAgendaBackToAgenda(id){return updateAgendaStage(id,"Upcoming");}
 function completeAgenda(id){return updateAgendaStage(id,"Completed");}

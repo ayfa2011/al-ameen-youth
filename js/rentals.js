@@ -236,33 +236,6 @@ function setRentalReportYear(year) {
   renderRentalDashboard();
 }
 
-function rentalFiltersHTML() {
-  const filters = [["all", "All"], ["chairTable", "Chair & Table"], ["speaker", "Speaker"], ["paid", "Paid"], ["partial", "Partial"], ["pending", "Pending"]];
-  return `<div class="rental-toolbar"><div class="rental-filters">${filters.map(([value, label]) => `<button type="button" class="rental-filter-button ${rentalState.filter === value ? "active" : ""}" onclick="setRentalFilter('${value}')">${label}</button>`).join("")}</div><input class="rental-search" type="search" value="${escapeHTML(rentalState.search)}" oninput="setRentalSearch(this.value)" placeholder="Search customer, mobile or place"></div>`;
-}
-
-function filteredRentals() {
-  const term = rentalState.search.trim().toLowerCase();
-  return rentalState.rentals.filter(rental => {
-    const matchesFilter = rentalState.filter === "all" || rental.category === rentalState.filter || rentalStatus(rental) === rentalState.filter;
-    const haystack = `${rental.customerName} ${rental.mobile} ${rental.place} ${rental.item}`.toLowerCase();
-    return matchesFilter && (!term || haystack.includes(term));
-  });
-}
-
-function rentalTableHTML() {
-  const rentals = filteredRentals();
-  if (!rentals.length) return '<div class="rental-empty">ಈ filterಗೆ rental record ಇಲ್ಲ.</div>';
-  return `<div class="rental-table-wrap"><table class="rental-table"><thead><tr><th>Customer</th><th>Item</th><th>Dates</th><th>Amount</th><th>Balance</th><th>Status</th><th></th></tr></thead><tbody>${rentals.map(rental => {
-    const status = rentalStatus(rental);
-    const canManage = rentalCanManage(rental.category);
-    return `<tr><td><strong>${escapeHTML(rental.customerName)}</strong><br><small>${escapeHTML(rental.place || "—")}</small></td><td>${escapeHTML(rental.item || RENTAL_CATEGORY[rental.category]?.label || "—")}<br><small>${escapeHTML(rental.quantity || "—")}</small></td><td>${rentalDate(rental.startDate)}<br><small>Return: ${rentalDate(rental.returnDate)}</small></td><td class="amount">${rentalCurrency(rental.totalAmount)}<br><small>Paid ${rentalCurrency(rental.paidAmount)}</small></td><td class="amount">${rentalCurrency(rental.balance)}</td><td><span class="rental-status ${status}">${rentalStatusLabel(status)}</span></td><td>${canManage ? `<button class="rental-secondary-button" type="button" onclick="openRentalEntry('${rental.id}')">Edit</button> <button class="rental-secondary-button" type="button" onclick="openPaymentModal('${rental.id}')">Payment</button>` : ""}</td></tr>`;
-  }).join("")}</tbody></table></div>`;
-}
-
-function setRentalFilter(filter) { rentalState.filter = filter; renderRentalDashboard(); }
-function setRentalSearch(search) { rentalState.search = search; renderRentalDashboard(); }
-
 function rentalModal(content) {
   document.body.insertAdjacentHTML("beforeend", `<div class="rental-modal" id="rentalModal" role="dialog" aria-modal="true">${content}</div>`);
 }

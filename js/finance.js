@@ -48,10 +48,6 @@ function getFinanceRows(year) {
   }));
 }
 
-function financeIsSection(label) {
-  return /^(1\.|2\.|3\.)/.test(label);
-}
-
 function financeIsHeader(label) {
   return /Particulars|ವಿವರ/.test(label) && /Amount|ಮೊತ್ತ/.test(label);
 }

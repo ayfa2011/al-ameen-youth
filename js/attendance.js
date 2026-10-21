@@ -26,17 +26,6 @@ function restoreAttendanceDraft() {
   } catch (error) { console.warn("Attendance draft could not be restored:", error); }
 }
 
-async function apiGet(action) {
-  if (action === "getReports") return getFirebaseAttendanceReports();
-  throw new Error(`Unsupported Firebase action: ${action}`);
-}
-
-async function getFirebasePrograms() {
-  await waitForFirebase();
-  const snapshot = await window.firebaseDb.ref("programs").once("value");
-  return snapshot.val() || {};
-}
-
 async function getFirebaseAttendanceReports() {
   await waitForFirebase();
   const [programSnap, attendanceSnap] = await Promise.all([

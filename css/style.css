@@ -2338,10 +2338,18 @@ body{display:flex;align-items:center;justify-content:center;background:#eef2f1}
 .annual-activity-grid-2{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px!important}
 .annual-activity-card-lg{display:flex!important;flex-direction:row!important;align-items:center!important;gap:12px!important;min-height:118px!important;padding:14px!important;border:1px solid #e0e9e3;border-radius:16px;background:linear-gradient(135deg,#f8fbf9 0%,#fff 60%,#fdf6ec 100%)!important;text-decoration:none;align-content:normal!important}
 .annual-activity-card-lg:hover{transform:translateY(-3px);border-color:#1c6b4a;box-shadow:0 12px 24px rgba(23,76,55,.14)}
-.annual-pdf-thumb{position:relative;flex:0 0 64px;display:grid;place-items:center;width:64px;height:84px;border-radius:12px;background:linear-gradient(160deg,#d84a43,#a92c26);color:#fff;font-size:30px;box-shadow:inset 0 -6px 12px rgba(0,0,0,.18);overflow:hidden}
-.annual-pdf-thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
-.annual-pdf-thumb i{position:relative;z-index:1;filter:drop-shadow(0 1px 3px rgba(0,0,0,.45))}
-.annual-activity-card-soon{opacity:.85}
+.annual-pdf-thumb{position:relative;flex:0 0 72px;display:grid;place-items:center;width:72px;height:96px;border-radius:10px;background:#fff;border:1px solid #dfe6e1;box-shadow:0 4px 12px rgba(23,76,55,.14);overflow:hidden}
+.annual-pdf-thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top center;z-index:0}
+.annual-pdf-thumb::after{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(255,255,255,.35) 0%,rgba(255,255,255,0) 28%,rgba(10,30,20,.05) 100%);pointer-events:none}
+.annual-pdf-fold{position:absolute;z-index:2;right:0;bottom:0;display:grid;place-items:center;width:26px;height:26px;color:#fff;background:linear-gradient(135deg,rgba(200,72,66,.97),rgba(169,44,38,.97));border-top-left-radius:9px;box-shadow:0 -2px 8px rgba(0,0,0,.22)}
+.annual-activity-card .annual-pdf-fold{color:#fff!important;font-size:12px!important}
+.annual-activity-card .annual-pdf-fold i{position:static!important;color:#fff!important;font-size:11px!important}
+.annual-pdf-thumb-empty{background:repeating-linear-gradient(135deg,#f2f7f4 0 8px,#e9f0ec 8px 16px);border-style:dashed}
+.annual-pdf-thumb-empty::after{background:none}
+.annual-pdf-empty{position:relative;z-index:1;display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:#fff;color:#c84842;font-size:15px;box-shadow:0 2px 8px rgba(23,76,55,.15)}
+.annual-activity-card .annual-pdf-empty{color:#c84842!important;font-size:15px!important}
+.annual-activity-card .annual-pdf-empty i{position:static!important;color:#c84842!important;font-size:15px!important}
+.annual-activity-card-soon{opacity:.9}
 .annual-activity-card-soon em{background:#a66d10!important}
 .annual-activity-body{display:grid!important;gap:3px!important;min-width:0;text-align:left}
 .annual-activity-body strong{font-size:26px!important;color:#173e2d;line-height:1}
@@ -2397,7 +2405,10 @@ body{display:flex;align-items:center;justify-content:center;background:#eef2f1}
 .annual-activity-reports{padding:14px}
 .annual-activity-grid-2{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
 .annual-activity-card-lg{min-height:112px!important;padding:11px!important;gap:10px!important}
-.annual-pdf-thumb{flex-basis:52px;width:52px;height:70px;font-size:24px}
+.annual-pdf-thumb{flex-basis:58px;width:58px;height:78px}
+.annual-pdf-fold{width:22px;height:22px}
+.annual-activity-card .annual-pdf-fold{font-size:10px!important}
+.annual-activity-card .annual-pdf-fold i{font-size:10px!important}
 .annual-activity-body strong{font-size:21px!important}
 .annual-activity-body>span{font-size:11px!important}
 .annual-activity-body em{font-size:10px!important;padding:5px 9px}
@@ -2422,7 +2433,10 @@ body{display:flex;align-items:center;justify-content:center;background:#eef2f1}
 }
 @media(max-width:360px){
 .annual-activity-grid-2{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
-.annual-pdf-thumb{flex-basis:46px;width:46px;height:62px}
+.annual-pdf-thumb{flex-basis:50px;width:50px;height:68px}
+.annual-pdf-fold{width:19px;height:19px;border-top-left-radius:7px}
+.annual-activity-card .annual-pdf-fold{font-size:9px!important}
+.annual-activity-card .annual-pdf-fold i{font-size:9px!important}
 }
 
 /* ============================================================

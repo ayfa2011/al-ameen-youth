@@ -200,8 +200,6 @@ function openSupervisorLogin() {
   showAuthScreen("official");
 }
 
-function supervisorLogin() { openSupervisorLogin(); }
-function supervisorLogout() { return manualRoleLogout(); }
 function requireSupervisor() {
   if (isSupervisorLoggedIn()) return true;
   alert("Officials access is required for this action.");
