@@ -388,13 +388,14 @@ async function saveBloodGroup(memberId, group) {
     if (message) message.textContent = "Saving...";
     await waitForFirebase();
     const databaseKey = memberDatabaseKeyById.get(String(memberId)) || String(memberId);
-    const expectedUpdatedAt = String(member.updatedAt || "");
     const updatedAt = new Date().toISOString();
     const result = await window.firebaseDb.ref(`members/${databaseKey}`).transaction(current => {
-      if (!current || String(current.updatedAt || "") !== expectedUpdatedAt) return;
+      if (!current) return;
+      // Update only the blood-group fields on the latest database value. A
+      // stale member updatedAt must not block this independent field edit.
       return { ...current, bloodGroupOverride: String(group || ""), updatedAt };
     });
-    if (!result.committed) throw new Error("Member changed while saving. Refresh and try again.");
+    if (!result.committed) throw new Error("Member record no longer exists.");
     await appendFirebaseAudit({ action: "member.bloodGroup.update", path: "members", recordId: databaseKey, afterUpdatedAt: updatedAt });
     member.bloodGroup = String(group || "");
     member.bloodGroupOverride = String(group || "");
@@ -561,11 +562,20 @@ async function deleteBloodDonation(memberId, recordId) {
   if (!confirm("Hide this blood donation record? It can be restored later.")) return;
   try {
     await waitForFirebase();
+    const safeMemberId = String(memberId || "");
+    const safeRecordId = String(recordId || "");
     const updatedAt = new Date().toISOString();
-    const result = await window.firebaseDb.ref(`bloodDonations/${memberId}/${recordId}`).transaction(current => current && current.deleted !== true ? { ...current, deleted: true, deletedAt: updatedAt, updatedAt } : undefined);
-    if (!result.committed) throw new Error("Donation record changed before it could be hidden.");
-    await appendFirebaseAudit({ action: "bloodDonation.hide", path: `bloodDonations/${memberId}`, recordId, afterUpdatedAt: updatedAt });
-    await openBloodDonationHistory(memberId);
+    const result = await window.firebaseDb.ref(`bloodDonations/${safeMemberId}/${safeRecordId}`).transaction(current => {
+      if (!current || current.deleted === true) return;
+      return { ...current, deleted: true, deletedAt: updatedAt, updatedAt };
+    });
+    if (!result.committed) {
+      await openBloodDonationHistory(safeMemberId);
+      if (result.snapshot?.val()?.deleted === true) return;
+      throw new Error("Donation record no longer exists or was already hidden.");
+    }
+    await appendFirebaseAudit({ action: "bloodDonation.hide", path: `bloodDonations/${safeMemberId}`, recordId: safeRecordId, afterUpdatedAt: updatedAt });
+    await openBloodDonationHistory(safeMemberId);
     renderBloodDonorCards(fullMembersList);
   } catch (error) {
     console.error("Blood donation delete error:", error);
@@ -577,11 +587,13 @@ async function restoreBloodDonation(memberId, recordId) {
   if (!requireSupervisor()) return;
   try {
     await waitForFirebase();
+    const safeMemberId = String(memberId || "");
+    const safeRecordId = String(recordId || "");
     const restoredAt = new Date().toISOString();
-    const result = await window.firebaseDb.ref(`bloodDonations/${memberId}/${recordId}`).transaction(current => current?.deleted === true ? { ...current, deleted: false, restoredAt, updatedAt: restoredAt } : undefined);
+    const result = await window.firebaseDb.ref(`bloodDonations/${safeMemberId}/${safeRecordId}`).transaction(current => current?.deleted === true ? { ...current, deleted: false, restoredAt, updatedAt: restoredAt } : undefined);
     if (!result.committed) throw new Error("Donation record is no longer in Trash.");
-    await appendFirebaseAudit({ action: "bloodDonation.restore", path: `bloodDonations/${memberId}`, recordId, afterUpdatedAt: restoredAt });
-    await openBloodDonationHistory(memberId);
+    await appendFirebaseAudit({ action: "bloodDonation.restore", path: `bloodDonations/${safeMemberId}`, recordId: safeRecordId, afterUpdatedAt: restoredAt });
+    await openBloodDonationHistory(safeMemberId);
     renderBloodDonorCards(fullMembersList);
   } catch (error) { console.error("Blood donation restore error:", error); alert("Donation record could not be restored. Refresh and try again."); }
 }

@@ -426,14 +426,25 @@ function openProgramPhotoPreview(url, label) {
 
 async function deleteProgramReport(id) {
   if (!requireSupervisor()) return;
-  const report = programReportState.reports.find(item => item.id === id);
+  const reportId = String(id || "");
+  const report = programReportState.reports.find(item => String(item.id) === reportId);
   if (!report || !confirm(`Hide "${report.title}"? It can be restored later.`)) return;
   try {
+    if (!window.firebaseDb) throw new Error("Firebase Database is unavailable.");
     await window.firebaseReady;
     const updatedAt = new Date().toISOString();
-    const result = await window.firebaseDb.ref(`programReports/${id}`).transaction(current => current && current.deleted !== true ? { ...current, deleted: true, deletedAt: updatedAt, updatedAt } : undefined);
-    if (!result.committed) throw new Error("Report changed before it could be hidden.");
-    await appendFirebaseAudit({ action: "programReport.hide", path: "programReports", recordId: id, afterUpdatedAt: updatedAt });
+    const result = await window.firebaseDb.ref(`programReports/${reportId}`).transaction(current => {
+      if (!current || current.deleted === true) return;
+      return { ...current, deleted: true, deletedAt: updatedAt, updatedAt };
+    });
+    if (!result.committed) {
+      // The record may have been hidden by another official while the prompt
+      // was open. Refresh the view and treat that as an already completed action.
+      await loadProgramReports();
+      if (result.snapshot?.val()?.deleted === true) return;
+      throw new Error("Report no longer exists or was already hidden.");
+    }
+    await appendFirebaseAudit({ action: "programReport.hide", path: "programReports", recordId: reportId, beforeUpdatedAt: String(report.updatedAt || ""), afterUpdatedAt: updatedAt });
     closeProgramModal();
     await loadProgramReports();
   } catch (error) {
@@ -445,9 +456,13 @@ async function deleteProgramReport(id) {
 async function restoreProgramReport(id) {
   if (!requireSupervisor()) return;
   try {
-    const result = await window.firebaseDb.ref(`programReports/${id}`).transaction(current => current?.deleted === true ? { ...current, deleted: false, restoredAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : undefined);
+    const reportId = String(id || "");
+    if (!window.firebaseDb) throw new Error("Firebase Database is unavailable.");
+    await window.firebaseReady;
+    const restoredAt = new Date().toISOString();
+    const result = await window.firebaseDb.ref(`programReports/${reportId}`).transaction(current => current?.deleted === true ? { ...current, deleted: false, restoredAt, updatedAt: restoredAt } : undefined);
     if (!result.committed) throw new Error("Report is no longer in Trash.");
-    await appendFirebaseAudit({ action: "programReport.restore", path: "programReports", recordId: id });
+    await appendFirebaseAudit({ action: "programReport.restore", path: "programReports", recordId: reportId, afterUpdatedAt: restoredAt });
     await loadProgramReports();
   } catch (error) { console.error("Activity restore error:", error); alert("Report could not be restored. Refresh and try again."); }
 }
