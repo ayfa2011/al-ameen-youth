@@ -779,30 +779,39 @@ button { min-height: 44px; }
   min-width: 180px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  background: #fff5f5;
-  border: 1px solid #f2d6da;
-  border-radius: 10px;
-  padding: 10px 12px;
+  gap: 12px;
+  background: linear-gradient(135deg,#fff5f5 0%,#fff 70%);
+  border: 2px solid #d90429;
+  border-radius: 12px;
+  padding: 11px 14px;
+  box-shadow: 0 3px 12px rgba(217,4,41,.1);
 }
 
 .blood-donor-summary > i {
-  font-size: 22px;
-  color: #d90429;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #d90429;
+  color: #fff;
+  font-size: 20px;
+  flex: 0 0 auto;
 }
 
 .blood-donor-summary strong {
   display: block;
-  font-size: 17px;
-  color: #222;
+  font-size: 19px;
+  color: #8a0f22;
   line-height: 1.1;
 }
 
 .blood-donor-summary span {
   display: block;
-  font-size: 10px;
-  color: #777;
+  font-size: 10.5px;
+  color: #8a5b60;
   margin-top: 2px;
+  font-weight: 600;
 }
 
 .blood-search-input {
@@ -873,9 +882,7 @@ button { min-height: 44px; }
   margin: 0 0 5px;
   font-size: 14px;
   color: #1b4332;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 
 .blood-donor-info p {
@@ -894,6 +901,9 @@ button { min-height: 44px; }
 
 .blood-history-trigger{display:inline-flex;align-items:center;min-height:32px;margin-top:3px;padding:0 9px;border:1px solid #cfe5d8;border-radius:7px;background:#eff8f2;color:#176b50;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
 .blood-history-page-button{min-height:36px;padding:0 11px;border:1px solid #cfe5d8;border-radius:8px;background:#eff8f2;color:#176b50;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.generate-poster-toolbar-button{min-height:36px;padding:0 11px;border:0;border-radius:8px;background:#d90429;color:#fff;font:inherit;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 3px 10px rgba(217,4,41,.25)}
+.generate-poster-toolbar-button:hover{background:#b70323}
+.blood-history-page-button:hover{background:#e2f2e8}
 .blood-donation-modal{position:fixed;inset:0;z-index:1300;display:grid;place-items:center;padding:16px;background:rgba(13,35,25,.48)}
 .blood-donation-modal.hidden{display:none}
 .blood-donation-card{width:min(100%,560px);max-height:min(90dvh,780px);overflow:auto;border-radius:16px;background:#fff;box-shadow:0 18px 55px rgba(0,0,0,.22)}
@@ -1964,7 +1974,11 @@ html[data-auth-role="member"] .program-report-submit{display:none!important}
 .blood-donor-card{grid-template-columns:36px minmax(0,1fr) auto;gap:9px;padding:7px 10px;border:0;border-bottom:1px solid #edf1ee;border-radius:0;box-shadow:none}
 .blood-donor-card:last-child{border-bottom:0}
 .blood-group-badge{width:34px;height:34px;border-radius:9px;background:#dcefe4;color:#176b50}
-.blood-group-badge.missing-group{background:transparent;color:transparent}
+.blood-group-badge.missing-group{background:#f0f2f4;color:#8d99ab}
+.blood-group-badge.missing-group i{font-size:12px;padding:0;background:transparent}
+.blood-group-badge.missing-group span{font-size:9px;width:auto;height:auto;background:transparent;color:#8d99ab}
+.blood-badge-edit-hint{top:-4px;right:-4px;width:14px;height:14px;font-size:7px}
+.blood-donor-card .blood-member-avatar{display:none}
 .blood-donor-info h3{margin:0 0 3px;font-size:13px;line-height:1.25}
 .blood-donor-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:#718178;font-size:10px}
 .blood-history-trigger{min-height:25px;margin:0;padding:0 7px;border-radius:6px;font-size:10px}
@@ -1981,20 +1995,23 @@ html[data-auth-role="member"] .program-report-submit{display:none!important}
 
 /* Blood donor row design matched to the supplied mobile sample. */
 .blood-donors-container{display:grid;gap:14px;overflow:visible;border:0;border-radius:0;background:transparent}
-.blood-donor-card{position:relative;display:grid;grid-template-columns:112px minmax(0,1fr) 82px 204px 1px 36px;align-items:center;gap:18px;min-height:148px;padding:18px 20px 18px 24px;overflow:hidden;border:1px solid #dfe7f2;border-radius:24px;background:#fff;box-shadow:0 10px 24px rgba(30,66,119,.09)}
+.blood-donor-card{position:relative;display:grid;grid-template-areas:"info blood actions divider history";grid-template-columns:minmax(0,1fr) 84px 168px 1px 36px;align-items:center;gap:16px;min-height:118px;padding:16px 20px 16px 24px;overflow:hidden;border:1px solid #dfe7f2;border-radius:24px;background:#fff;box-shadow:0 10px 24px rgba(30,66,119,.09)}
 .blood-donor-card::before{position:absolute;inset:0 auto 0 0;width:10px;background:#3478ff;content:""}
-.blood-member-avatar{display:grid;place-items:center;width:104px;height:104px;border-radius:50%;background:#e7eefb;color:#879bb9}
-.blood-member-avatar i{font-size:56px}
-.blood-donor-info{min-width:0}
-.blood-donor-info h3{margin:0 0 8px;overflow:hidden;color:#142843;font-size:clamp(20px,2.5vw,34px);font-weight:750;line-height:1.15;text-overflow:ellipsis;white-space:nowrap}
-.blood-donor-meta{display:block;overflow:hidden;color:#7d8ca7;font-size:clamp(14px,1.8vw,25px);line-height:1.25;text-overflow:ellipsis;white-space:nowrap}
+.blood-member-avatar{display:none}
+.blood-donor-info{grid-area:info;min-width:0}
+.blood-donor-info h3{margin:0 0 8px;color:#142843;font-size:clamp(17px,2vw,24px);font-weight:750;line-height:1.2;overflow-wrap:anywhere}
+.blood-donor-meta{display:block;color:#7d8ca7;font-size:clamp(13px,1.6vw,18px);line-height:1.3;white-space:normal}
 .blood-donor-meta span{padding:0 5px;color:#a4afc1}
-.blood-group-badge{position:relative;display:grid;place-items:center;width:76px;height:94px;border:0;border-radius:0;background:transparent;color:#e00000}
-.blood-group-badge i{margin:0;font-size:80px;line-height:1}
-.blood-group-badge span{position:absolute;display:grid;place-items:center;width:45px;height:45px;border-radius:50%;background:#fff;color:#111;font-size:18px;font-weight:800}
-.blood-group-badge.missing-group{visibility:hidden}
-.blood-donor-actions{display:flex;align-items:center;justify-content:center;gap:22px;min-width:0}
-.blood-donor-actions a{display:grid;place-items:center;width:76px;height:76px;min-height:76px;padding:0;border:0;border-radius:50%;text-decoration:none;font-size:34px}
+.blood-group-badge{position:relative;grid-area:blood;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:64px;height:60px;padding:8px 4px;border:1px solid #f3c9c9;border-radius:12px;background:#fdf1f1;color:#c01414;cursor:pointer;transition:transform .15s}
+.blood-group-badge:hover{transform:scale(1.06);border-color:#e00000}
+.blood-group-badge i{margin:0;font-size:18px;line-height:1}
+.blood-group-badge i.blood-badge-edit-hint{position:absolute;top:-5px;right:-5px;display:grid;place-items:center;width:16px;height:16px;border-radius:50%;background:#142843;color:#fff;font-size:7px;opacity:0;pointer-events:none;transition:opacity .15s;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.blood-group-badge:hover i.blood-badge-edit-hint{opacity:1}
+.blood-group-badge span{position:static;display:block;width:auto;height:auto;background:transparent;color:inherit;font-size:14px;font-weight:800}
+.blood-group-badge.missing-group{border:1px dashed #c9cfd6;border-radius:12px;background:#f6f8fa;color:#8d99ab}
+.blood-group-badge.missing-group:hover{border-color:#8d99ab}
+.blood-donor-actions{display:flex;grid-area:actions;align-items:center;justify-content:center;gap:14px;min-width:0}
+.blood-donor-actions a{display:grid;place-items:center;width:52px;height:52px;min-height:52px;padding:0;border:0;border-radius:50%;text-decoration:none;font-size:22px}
 .blood-donor-actions .btn-call{background:#e5edfc;color:#245bc0}
 .blood-donor-actions .btn-wa{background:#e3f7e9;color:#168b37}
 .blood-donor-actions .btn-disabled{display:none}
@@ -2003,31 +2020,48 @@ html[data-auth-role="member"] .program-report-submit{display:none!important}
 .blood-history-open:hover{color:#3478ff}
 @media(max-width:760px){
   .blood-donors-container{gap:10px}
-  .blood-donor-card{grid-template-columns:56px minmax(0,1fr) 48px 82px 1px 22px;gap:9px;min-height:86px;padding:10px 9px 10px 14px;border-radius:17px}
+  .blood-donor-card{grid-template-areas:"info blood actions divider history";grid-template-columns:minmax(0,1fr) 56px 78px 1px 20px;gap:8px;min-height:70px;padding:10px 9px 10px 14px;border-radius:17px}
+  .blood-donor-card.no-contact-actions{grid-template-areas:"info blood divider history";grid-template-columns:minmax(0,1fr) 56px 1px 20px}
   .blood-donor-card::before{width:6px}
-  .blood-member-avatar{width:50px;height:50px}
-  .blood-member-avatar i{font-size:28px}
   .blood-donor-info h3{margin-bottom:4px;font-size:clamp(14px,4.1vw,18px)}
   .blood-donor-meta{font-size:clamp(10px,2.8vw,13px)}
   .blood-donor-meta span{padding:0 2px}
-  .blood-group-badge{width:42px;height:52px}
-  .blood-group-badge i{font-size:47px}
-  .blood-group-badge span{width:28px;height:28px;font-size:12px}
-  .blood-donor-actions{gap:7px}
-  .blood-donor-actions a{width:36px;height:36px;min-height:36px;font-size:17px}
+  .blood-group-badge{width:52px;height:58px;overflow:visible}
+  .blood-group-badge i{font-size:16px}
+  .blood-group-badge span{font-size:12px}
+  .blood-group-badge.missing-group{min-width:56px;min-height:58px;padding:6px 8px}
+  .blood-donor-actions{gap:5px;justify-content:flex-end}
+  .blood-donor-actions a{width:34px;height:34px;min-height:34px;min-width:34px;font-size:15px;flex:0 0 auto}
+  .blood-badge-edit-hint{display:none}
   .blood-row-divider{height:34px;width:1px}
   .blood-history-open{width:20px;height:34px;min-height:30px;font-size:16px}
 }
 @media(max-width:360px){
-  .blood-donor-card{grid-template-columns:42px minmax(0,1fr) 36px 68px 1px 16px;gap:6px;padding-right:6px}
-  .blood-member-avatar{width:40px;height:40px}
-  .blood-member-avatar i{font-size:23px}
+  .blood-donor-card{grid-template-columns:minmax(0,1fr) 40px 66px 1px 16px;gap:6px;padding-right:6px}
+  .blood-donor-card.no-contact-actions{grid-template-columns:minmax(0,1fr) 40px 1px 16px}
   .blood-donor-actions{gap:4px}
   .blood-donor-actions a{width:32px;height:32px;min-height:32px;font-size:15px}
-  .blood-group-badge{width:34px;height:46px}
-  .blood-group-badge i{font-size:41px}
+  .blood-group-badge{width:38px;height:44px}
+  .blood-group-badge i{font-size:32px}
   .blood-group-badge span{width:25px;height:25px;font-size:11px}
+  .blood-group-badge.missing-group{min-width:38px;min-height:44px}
 }
+
+/* Blood group editor + filter pills */
+.blood-filter-pills{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0 4px}
+.blood-filter-pill{display:inline-flex;align-items:center;gap:5px;min-height:34px;padding:6px 14px;border:1px solid #e3d3d3;border-radius:999px;background:#fff;color:#8a2f2f;font:inherit;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s}
+.blood-filter-pill:hover{border-color:#e00000;color:#e00000}
+.blood-filter-pill.active{background:#e00000;border-color:#e00000;color:#fff;box-shadow:0 3px 10px rgba(224,0,0,.25)}
+.blood-filter-pill.blood-filter-pending{border-style:dashed;border-color:#c9cfd6;color:#6d7885}
+.blood-filter-pill.blood-filter-pending.active{background:#6d7885;border-color:#6d7885;color:#fff}
+.blood-group-modal .blood-group-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:4px 0 12px}
+.blood-group-pill{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:52px;padding:10px 8px;border:1px solid #e8d5d5;border-radius:12px;background:#fff;color:#8a2f2f;font:inherit;font-size:17px;font-weight:800;cursor:pointer;transition:all .15s}
+.blood-group-pill i{font-size:14px}
+.blood-group-pill:hover{border-color:#e00000;transform:translateY(-1px)}
+.blood-group-pill.selected{background:#e00000;border-color:#e00000;color:#fff;box-shadow:0 4px 12px rgba(224,0,0,.3)}
+.blood-group-pill-none{border-style:dashed;color:#6d7885;font-size:13px}
+.blood-group-pill-none.selected{background:#6d7885;border-color:#6d7885;color:#fff}
+@media(max-width:400px){.blood-group-modal .blood-group-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 .rental-year-filter{display:flex;align-items:center;gap:8px;margin:0 0 10px;padding:8px 10px;border:1px solid #e0e9e3;border-radius:10px;background:#fff}
 .rental-year-filter label{color:#496154;font-size:12px;font-weight:700}
@@ -2078,29 +2112,32 @@ html[data-auth-role="member"] .program-report-submit{display:none!important}
 
 /* Compact donor rows that keep the donation count and controls visible on phones. */
 .blood-donors-container{display:grid;gap:9px;overflow:visible}
-.blood-donor-card{grid-template-areas:"avatar info blood actions divider history";grid-template-columns:72px minmax(0,1fr) 58px 112px 1px 24px;align-items:center;gap:12px;min-height:98px;padding:12px 16px 12px 20px;border:1px solid #dfe7f2;border-radius:17px;box-shadow:0 4px 13px rgba(30,66,119,.07)}
-.blood-member-avatar{grid-area:avatar;width:64px;height:64px}
+.blood-donor-card{grid-template-areas:"info blood actions divider history";grid-template-columns:minmax(0,1fr) 58px 112px 1px 24px;align-items:center;gap:12px;min-height:78px;padding:11px 16px 11px 18px;border:1px solid #dfe7f2;border-radius:17px;box-shadow:0 4px 13px rgba(30,66,119,.07)}
+.blood-member-avatar{display:none}
 .blood-member-avatar i{font-size:34px}
 .blood-donor-info{grid-area:info}
-.blood-donor-info h3{margin:0 0 4px;font-size:clamp(17px,1.8vw,23px);line-height:1.2}
-.blood-donor-meta{display:flex;align-items:baseline;gap:2px 7px;overflow:visible;font-size:13px;line-height:1.3;white-space:normal}
+.blood-donor-info h3{margin:0 0 4px;font-size:clamp(15px,1.8vw,20px);line-height:1.2;overflow-wrap:anywhere}
+.blood-donor-meta{display:flex;align-items:baseline;gap:2px 7px;overflow:visible;font-size:12px;line-height:1.3;white-space:normal}
 .blood-donor-id,.blood-donor-count{min-width:0;overflow-wrap:anywhere}
 .blood-donor-separator{padding:0;color:#a4afc1}
-.blood-group-badge{grid-area:blood;width:54px;height:66px}
-.blood-group-badge i{font-size:54px}
+.blood-group-badge{grid-area:blood;width:56px;height:52px}
+.blood-group-badge i{font-size:36px}
 .blood-group-badge span{width:31px;height:31px;font-size:13px}
+.blood-group-badge.missing-group{width:auto;min-width:62px;height:auto;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:6px 10px;border:1px dashed #c9cfd6;border-radius:11px;background:#f6f8fa}
+.blood-group-badge.missing-group i{font-size:14px;color:#9aa5b3}
+.blood-group-badge.missing-group span{width:auto;height:auto;font-size:10px;color:#6d7885}
 .blood-donor-actions{grid-area:actions;gap:8px;justify-content:center}
 .blood-donor-actions a{width:44px;height:44px;min-height:44px;font-size:20px}
 .blood-donor-actions .btn-disabled{display:none}
 .blood-row-divider{grid-area:divider}
 .blood-history-open{grid-area:history;width:24px;height:34px;min-height:34px;font-size:17px}
-.blood-donor-card.no-contact-actions{grid-template-areas:"avatar info blood divider history";grid-template-columns:72px minmax(0,1fr) 58px 1px 24px}
+.blood-donor-card.no-contact-actions{grid-template-areas:"info blood divider history";grid-template-columns:minmax(0,1fr) 58px 1px 24px}
 .blood-donor-card.no-contact-actions .blood-donor-actions{display:none}
 .generate-poster-toolbar-button,.blood-history-page-button{min-height:36px;padding:0 10px;font-size:11px}
 @media(max-width:760px){
   .blood-donors-container{gap:7px}
-  .blood-donor-card{grid-template-areas:"avatar info blood actions divider history";grid-template-columns:42px minmax(0,1fr) 34px 64px 1px 17px;gap:5px;min-height:70px;padding:8px 7px 8px 12px;border-radius:14px}
-  .blood-donor-card.no-contact-actions{grid-template-areas:"avatar info blood divider history";grid-template-columns:42px minmax(0,1fr) 34px 1px 17px}
+  .blood-donor-card{grid-template-areas:"info blood actions divider history";grid-template-columns:minmax(0,1fr) 34px 64px 1px 17px;gap:5px;min-height:62px;padding:8px 7px 8px 12px;border-radius:14px}
+  .blood-donor-card.no-contact-actions{grid-template-areas:"info blood divider history";grid-template-columns:minmax(0,1fr) 34px 1px 17px}
   .blood-member-avatar{width:40px;height:40px}
   .blood-member-avatar i{font-size:23px}
   .blood-donor-info h3{margin:0 0 3px;font-size:clamp(14px,3.8vw,16px);line-height:1.2}
@@ -2117,8 +2154,8 @@ html[data-auth-role="member"] .program-report-submit{display:none!important}
   .generate-poster-toolbar-button,.blood-history-page-button{min-height:34px;padding:0 8px;font-size:10px}
 }
 @media(max-width:390px){
-  .blood-donor-card{grid-template-columns:38px minmax(0,1fr) 31px 58px 1px 15px;gap:4px;padding:7px 5px 7px 10px}
-  .blood-donor-card.no-contact-actions{grid-template-columns:38px minmax(0,1fr) 31px 1px 15px}
+  .blood-donor-card{grid-template-columns:minmax(0,1fr) 31px 58px 1px 15px;gap:4px;padding:7px 5px 7px 10px}
+  .blood-donor-card.no-contact-actions{grid-template-columns:minmax(0,1fr) 31px 1px 15px}
   .blood-member-avatar{width:36px;height:36px}
   .blood-member-avatar i{font-size:21px}
   .blood-donor-info h3{font-size:14px}

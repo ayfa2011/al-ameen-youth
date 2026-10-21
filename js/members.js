@@ -307,6 +307,7 @@ async function renderBloodDonors() {
       member.bloodDonationCount = records.length;
     });
     if (countEl) countEl.textContent = members.length;
+    renderBloodFilterPills(members);
     renderBloodDonorCards(members);
   } catch (error) {
     console.error(error);
@@ -339,17 +340,18 @@ function renderBloodDonorCards(members) {
     const displayedCount = String(donationCount).padStart(2, "0");
     const phone = String(m.mobile || "").trim().replace(/[^0-9+]/g, "");
     const whatsapp = normalizePhoneForLinks(m.mobile);
+    const badgeId = escapeHTML(String(m.id ?? ""));
 
     return `
-      <article class="blood-donor-card ${phone || whatsapp ? "has-contact-actions" : "no-contact-actions"}" data-search="${escapeHTML(`${m.name} ${displayGroup} ${m.id} ${memberDisplayId(m)}`.toLowerCase())}">
+      <article class="blood-donor-card ${phone || whatsapp ? "has-contact-actions" : "no-contact-actions"}" data-search="${escapeHTML(`${m.name} ${displayGroup} ${m.id} ${memberDisplayId(m)}`.toLowerCase())}" data-group="${escapeHTML(displayGroup.toUpperCase())}">
         <div class="blood-member-avatar" aria-hidden="true"><i class="fa-solid fa-user"></i></div>
         <div class="blood-donor-info">
           <h3>${escapeHTML(m.name)}</h3>
           <div class="blood-donor-meta"><span class="blood-donor-id">ID : ${escapeHTML(memberDisplayId(m))}</span><span class="blood-donor-separator">|</span><span class="blood-donor-count">${displayedCount} ${donationCount === 1 ? "Time" : "Times"} Donated</span></div>
         </div>
-        <div class="blood-group-badge ${m.bloodGroup ? "has-group" : "missing-group"}" aria-label="Blood group ${escapeHTML(displayGroup || "not provided")}">
-          ${displayGroup ? `<i class="fa-solid fa-droplet"></i><span>${escapeHTML(displayGroup)}</span>` : ""}
-        </div>
+        <button type="button" class="blood-group-badge ${displayGroup ? "has-group" : "missing-group"}" onclick="openBloodGroupModal('${badgeId}')" title="${displayGroup ? "Change blood group" : "Add blood group"}" aria-label="Blood group ${escapeHTML(displayGroup || "not provided")} — click to update">
+          ${displayGroup ? `<i class="fa-solid fa-droplet"></i><span>${escapeHTML(displayGroup)}</span><i class="fa-solid fa-pen blood-badge-edit-hint"></i>` : `<i class="fa-solid fa-plus"></i><span>Blood</span><i class="fa-solid fa-pen blood-badge-edit-hint"></i>`}
+        </button>
         <div class="blood-donor-actions">
           ${phone ? `<a class="btn-call" href="tel:${escapeHTML(phone)}" aria-label="Call ${escapeHTML(m.name)}" title="Call"><i class="fa-solid fa-phone"></i></a>` : ""}
           ${whatsapp ? `<a class="btn-wa" href="https://wa.me/${escapeHTML(whatsapp)}" target="_blank" rel="noopener" aria-label="WhatsApp ${escapeHTML(m.name)}" title="WhatsApp"><i class="fa-brands fa-whatsapp"></i></a>` : ""}
@@ -358,6 +360,55 @@ function renderBloodDonorCards(members) {
         <button type="button" class="blood-history-open" onclick="openBloodDonationHistory('${escapeHTML(m.id)}')" aria-label="Open ${escapeHTML(m.name)} donation history"><i class="fa-solid fa-chevron-right"></i></button>
       </article>`;
   }).join("");
+}
+
+const BLOOD_GROUP_OPTIONS = ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"];
+
+function openBloodGroupModal(memberId) {
+  const member = getMemberById(memberId);
+  if (!member) return;
+  const current = String(member.bloodGroup || "");
+  const safeId = escapeHTML(String(member.id ?? ""));
+  programModal(`<div class="program-modal-card blood-group-modal"><div class="program-modal-header"><div><h3>Blood Group</h3><p>${escapeHTML(member.name)} · ID ${escapeHTML(memberDisplayId(member))}</p></div><button type="button" class="program-close" onclick="closeProgramModal()" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div><div class="blood-group-grid" role="radiogroup" aria-label="Select blood group">${BLOOD_GROUP_OPTIONS.map(group => `<button type="button" class="blood-group-pill ${current === group ? "selected" : ""}" data-group="${group}"><i class="fa-solid fa-droplet"></i> ${group}</button>`).join("")}<button type="button" class="blood-group-pill blood-group-pill-none ${current ? "" : "selected"}" data-group=""><i class="fa-regular fa-circle-question"></i> Not Updated</button></div><p id="bloodGroupMessage" class="program-form-message"></p><div class="program-form-actions"><button type="button" class="program-cancel" onclick="closeProgramModal()">Cancel</button><button type="button" class="program-submit" id="bloodGroupSave">Save / Update</button></div></div>`);
+  const modalCard = document.getElementById("programModal");
+  modalCard?.querySelectorAll(".blood-group-pill").forEach(pill => {
+    pill.addEventListener("click", () => {
+      modalCard.querySelectorAll(".blood-group-pill").forEach(p => p.classList.remove("selected"));
+      pill.classList.add("selected");
+    });
+  });
+  document.getElementById("bloodGroupSave")?.addEventListener("click", () => saveBloodGroup(memberId, modalCard.querySelector(".blood-group-pill.selected")?.dataset.group ?? current));
+}
+
+async function saveBloodGroup(memberId, group) {
+  const member = getMemberById(memberId);
+  if (!member) return;
+  const message = document.getElementById("bloodGroupMessage");
+  const button = document.getElementById("bloodGroupSave");
+  try {
+    if (!window.firebaseReady || !window.firebaseDb) throw new Error("Firebase is not initialized.");
+    if (button) { button.disabled = true; button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...'; }
+    if (message) message.textContent = "Saving...";
+    await waitForFirebase();
+    const databaseKey = memberDatabaseKeyById.get(String(memberId)) || String(memberId);
+    const expectedUpdatedAt = String(member.updatedAt || "");
+    const updatedAt = new Date().toISOString();
+    const result = await window.firebaseDb.ref(`members/${databaseKey}`).transaction(current => {
+      if (!current || String(current.updatedAt || "") !== expectedUpdatedAt) return;
+      return { ...current, bloodGroupOverride: String(group || ""), updatedAt };
+    });
+    if (!result.committed) throw new Error("Member changed while saving. Refresh and try again.");
+    await appendFirebaseAudit({ action: "member.bloodGroup.update", path: "members", recordId: databaseKey, afterUpdatedAt: updatedAt });
+    member.bloodGroup = String(group || "");
+    member.bloodGroupOverride = String(group || "");
+    member.updatedAt = updatedAt;
+    closeProgramModal();
+    renderBloodDonorCards(fullMembersList.filter(m => String(m.name || "").trim()));
+  } catch (error) {
+    console.error("Blood group update error:", error);
+    if (message) message.textContent = `Could not save: ${error?.message || error}`;
+    if (button) { button.disabled = false; button.textContent = "Save / Update"; }
+  }
 }
 
 function getMemberById(memberId) {
@@ -559,3 +610,32 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 });
+
+function applyBloodGroupFilter(group) {
+  const query = document.getElementById("bloodDonorSearch");
+  if (query) query.value = "";
+  document.querySelectorAll("#bloodDonorsContainer .blood-donor-card").forEach(card => {
+    const cardGroup = String(card.dataset.group || "").trim();
+    card.style.display = group === "ALL" || cardGroup === group ? "grid" : "none";
+  });
+  document.querySelectorAll("#bloodFilterPills .blood-filter-pill").forEach(pill => {
+    pill.classList.toggle("active", pill.dataset.filter === group);
+  });
+}
+
+function renderBloodFilterPills(members) {
+  const wrap = document.getElementById("bloodFilterPills");
+  if (!wrap) return;
+  const counts = {};
+  let pending = 0;
+  members.forEach(m => {
+    const group = String(m.bloodGroup || "").trim().toUpperCase();
+    if (group) counts[group] = (counts[group] || 0) + 1;
+    else pending++;
+  });
+  const groups = BLOOD_GROUP_OPTIONS.filter(group => counts[group]);
+  wrap.innerHTML = [`<button type="button" class="blood-filter-pill active" data-filter="ALL">All (${members.length})</button>`, ...groups.map(group => `<button type="button" class="blood-filter-pill" data-filter="${group}">${group} (${counts[group]})</button>`), pending ? `<button type="button" class="blood-filter-pill blood-filter-pending" data-filter="">Pending Blood Details (${pending})</button>` : ""].join("");
+  wrap.querySelectorAll(".blood-filter-pill").forEach(pill => {
+    pill.addEventListener("click", () => applyBloodGroupFilter(pill.dataset.filter));
+  });
+}
