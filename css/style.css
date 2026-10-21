@@ -2075,6 +2075,21 @@ html[data-auth-role="member"] .program-report-submit{display:none!important}
 .rental-year-filter select{min-width:90px;min-height:44px;padding:5px 9px;border:1px solid #d9e5dd;border-radius:8px;background:#f8fbf9;color:#174c37;font:inherit;font-size:16px;font-weight:700}
 @media(max-width:650px){.rental-report-action{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
+/* Speaker rental dashboard: compact, touch friendly summary and tabbed lists. */
+.rental-simple-summary.speaker-summary{grid-template-columns:repeat(3,minmax(0,1fr));margin:0 0 12px}
+.rental-simple-summary.speaker-summary .rental-stat-card.collected strong{color:#16804a}
+.rental-new-booking{min-height:48px;font-size:14px}
+.rental-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin:0 0 9px;padding:4px;border:1px solid #e0e9e3;border-radius:12px;background:#f4f7f5}
+.rental-tabs button{display:flex;align-items:center;justify-content:center;gap:7px;min-height:42px;padding:7px;border:0;border-radius:9px;background:transparent;color:#64746b;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.rental-tabs button span{min-width:22px;padding:2px 6px;border-radius:99px;background:#e4ebe6;color:#456251;text-align:center;font-size:11px}
+.rental-tabs button.active{background:#fff;color:#174c37;box-shadow:0 1px 5px rgba(23,76,55,.1)}
+.rental-tabs button.active span{background:#eaf4ee;color:#174c37}
+.speaker-tab-panel{margin:0 0 10px}
+.rental-phone-link{display:inline-flex;align-items:center;gap:5px;margin-top:3px;color:#26734d;font-size:12px;text-decoration:none}
+.rental-order-value .rental-due{color:#bd4a35}
+@media(max-width:650px){.rental-simple-summary.speaker-summary{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}.rental-simple-summary.speaker-summary .rental-stat-card{padding:8px 6px}.rental-simple-summary.speaker-summary .rental-stat-card span{font-size:10px}.rental-simple-summary.speaker-summary .rental-stat-card strong{font-size:14px}.speaker-tab-panel .rental-order-list{padding:0 10px}.speaker-tab-panel .rental-order-card{grid-template-columns:minmax(0,1fr) auto;gap:4px 7px}}
+@media(max-width:420px){.speaker-tab-panel .rental-order-card{grid-template-columns:minmax(0,1fr);gap:5px}.speaker-tab-panel .rental-order-value{text-align:left;white-space:normal}.speaker-tab-panel .rental-order-value>span{display:inline-block;margin:3px 9px 0 0}.speaker-tab-panel .rental-order-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}.speaker-tab-panel .rental-order-actions button{min-height:38px;border:1px solid #d9e5dd;border-radius:8px;background:#fff;font-size:11px}}
+
 /* Finance-style, compact rental and agenda lists */
 .rental-order-section{padding:0;overflow:hidden;border:1px solid #dce4ec;border-radius:13px;box-shadow:none}
 .rental-trash-section{border-color:#eadfdb}.rental-trash-section>h3{background:#fffaf8;color:#7d4338}

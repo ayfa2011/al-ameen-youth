@@ -195,10 +195,10 @@ function renderRentalDashboard() {
       const statusText = rental.importedHistoric ? rental.reportPaymentStatus : rentalStatusLabel(status);
       const details = rental.importedHistoric
         ? `<p>${escapeHTML(rental.item)}</p>`
-        : `<p>${escapeHTML(rental.item || categoryLabel)} · ${escapeHTML(rental.quantity || "—")}<small>${rentalDate(rental.startDate)}${rental.returnDate ? ` – ${rentalDate(rental.returnDate)}` : ""}</small></p>${rental.equipmentProvided?.length ? `<small class="rental-equipment-summary">Equipment: ${rental.equipmentProvided.map(escapeHTML).join(", ")}</small>` : ""}`;
+        : `<p>${escapeHTML(rental.item || categoryLabel)} · ${escapeHTML(rental.quantity || "—")}<small>${rentalDate(rental.startDate)}${rental.returnDate ? ` – ${rentalDate(rental.returnDate)}` : ""}</small></p>${rental.mobile ? `<a class="rental-phone-link" href="tel:${escapeHTML(String(rental.mobile).replace(/[^+\d]/g, ""))}"><i class="fa-solid fa-phone"></i> ${escapeHTML(rental.mobile)}</a>` : ""}${rental.equipmentProvided?.length ? `<small class="rental-equipment-summary">Equipment: ${rental.equipmentProvided.map(escapeHTML).join(", ")}</small>` : ""}`;
       const amount = rental.importedHistoric
         ? `<div class="rental-order-value"><span>Amount</span><strong>${rental.totalAmount == null ? "—" : rentalCurrency(rental.totalAmount)}</strong></div>`
-        : `<div class="rental-order-value"><strong>Total ${rentalCurrency(rental.totalAmount)}</strong><span>Paid ${rentalCurrency(rental.paidAmount)} · Due ${rentalCurrency(rental.balance)}</span></div>`;
+        : `<div class="rental-order-value"><strong>Total ${rentalCurrency(rental.totalAmount)}</strong><span>Advance ${rentalCurrency(rental.advanceAmount ?? rental.initialAdvance ?? rental.paidAmount)}</span><span class="${Number(rental.balance) > 0 ? "rental-due" : ""}">Due ${rentalCurrency(rental.balance)}</span></div>`;
       const actions = canManage && !rental.importedHistoric
         ? rental.trashRecord
           ? `<div class="rental-order-actions"><button class="rental-secondary-button" type="button" onclick="restoreRental('${rental.id}')"><i class="fa-solid fa-rotate-left"></i> Restore</button></div>`
@@ -213,13 +213,12 @@ function renderRentalDashboard() {
     ? { count: historicalReport.rentalCount, revenue: historicalReport.revenue, collected: historicalReport.collected, pending: historicalReport.pendingDues }
     : { count: yearRentals.length, revenue: totals.total, collected: totals.paid, pending: totals.balance };
 
-  target.innerHTML = `<div class="rental-department-toolbar"><button class="rental-secondary-button" type="button" onclick="setRentalCategory('')"><i class="fa-solid fa-arrow-left"></i> Categories</button><h3><i class="fa-solid ${RENTAL_CATEGORY[category].icon}"></i> ${categoryLabel}</h3>${isSupervisorLoggedIn() ? '<span class="rental-role-indicator">Officials access</span>' : ''}</div>
+  const useCompactSpeaker = category === "speaker";
+  target.innerHTML = `<div class="rental-department-toolbar"><button class="rental-secondary-button" type="button" onclick="setRentalCategory('')"><i class="fa-solid fa-arrow-left"></i> Categories</button><h3><i class="fa-solid ${RENTAL_CATEGORY[category].icon}"></i> ${categoryLabel} Rental Dashboard</h3>${isSupervisorLoggedIn() ? '<span class="rental-role-indicator">Officials access</span>' : ''}</div>
     <div class="rental-year-filter"><label for="rentalReportYear">Year</label><select id="rentalReportYear" aria-label="Select year" onchange="setRentalReportYear(this.value)">${rentalReportYearOptions()}</select></div>
-    <div class="rental-summary-grid rental-simple-summary"><div class="rental-stat-card"><span>Total Rentals</span><strong>${displayedTotals.count}</strong></div><div class="rental-stat-card"><span>Total Revenue</span><strong>${rentalCurrencyOrDash(displayedTotals.revenue)}</strong></div><div class="rental-stat-card"><span>Total Collected</span><strong>${rentalCurrencyOrDash(displayedTotals.collected)}</strong></div><div class="rental-stat-card pending"><span>Pending Dues</span><strong>${rentalCurrencyOrDash(displayedTotals.pending)}</strong></div></div>
+    <div class="rental-summary-grid rental-simple-summary ${useCompactSpeaker ? "speaker-summary" : ""}"><div class="rental-stat-card"><span>Total Rentals</span><strong>${displayedTotals.count}</strong></div><div class="rental-stat-card collected"><span>Total Collected</span><strong>${rentalCurrencyOrDash(displayedTotals.collected)}</strong></div><div class="rental-stat-card pending"><span>Pending Dues</span><strong>${rentalCurrencyOrDash(displayedTotals.pending)}</strong></div></div>
     ${canManage ? `<button class="rental-primary-button rental-new-booking" type="button" onclick="openRentalEntry()"><i class="fa-solid fa-plus"></i> Add Rental</button>` : ""}
-    <section class="rental-panel rental-order-section"><h3><i class="fa-regular fa-calendar-check"></i> Upcoming <span>${upcoming.length}</span></h3>${bookingList(upcoming,"No upcoming rentals.")}</section>
-    <section class="rental-panel rental-order-section"><h3><i class="fa-solid fa-clock-rotate-left"></i> Rental History <span>${history.length}</span></h3>${bookingList(history,"No past rentals.")}</section>
-    ${canManage ? `<section class="rental-panel rental-order-section rental-trash-section"><h3><i class="fa-solid fa-trash-can"></i> Trash <span>${rentalState.deletedRentals.filter(item => item.category === category).length}</span></h3>${bookingList(rentalState.deletedRentals.filter(item => item.category === category).map(item => ({ ...item, trashRecord: true })), "Trash is empty.")}</section>` : ""}
+    ${useCompactSpeaker ? `<div class="rental-tabs" role="tablist" aria-label="Rental records"><button type="button" role="tab" aria-selected="true" class="active" onclick="setRentalTab('upcoming', this)">Upcoming <span>${upcoming.length}</span></button><button type="button" role="tab" aria-selected="false" onclick="setRentalTab('history', this)">History <span>${history.length}</span></button></div><section class="rental-panel rental-order-section speaker-tab-panel" data-rental-tab-panel="upcoming">${bookingList(upcoming,"No upcoming rentals.")}</section><section class="rental-panel rental-order-section speaker-tab-panel hidden" data-rental-tab-panel="history">${bookingList(history,"No past rentals.")}</section>` : `<section class="rental-panel rental-order-section"><h3><i class="fa-regular fa-calendar-check"></i> Upcoming <span>${upcoming.length}</span></h3>${bookingList(upcoming,"No upcoming rentals.")}</section><section class="rental-panel rental-order-section"><h3><i class="fa-solid fa-clock-rotate-left"></i> Rental History <span>${history.length}</span></h3>${bookingList(history,"No past rentals.")}</section>`}
     <div class="rental-report-action"><button class="rental-secondary-button" type="button" onclick="downloadRentalPDFReport('${category}', document.getElementById('rentalReportYear').value)"><i class="fa-solid fa-file-pdf"></i> Export PDF</button><button class="rental-secondary-button" type="button" onclick="downloadRentalReport('${category}', document.getElementById('rentalReportYear').value)"><i class="fa-solid fa-file-excel"></i> Excel</button></div>`;
 
 }
@@ -234,6 +233,17 @@ function setRentalCategory(category) {
 function setRentalReportYear(year) {
   rentalState.reportYear = String(year || RENTAL_CURRENT_FINANCIAL_YEAR);
   renderRentalDashboard();
+}
+
+function setRentalTab(tab, button) {
+  const target = document.getElementById("rentalContent");
+  if (!target) return;
+  target.querySelectorAll(".rental-tabs [role='tab']").forEach(item => {
+    const active = item === button;
+    item.classList.toggle("active", active);
+    item.setAttribute("aria-selected", String(active));
+  });
+  target.querySelectorAll("[data-rental-tab-panel]").forEach(panel => panel.classList.toggle("hidden", panel.dataset.rentalTabPanel !== tab));
 }
 
 function rentalModal(content) {
