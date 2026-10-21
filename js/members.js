@@ -5,7 +5,6 @@
 let fullMembersList = [];
 let deactivatedMembersList = [];
 window.fullMembersList = fullMembersList;
-let memberDatabaseKeyById = new Map();
 
 function bloodMemberKey(value) {
   return String(value ?? "").replace(/\([^)]*\)/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -60,12 +59,10 @@ async function fetchMembersFromFirebase(force = false) {
   const snapshot = await MembersRepository.read("members");
   const data = snapshot.val() || {};
 
-  memberDatabaseKeyById = new Map();
   const allMembers = Object.entries(data)
     .map(([databaseKey, row]) => {
       const member = normalizeMember(row || {});
       member.id = String(member.id || databaseKey);
-      memberDatabaseKeyById.set(String(member.id), databaseKey);
       return member;
     })
     .filter(m => String(m.name || "").trim());
@@ -204,7 +201,6 @@ async function saveMemberEdit(event, memberId) {
   const member = getMemberById(memberId);
   if (!member) return;
   const values = Object.fromEntries(new FormData(event.currentTarget).entries());
-  const databaseKey = memberDatabaseKeyById.get(String(memberId)) || String(memberId);
   const update = {
     name: String(values.name || "").trim(),
     designation: String(values.designation || "").trim(),
@@ -218,6 +214,7 @@ async function saveMemberEdit(event, memberId) {
   if (!update.name) { alert("Member name is required."); return; }
   try {
     await waitForFirebase();
+    const databaseKey = await MembersRepository.resolveMemberKey(memberId);
     const expectedUpdatedAt = String(member.updatedAt || "");
     const updatedAt = new Date().toISOString();
     const result = await MembersRepository.transaction(`members/${databaseKey}`, current => {
@@ -240,9 +237,9 @@ async function deleteMember(memberId) {
   const member = getMemberById(memberId);
   if (!member) return;
   if (!confirm(`Deactivate ${member.name}? This removes them from the active member list. Historical attendance records will remain.`)) return;
-  const databaseKey = memberDatabaseKeyById.get(String(memberId)) || String(memberId);
   try {
     await waitForFirebase();
+    const databaseKey = await MembersRepository.resolveMemberKey(memberId);
     const expectedUpdatedAt = String(member.updatedAt || "");
     const deactivatedAt = new Date().toISOString();
     const result = await MembersRepository.transaction(`members/${databaseKey}`, current => {
@@ -263,8 +260,8 @@ async function restoreMember(memberId) {
   if (!requireSupervisor()) return;
   const member = deactivatedMembersList.find(item => String(item.id) === String(memberId));
   if (!member) return;
-  const databaseKey = memberDatabaseKeyById.get(String(memberId)) || String(memberId);
   try {
+    const databaseKey = await MembersRepository.resolveMemberKey(memberId);
     const restoredAt = new Date().toISOString();
     const result = await MembersRepository.transaction(`members/${databaseKey}`, current => {
       if (!current || current.active !== false || String(current.updatedAt || "") !== String(member.updatedAt || "")) return;
@@ -382,7 +379,7 @@ async function saveBloodGroup(memberId, group) {
     if (button) { button.disabled = true; button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...'; }
     if (message) message.textContent = "Saving...";
     await waitForFirebase();
-    const databaseKey = memberDatabaseKeyById.get(String(memberId)) || String(memberId);
+    const databaseKey = await MembersRepository.resolveMemberKey(memberId);
     const updatedAt = new Date().toISOString();
     const result = await MembersRepository.transaction(`members/${databaseKey}`, current => {
       if (!current) return;
@@ -390,7 +387,11 @@ async function saveBloodGroup(memberId, group) {
       // stale member updatedAt must not block this independent field edit.
       return { ...current, bloodGroupOverride: String(group || ""), updatedAt };
     });
-    if (!result.committed) throw new Error("Member record no longer exists.");
+    if (!result.committed) {
+      const latest = result.snapshot?.val();
+      if (!latest) throw new Error("Member record could not be found. Refresh the Members page and try again.");
+      throw new Error("Blood group update did not commit. Refresh and try again.");
+    }
     await MembersRepository.audit({ action: "member.bloodGroup.update", path: "members", recordId: databaseKey, afterUpdatedAt: updatedAt });
     member.bloodGroup = String(group || "");
     member.bloodGroupOverride = String(group || "");
@@ -566,8 +567,9 @@ async function deleteBloodDonation(memberId, recordId) {
     });
     if (!result.committed) {
       await openBloodDonationHistory(safeMemberId);
-      if (result.snapshot?.val()?.deleted === true) return;
-      throw new Error("Donation record no longer exists or was already hidden.");
+      const latest = result.snapshot?.val();
+      if (!latest || latest.deleted === true) return;
+      throw new Error("Donation record changed before it could be hidden. Refresh and try again.");
     }
     await MembersRepository.audit({ action: "bloodDonation.hide", path: `bloodDonations/${safeMemberId}`, recordId: safeRecordId, afterUpdatedAt: updatedAt });
     await openBloodDonationHistory(safeMemberId);

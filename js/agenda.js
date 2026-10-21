@@ -104,7 +104,7 @@ const it=agendaState.items.find(x=>x.id===id);if(!it)return;
 if(!confirm('Delete "'+(it.title||"")+'"? Trash-ge hogutte.'))return;
 try{await AgendaRepository.ready();const now=new Date().toISOString();
 const r=await AgendaRepository.transaction("meetingAgendas/"+id, cur=>cur&&cur.deleted!==true?{...cur,deleted:true,deletedAt:now,updatedAt:now}:undefined);
-if(!r.committed)throw new Error("changed");
+if(!r.committed){const latest=r.snapshot?.val();await reloadAgendaKeep();if(!latest||latest.deleted===true)return;throw new Error("Agenda changed before it could be hidden. Refresh and try again.");}
 await AgendaRepository.audit({action:"agenda.hide",path:"meetingAgendas",recordId:id,afterUpdatedAt:now});
 agendaState.view="list";agendaState.activeId="";await reloadAgendaKeep();}catch(e){console.error(e);alert("Delete failed.");}}
 async function restoreAgenda(id){if(!requireSupervisor())return;

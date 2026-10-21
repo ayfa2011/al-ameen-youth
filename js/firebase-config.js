@@ -47,10 +47,4 @@ if (IS_LOCAL_DEV_HOST && (!firebaseConfig?.projectId || firebaseConfig.projectId
       throw error;
     });
 
-  window.firebaseAuth.onAuthStateChanged(user => {
-    if (!user) return;
-    window.firebaseReady.then(async () => {
-      try { await loadVerifiedBloodGroups(); } catch (error) { console.warn(error); }
-    });
-  });
 }

@@ -350,7 +350,13 @@ async function deleteRental(id) {
   try {
     const updatedAt = new Date().toISOString();
     const result = await RentalsRepository.transaction(`rentals/${id}`, current => current && current.deleted !== true ? { ...current, deleted: true, deletedAt: updatedAt, updatedAt } : undefined);
-    if (!result.committed) throw new Error("Rental changed before it could be hidden.");
+    if (!result.committed) {
+      const latest = result.snapshot?.val();
+      await loadRentals();
+      renderRentalDashboard();
+      if (!latest || latest.deleted === true) return;
+      throw new Error("Rental changed before it could be hidden. Refresh and try again.");
+    }
     await RentalsRepository.audit({ action: "rental.hide", path: "rentals", recordId: id, afterUpdatedAt: updatedAt });
     await loadRentals();
     renderRentalDashboard();

@@ -435,11 +435,12 @@ async function deleteProgramReport(id) {
       return { ...current, deleted: true, deletedAt: updatedAt, updatedAt };
     });
     if (!result.committed) {
-      // The record may have been hidden by another official while the prompt
-      // was open. Refresh the view and treat that as an already completed action.
+      // A stale card can remain visible if another session hid or removed the
+      // report. Refresh and treat a missing/already-hidden record idempotently.
       await loadProgramReports();
-      if (result.snapshot?.val()?.deleted === true) return;
-      throw new Error("Report no longer exists or was already hidden.");
+      const current = result.snapshot?.val();
+      if (!current || current.deleted === true) return;
+      throw new Error("Report changed before it could be hidden. Refresh and try again.");
     }
     await ActivityReportsRepository.audit({ action: "programReport.hide", path: "programReports", recordId: reportId, beforeUpdatedAt: String(report.updatedAt || ""), afterUpdatedAt: updatedAt });
     closeProgramModal();

@@ -13,7 +13,12 @@ async function firebaseRead(path) {
 
 async function firebaseTransaction(path, updater) {
   await firebaseDataReady();
-  return window.firebaseDb.ref(String(path || "")).transaction(updater);
+  const ref = window.firebaseDb.ref(String(path || ""));
+  // RTDB can invoke a transaction updater immediately with its local cached
+  // value (including null) and abort before checking the server. Prime this
+  // exact path first so existing records are not mistaken for missing ones.
+  await ref.once("value");
+  return ref.transaction(updater);
 }
 
 async function firebaseAuditedTransaction(path, updater, auditEvent) {
