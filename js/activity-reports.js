@@ -109,11 +109,12 @@ function renderProgramReports() {
     });
   });
   if (supervisor && programReportState.deletedReports.length) {
-    list.insertAdjacentHTML("beforeend", `<section class="program-trash"><h3><i class="fa-solid fa-trash-can"></i> Previously hidden reports</h3>${programReportState.deletedReports.map(report => `<div class="program-trash-row"><span>${escapeHTML(report.title || "Untitled report")}</span><div><button type="button" data-action="restore" data-id="${escapeHTML(String(report.id ?? ""))}">Restore</button><button type="button" data-action="delete" data-id="${escapeHTML(String(report.id ?? ""))}">Delete permanently</button></div></div>`).join("")}</section>`);
+    list.insertAdjacentHTML("beforeend", `<section class="program-trash"><h3><i class="fa-solid fa-trash-can"></i> Previously hidden reports</h3>${programReportState.deletedReports.map(report => `<div class="program-trash-row"><span>${escapeHTML(report.title || "Untitled report")}</span><div><button type="button" data-action="edit" data-id="${escapeHTML(String(report.id ?? ""))}">Edit</button><button type="button" data-action="restore" data-id="${escapeHTML(String(report.id ?? ""))}">Restore</button><button type="button" data-action="delete" data-id="${escapeHTML(String(report.id ?? ""))}">Delete permanently</button></div></div>`).join("")}</section>`);
     list.querySelectorAll(".program-trash [data-action]").forEach(btn => {
       btn.addEventListener("click", () => {
         const id = btn.getAttribute("data-id") || "";
-        if (btn.getAttribute("data-action") === "restore") restoreProgramReport(id);
+        if (btn.getAttribute("data-action") === "edit") openProgramReportForm(id);
+        else if (btn.getAttribute("data-action") === "restore") restoreProgramReport(id);
         else if (btn.getAttribute("data-action") === "delete") deleteProgramReport(id);
       });
     });
@@ -125,7 +126,7 @@ function closeProgramModal() { document.getElementById("programModal")?.remove()
 
 function openProgramReportForm(editId = "") {
   if (!requireSupervisor()) return;
-  const existing = editId ? programReportState.reports.find(item => item.id === editId) : null;
+  const existing = editId ? programReportState.reports.concat(programReportState.deletedReports).find(item => item.id === editId) : null;
   if (editId && !existing) {
     showToast("This report is no longer active. The report list has been refreshed.");
     void loadProgramReports();
@@ -358,7 +359,7 @@ async function submitProgramReport(event, editId = "") {
   const submit = form.querySelector("button[type='submit']");
   const values = Object.fromEntries(new FormData(form).entries());
   const photos = Array.from(form.querySelector("[name='photos']").files || []);
-  let existing = editId ? programReportState.reports.find(item => item.id === editId) : null;
+  let existing = editId ? programReportState.reports.concat(programReportState.deletedReports).find(item => item.id === editId) : null;
   if (form.dataset.submitting === "true") return;
   try {
     if (!submit || !message) throw new Error("Form status area is unavailable. Please reopen the form and try again.");
@@ -371,9 +372,9 @@ async function submitProgramReport(event, editId = "") {
     if (editId) {
       const latestSnapshot = await ActivityReportsRepository.read(`programReports/${editId}`);
       existing = latestSnapshot.val();
-      if (!existing || existing.deleted === true) {
+      if (!existing) {
         await loadProgramReports();
-        throw new Error("This activity report is no longer active and cannot be edited. The report list has been refreshed.");
+        throw new Error("This activity report no longer exists. The report list has been refreshed.");
       }
     }
     const reportId = editId || ActivityReportsRepository.key("programReports");
@@ -386,7 +387,7 @@ async function submitProgramReport(event, editId = "") {
     const nextFields = { title: values.title.trim(), description: values.description.trim(), date: values.date, driveFolderName: folderName, driveFolderUrl, updatedAt };
     if (editId) {
       const result = await ActivityReportsRepository.transaction(`programReports/${reportId}`, current => {
-        if (!current || current.deleted === true) return;
+        if (!current) return;
         const currentPhotos = Array.isArray(current.photos) ? current.photos : Object.values(current.photos || {});
         const mergedPhotos = [...currentPhotos];
         const knownPhotos = new Set(currentPhotos.flatMap(photo => typeof photo === "object"
@@ -399,13 +400,13 @@ async function submitProgramReport(event, editId = "") {
           mergedPhotos.push(item.imageUrl || item.thumbnailUrl || item.webViewLink || item.url || "");
         });
         const newlyAttached = Math.max(0, mergedPhotos.length - currentPhotos.length);
-        return { ...current, ...nextFields, photos:mergedPhotos, photosUploaded:(Number(current.photosUploaded) || currentPhotos.length) + newlyAttached, createdAt:current.createdAt || new Date().toISOString(), submittedBy:current.submittedBy || "AYFA supervisor" };
+        return { ...current, ...nextFields, deleted:false, deletedAt:null, photos:mergedPhotos, photosUploaded:(Number(current.photosUploaded) || currentPhotos.length) + newlyAttached, createdAt:current.createdAt || new Date().toISOString(), submittedBy:current.submittedBy || "AYFA supervisor" };
       });
       if (!result.committed) {
         const latest = result.snapshot?.val();
         await loadProgramReports();
         throw new Error(!latest || latest.deleted === true
-          ? "This activity report is no longer active and cannot be edited. The report list has been refreshed."
+          ? "This activity report no longer exists. The report list has been refreshed."
           : "The report update was not committed. Check the Firebase connection and rules, then retry. Any uploaded photos remain in Google Drive.");
       }
       await ActivityReportsRepository.audit({ action: "programReport.update", path: "programReports", recordId: editId, beforeUpdatedAt: String(existing?.updatedAt || ""), afterUpdatedAt: updatedAt });
@@ -454,15 +455,8 @@ async function deleteProgramReport(id) {
   try {
     await ActivityReportsRepository.ready();
     const updatedAt = new Date().toISOString();
-    const result = await ActivityReportsRepository.transaction(`programReports/${reportId}`, current => current ? null : undefined,
+    await ActivityReportsRepository.remove(`programReports/${reportId}`,
       { action: "programReport.delete", path: "programReports", recordId: reportId, beforeUpdatedAt: String(report.updatedAt || ""), afterUpdatedAt: updatedAt });
-    if (!result.committed) {
-      // Treat an already-removed record as success and reconcile the visible list.
-      await loadProgramReports();
-      const current = result.snapshot?.val();
-      if (!current) return;
-      throw new Error("Report could not be deleted. Check the Firebase connection and rules, then try again.");
-    }
     closeProgramModal();
     await loadProgramReports();
   } catch (error) {
