@@ -1701,6 +1701,20 @@ html[data-auth-role="member"] .program-report-submit{display:none!important}
 }
 
 /* Office bearers - fit mobile without horizontal scrolling */
+.bearer-table-tools{display:flex;align-items:center;gap:9px;width:min(100%,620px);margin:0 0 12px}
+.bearer-table-tools .page-search{flex:1;min-width:0;margin:0}
+.bearer-add-button{flex:0 0 44px;width:44px;height:44px;min-height:44px;padding:0;border:1px solid #cfe1d5;border-radius:12px;background:#edf7f1;color:#176b50;font-size:16px;cursor:pointer}
+.bearer-text-edit{display:block;width:100%;min-height:0;padding:2px 0;border:0;background:transparent;color:inherit;font:inherit;text-align:inherit;line-height:1.35;cursor:pointer}
+.bearer-text-edit:hover{text-decoration:underline;text-decoration-color:#83a995;text-underline-offset:3px}
+.office-bearer-modal{position:fixed;inset:0;z-index:1200;display:grid;place-items:center;padding:18px;background:rgba(18,35,27,.48)}
+.office-bearer-dialog{width:min(100%,440px);max-height:min(90dvh,650px);overflow:auto;padding:20px;border:1px solid #dce8e0;border-radius:18px;background:#fff;box-shadow:0 20px 60px rgba(0,0,0,.22)}
+.office-bearer-dialog h3{margin:0 0 16px;color:#173f2e;font-size:19px}
+.office-bearer-dialog form{display:grid;gap:13px}
+.office-bearer-dialog label{display:grid;gap:6px;color:#496154;font-size:13px;font-weight:700}
+.office-bearer-dialog input{width:100%;min-height:42px;padding:9px 11px;border:1px solid #d6e3da;border-radius:9px;background:#fff;color:#172b20;font:inherit;font-size:15px}
+.office-bearer-dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:5px}
+.office-bearer-dialog-actions button{min-height:40px;padding:8px 15px;border:1px solid #d6e3da;border-radius:9px;background:#fff;color:#43554b;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.office-bearer-dialog-actions .office-bearer-save{border-color:#0b6b4f;background:#0b6b4f;color:#fff}
 .table-container {
   overflow-x: hidden;
 }
@@ -2310,6 +2324,8 @@ body{display:flex;align-items:center;justify-content:center;background:#eef2f1}
 #membersView .member-card-admin-actions{display:flex;justify-content:flex-end;gap:6px;margin-top:8px;padding-top:7px;border-top:1px solid #edf1ee}
 #membersView .member-card-admin-actions button{display:inline-flex;min-height:32px;align-items:center;gap:5px;padding:4px 10px;border:1px solid #dce8e0;border-radius:8px;background:#f5faf7;color:#245e43;font-size:11px;font-weight:500}
 #membersView .member-card-admin-actions .member-card-delete{border-color:#f0dddd;background:#fff8f7;color:#a8433d}
+#membersView .member-add-button{display:flex;width:100%;min-height:42px;align-items:center;justify-content:center;gap:8px;margin:10px 0 14px;border:1px solid #176343;border-radius:10px;background:#eef8f3;color:#176343;font-size:14px;font-weight:600}
+#membersView .member-add-button.hidden{display:none}
 .member-edit-overlay{position:fixed;z-index:10000;inset:0;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(18,35,29,.48)}
 .member-edit-card{width:min(620px,100%);max-height:min(90vh,820px);overflow:auto;border:1px solid #dfe8e3;border-radius:18px;background:#fff;box-shadow:0 18px 55px rgba(12,38,27,.22)}
 .member-edit-card>header{position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between;padding:15px 18px;border-bottom:1px solid #e7eee9;background:#fff}

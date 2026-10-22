@@ -277,6 +277,7 @@ function openOfficeBearers() {
   }
 
   });
+  void loadOfficeBearerYears();
 
 }
 
@@ -380,118 +381,162 @@ function openAttendance() {
 // OFFICE BEARERS TABLE
 // ============================================================
 
-async function loadBearers(year, options = {}) {
+let activeOfficeBearerYear = "";
+let activeOfficeBearerRoster = [];
 
+function normalizeOfficeBearer(item, index) {
+  if (Array.isArray(item)) return { sl: index + 1, designation: item[0] || "", name: item[1] || "" };
+  return { ...(item || {}), sl: item?.sl ?? index + 1, designation: item?.designation || "", name: item?.name || "" };
+}
+
+function renderOfficeBearerAdminActions() {
+  const host = document.getElementById("bearerAdminActions");
+  if (!host) return;
+  host.innerHTML = typeof isSupervisorLoggedIn === "function" && isSupervisorLoggedIn()
+    ? '<button type="button" class="bearer-add-button" aria-label="Add office bearer" title="Add office bearer" onclick="openOfficeBearerAdd()"><i class="fa-solid fa-plus"></i></button>'
+    : "";
+}
+
+function ensureOfficeBearerYearButton(year) {
+  const list = document.querySelector(".year-list");
+  if (!list || [...list.querySelectorAll(".year-btn")].some(button => button.querySelector(".year-num")?.textContent.trim() === String(year))) return;
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "year-btn";
+  button.innerHTML = '<span class="year-btn-top"><i class="fa-solid fa-calendar-days"></i><i class="fa-solid fa-arrow-right"></i></span><span class="year-num"></span><span class="year-sub">View committee</span>';
+  button.querySelector(".year-num").textContent = String(year);
+  button.addEventListener("click", () => loadBearers(String(year)));
+  const nextYear = [...list.querySelectorAll(".year-btn")].find(existing => Number(existing.querySelector(".year-num")?.textContent) < Number(year));
+  if (nextYear) list.insertBefore(button, nextYear);
+  else list.append(button);
+}
+
+async function loadOfficeBearerYears() {
+  try {
+    const snapshot = await ReferenceDataRepository.read("officeBearers");
+    const years = Object.keys(snapshot.val() || {}).filter(year => /^\d{4}$/.test(year)).sort((a, b) => Number(a) - Number(b));
+    years.forEach(ensureOfficeBearerYearButton);
+  } catch (error) {
+    console.error("Office bearer years could not be loaded:", error);
+  }
+}
+
+async function loadBearers(year, options = {}) {
+  year = String(year);
   const search = document.getElementById("bearerSearch");
   if (search) search.value = "";
-
   if (options.updateHistory !== false && (history.state?.appView !== "bearersTable" || history.state?.year !== year)) {
-    history.pushState({ appView: "bearersTable", year: String(year) }, "", location.pathname + location.search + "#bearersTable");
+    history.pushState({ appView: "bearersTable", year }, "", location.pathname + location.search + "#bearersTable");
   }
-
   hideAllViews();
-
-
-  const tableView =
-    document.getElementById("bearersTableView");
-
-  if (tableView) {
-
-    tableView.classList.remove("hidden");
-
-  }
-
-
-  const title =
-    document.getElementById("selectedYearTitle");
-
-  const tbody =
-    document.getElementById("bearersTableBody");
-
-
-  if (!tbody) {
-
-    return;
-
-  }
-
-
-  if (title) {
-
-    title.textContent = year;
-
-  }
-
-
+  const tableView = document.getElementById("bearersTableView");
+  if (tableView) tableView.classList.remove("hidden");
+  const title = document.getElementById("selectedYearTitle");
+  const tbody = document.getElementById("bearersTableBody");
+  if (!tbody) return;
+  activeOfficeBearerYear = year;
+  activeOfficeBearerRoster = [];
+  if (title) title.textContent = year;
+  renderOfficeBearerAdminActions();
   tbody.innerHTML = "";
-
-
   let roster;
   try { roster = await loadReferenceData(`officeBearers/${year}`, "officeBearers"); }
   catch (error) { console.error("Office bearers read failed:", error); }
   roster = Array.isArray(roster) ? roster : Object.values(roster || {});
-
-  if (!roster.length) {
-
-    tbody.innerHTML = `
-
-      <tr>
-
-        <td
-          colspan="3"
-          class="empty-cell"
-        >
-
-          ${escapeHTML(year)}
-          ರ Office Bearers data
-          ಇನ್ನೂ ಸೇರಿಸಲಾಗಿಲ್ಲ.
-
-        </td>
-
-      </tr>
-
-    `;
-
+  activeOfficeBearerRoster = roster.map(normalizeOfficeBearer);
+  if (!activeOfficeBearerRoster.length) {
+    tbody.innerHTML = `<tr><td colspan="3" class="empty-cell">${escapeHTML(year)} ರ Office Bearers data ಇನ್ನೂ ಸೇರಿಸಲಾಗಿಲ್ಲ.</td></tr>`;
     return;
-
   }
-
-
-  roster.forEach((item, index) => {
-    // Historical 2025/26 imports may still be [designation, name] pairs.
-    // Normalize those while keeping the newer object-shaped records intact.
-    const bearer = Array.isArray(item)
-      ? { sl: index + 1, designation: item[0], name: item[1] }
-      : (item || {});
-
-    tbody.insertAdjacentHTML(
-
-      "beforeend",
-
-      `
-
+  activeOfficeBearerRoster.forEach((bearer, index) => {
+    tbody.insertAdjacentHTML("beforeend", `
       <tr>
-
-        <td>
-          ${escapeHTML(bearer.sl ?? index + 1)}
-        </td>
-
-        <td>
-          ${escapeHTML(bearer.designation)}
-        </td>
-
-        <td>
-          ${escapeHTML(bearer.name)}
-        </td>
-
-      </tr>
-
-      `
-
-    );
-
+        <td>${escapeHTML(bearer.sl)}</td>
+        <td><button type="button" class="bearer-text-edit" onclick="openOfficeBearerEdit(${index})">${escapeHTML(bearer.designation)}</button></td>
+        <td><button type="button" class="bearer-text-edit" onclick="openOfficeBearerEdit(${index})">${escapeHTML(bearer.name)}</button></td>
+      </tr>`);
   });
+}
 
+function openOfficeBearerAdd() {
+  if (!requireSupervisor()) return;
+  openOfficeBearerEditor("add", -1);
+}
+
+function openOfficeBearerEdit(index) {
+  if (!requireSupervisor()) return;
+  openOfficeBearerEditor("edit", Number(index));
+}
+
+function openOfficeBearerEditor(mode, index) {
+  const editing = mode === "edit";
+  const bearer = editing ? activeOfficeBearerRoster[index] : { designation: "", name: "" };
+  if (editing && !bearer) return;
+  document.getElementById("officeBearerEditor")?.remove();
+  const modal = document.createElement("div");
+  modal.id = "officeBearerEditor";
+  modal.className = "office-bearer-modal";
+  modal.innerHTML = `<section class="office-bearer-dialog" role="dialog" aria-modal="true" aria-labelledby="officeBearerDialogTitle">
+    <h3 id="officeBearerDialogTitle">${editing ? "Edit office bearer" : "Add office bearer"}</h3>
+    <form id="officeBearerEditorForm">
+      ${editing ? "" : `<label>Year<input name="year" type="number" min="1900" max="2200" step="1" value="${escapeHTML(activeOfficeBearerYear || new Date().getFullYear())}" required></label>`}
+      <label>Designation<input name="designation" type="text" maxlength="150" value="${escapeHTML(bearer.designation)}" required></label>
+      <label>Name<input name="name" type="text" maxlength="150" value="${escapeHTML(bearer.name)}" required></label>
+      <div class="office-bearer-dialog-actions"><button type="button" class="office-bearer-cancel">Cancel</button><button type="submit" class="office-bearer-save">Save</button></div>
+    </form>
+  </section>`;
+  document.body.append(modal);
+  const close = () => modal.remove();
+  modal.querySelector(".office-bearer-cancel").addEventListener("click", close);
+  modal.addEventListener("click", event => { if (event.target === modal) close(); });
+  modal.querySelector("form").addEventListener("submit", event => {
+    event.preventDefault();
+    void saveOfficeBearerEditor(mode, index, new FormData(event.currentTarget));
+  });
+  modal.querySelector('input[name="designation"]').focus();
+}
+
+async function saveOfficeBearerEditor(mode, index, formData) {
+  if (!requireSupervisor()) return;
+  const editing = mode === "edit";
+  const year = editing ? activeOfficeBearerYear : String(formData.get("year") || "").trim();
+  const parsedYear = Number(year);
+  const designation = String(formData.get("designation") || "").trim();
+  const name = String(formData.get("name") || "").trim();
+  if (!/^\d{4}$/.test(year) || parsedYear < 1900 || parsedYear > 2200) { showToast("Enter a valid year."); return; }
+  if (!designation || !name) { showToast("Enter both designation and name."); return; }
+  try {
+    let roster;
+    if (editing) roster = activeOfficeBearerRoster.map(item => ({ ...item }));
+    else {
+      const snapshot = await ReferenceDataRepository.read(`officeBearers/${year}`);
+      const current = snapshot.val();
+      roster = (Array.isArray(current) ? current : Object.values(current || {})).map(normalizeOfficeBearer);
+    }
+    if (editing) {
+      if (!roster[index]) throw new Error("This office bearer record is no longer available.");
+      roster[index] = { ...roster[index], designation, name };
+    } else {
+      roster.push({ sl: roster.length + 1, designation, name });
+    }
+    const now = new Date().toISOString();
+    await ReferenceDataRepository.writeOfficeBearers(year, roster, {
+      action: editing ? "officeBearer.update" : "officeBearer.create",
+      path: `officeBearers/${year}`,
+      recordId: editing ? `${year}:${index + 1}` : year,
+      afterUpdatedAt: now
+    });
+    document.getElementById("officeBearerEditor")?.remove();
+    ensureOfficeBearerYearButton(year);
+    showToast(editing ? "Office bearer updated." : "Office bearer added.", "success");
+    await loadBearers(year);
+  } catch (error) {
+    console.error("Office bearer save failed:", error);
+    const details = String(error?.code || error?.message || "").toLowerCase();
+    showToast(details.includes("permission_denied") || details.includes("permission denied")
+      ? "Firebase denied this write. Sign in again as an official."
+      : "Could not save office bearer. Check the connection and try again.");
+  }
 }
 
 function filterBearerTable(query) {

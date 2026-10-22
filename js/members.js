@@ -145,6 +145,8 @@ async function renderMemberCards() {
   if (!container) return;
 
   container.innerHTML = `<p class="loading-message">Members loading...</p>`;
+  const addButton = document.getElementById("memberAddButton");
+  if (addButton) addButton.classList.toggle("hidden", !isSupervisorLoggedIn());
 
   try {
     await fetchMembersFromFirebase();
@@ -172,11 +174,22 @@ function openMemberEdit(memberId) {
   if (!requireSupervisor()) return;
   const member = getMemberById(memberId);
   if (!member) return;
+  openMemberForm(member, false);
+}
+
+function openMemberAdd() {
+  if (!requireSupervisor()) return;
+  const highestId = fullMembersList.concat(deactivatedMembersList)
+    .map(member => Number(member.id)).filter(Number.isInteger).reduce((max, id) => Math.max(max, id), 0);
+  openMemberForm({ id: String(highestId + 1), name: "", designation: "Member", fatherName: "", education: "", location: "", bloodGroup: "", mobile: "", contribution: "" }, true);
+}
+
+function openMemberForm(member, isNew) {
   const field = (name, label, value, type = "text") => `<label class="member-edit-field">${label}<input name="${name}" type="${type}" value="${escapeHTML(String(value ?? ""))}" ${name === "name" ? "required" : ""}></label>`;
   document.getElementById("memberEditModal")?.remove();
   document.body.insertAdjacentHTML("beforeend", `<div class="member-edit-overlay" id="memberEditModal" role="dialog" aria-modal="true" aria-labelledby="memberEditTitle">
-    <section class="member-edit-card"><header><div><h3 id="memberEditTitle">Edit Member</h3><p>${escapeHTML(memberDisplayId(member))}</p></div><button type="button" onclick="closeMemberEdit()" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></header>
-      <form class="member-edit-form" onsubmit="saveMemberEdit(event, '${escapeHTML(member.id)}')">
+    <section class="member-edit-card"><header><div><h3 id="memberEditTitle">${isNew ? "Add Member" : "Edit Member"}</h3><p>${escapeHTML(memberDisplayId(member))}</p></div><button type="button" onclick="closeMemberEdit()" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></header>
+      <form class="member-edit-form" onsubmit="saveMemberEdit(event, '${escapeHTML(member.id)}', ${isNew})">
         <div class="member-edit-grid">
           ${field("name", "Member Name", member.name)}
           ${field("designation", "Designation", member.designation)}
@@ -187,7 +200,7 @@ function openMemberEdit(memberId) {
           ${field("mobile", "Mobile Number", member.mobile, "tel")}
           ${field("contribution", "Contribution (₹)", member.contribution, "number")}
         </div>
-        <footer><button type="button" class="member-edit-cancel" onclick="closeMemberEdit()">Cancel</button><button type="submit" class="member-edit-save">Save Changes</button></footer>
+        <footer><button type="button" class="member-edit-cancel" onclick="closeMemberEdit()">Cancel</button><button type="submit" class="member-edit-save">${isNew ? "Add Member" : "Save Changes"}</button></footer>
       </form>
     </section>
   </div>`);
@@ -195,10 +208,10 @@ function openMemberEdit(memberId) {
 
 function closeMemberEdit() { document.getElementById("memberEditModal")?.remove(); }
 
-async function saveMemberEdit(event, memberId) {
+async function saveMemberEdit(event, memberId, isNew = false) {
   event.preventDefault();
   if (!requireSupervisor()) return;
-  const member = getMemberById(memberId);
+  const member = isNew ? { id: String(memberId) } : getMemberById(memberId);
   if (!member) return;
   const values = Object.fromEntries(new FormData(event.currentTarget).entries());
   const update = {
@@ -212,27 +225,28 @@ async function saveMemberEdit(event, memberId) {
     contribution: String(values.contribution || "").trim()
   };
   if (!update.name) { showToast("Member name is required."); return; }
+  if (update.name.length > 150) { showToast("Member name must be 150 characters or fewer."); return; }
   try {
     await waitForFirebase();
-    const databaseKey = await MembersRepository.resolveMemberKey(memberId);
-    const expectedUpdatedAt = String(member.updatedAt || "");
     const updatedAt = new Date().toISOString();
-    const result = await MembersRepository.transaction(`members/${databaseKey}`, current => {
-      if (!current) return;
-      const latest = normalizeMember(current);
-      const editedFields = ["name", "designation", "fatherName", "education", "location", "bloodGroup", "mobile", "contribution"];
-      const changedField = editedFields.some(field => String(latest[field] ?? "").trim() !== String(member[field] ?? "").trim());
-      if (changedField) return;
-      return { ...current, ...update, updatedAt };
-    });
-    if (!result.committed) throw new Error("A member field changed after you opened this form. Refresh and reapply your edits.");
-    await MembersRepository.audit({ action: "member.update", path: "members", recordId: databaseKey, beforeUpdatedAt: expectedUpdatedAt, afterUpdatedAt: updatedAt });
+    let databaseKey;
+    if (isNew) {
+      databaseKey = MembersRepository.key("members");
+      const newMember = { ...update, id: String(memberId), active: true, createdAt: updatedAt, updatedAt };
+      await MembersRepository.update({ [`members/${databaseKey}`]: newMember }, { action: "member.create", path: "members", recordId: databaseKey, afterUpdatedAt: updatedAt });
+    } else {
+      databaseKey = await MembersRepository.resolveMemberKey(memberId);
+      const updates = Object.fromEntries(Object.entries({ ...update, updatedAt }).map(([field, value]) => [`members/${databaseKey}/${field}`, value]));
+      await MembersRepository.update(updates, { action: "member.update", path: "members", recordId: databaseKey, beforeUpdatedAt: String(member.updatedAt || ""), afterUpdatedAt: updatedAt });
+    }
     closeMemberEdit();
     await fetchMembersFromFirebase(true);
     await renderMemberCards();
   } catch (error) {
     console.error("Member update error:", error);
-    showToast(error.message?.includes("changed after") ? "Another official changed one of these member fields. Refresh and reapply your edits." : "Member details could not be updated. Check the connection and try again.");
+    showToast(error.code === "PERMISSION_DENIED" || error.message?.includes("PERMISSION_DENIED")
+      ? "Firebase denied this change. Sign in again with an active official account and verify the deployed database rules."
+      : isNew ? "Member could not be added. Check the connection and try again." : "Member details could not be updated. Check the connection and try again.");
   }
 }
 

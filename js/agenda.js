@@ -29,9 +29,8 @@ if(agendaState.view==="detail")return renderAgendaDetail();
 const A=agFilter(agendaState.items.filter(x=>agendaStage(x)==="age"));
 const D=agFilter(agendaState.items.filter(x=>agendaStage(x)==="disc"));
 const C=agFilter(agendaState.items.filter(x=>agendaStage(x)==="done"));
-let trash="";if(agCanEdit()&&agendaState.deletedItems.length){trash='<span class="agPill agPill-trash">Trash <b class="agCnt">('+agendaState.deletedItems.length+')</b></span>'+agendaState.deletedItems.map(x=>'<div class="agCard agTrashCard"><span class="t">'+escapeHTML(x.title||"Untitled")+'</span><button type="button" class="agBack agRestore" onclick="restoreAgenda('+agInlineArg(x.id)+')">Restore</button></div>').join("");}
 v.innerHTML='<section class="agW"><div class="agTop"><button type="button" class="agBk" onclick="showDashboard()">&#8592;</button></div><p class="agKick">Meeting</p><h2 class="agH">Agenda &amp; Action Plan</h2><label class="agSrch"><i class="fa-solid fa-magnifying-glass"></i><input type="search" placeholder="Search Program" value="'+escapeHTML(agendaState.search)+'" oninput="agendaState.search=this.value;agKeepFocus()"></label>'
-+agSec("age","Agenda",A,"No agenda items yet.",true,"fa-solid fa-list-check")+agSec("disc","On Discussion",D,"Nothing on discussion.",false,"fa-solid fa-comments")+agSec("done","Completed",C,"",false,"fa-solid fa-check-double")+trash
++agSec("age","Agenda",A,"No agenda items yet.",true,"fa-solid fa-list-check")+agSec("disc","On Discussion",D,"Nothing on discussion.",false,"fa-solid fa-comments")+agSec("done","Completed",C,"",false,"fa-solid fa-check-double")
 +'</section>';}
 function agKeepFocus(){const a=document.activeElement?.value??"";renderAgendas();const n=document.querySelector(".agSrch input");if(n){n.focus();try{n.setSelectionRange(n.value.length,n.value.length);}catch(e){}}void a;}
 function openAgendaDetail(id){agendaState.view="detail";agendaState.statusMenuId="";agendaState.activeId=id;agendaState.editF="";renderAgendas();window.scrollTo({top:0});}
@@ -104,13 +103,8 @@ agendaState.deletedItems=r.filter(x=>x.deleted===true);agendaState.items=r.filte
 agendaState.items.sort((a,b)=>String(b.createdAt||b.meetingDate||"").localeCompare(String(a.createdAt||a.meetingDate||"")));}catch(e){console.error(e);}}
 async function deleteAgenda(id){if(!requireSupervisor())return;
 const it=agendaState.items.find(x=>x.id===id);if(!it)return;
-if(!await showConfirmSheet({title:"Delete agenda item?",message:'"'+(it.title||"")+'" will move to Trash and can be restored.',confirmLabel:"Delete",danger:true}))return;
+if(!await showConfirmSheet({title:"Delete agenda item?",message:'"'+(it.title||"")+'" will be removed from the agenda.',confirmLabel:"Delete",danger:true}))return;
 try{await AgendaRepository.ready();const now=new Date().toISOString();
 const updates={["meetingAgendas/"+id+"/deleted"]:true,["meetingAgendas/"+id+"/deletedAt"]:now,["meetingAgendas/"+id+"/updatedAt"]:now};
 await AgendaRepository.update(updates,{action:"agenda.hide",path:"meetingAgendas",recordId:id,afterUpdatedAt:now});
 agendaState.view="list";agendaState.activeId="";await reloadAgendaKeep();}catch(e){console.error(e);showToast(agendaWriteFailure(e,"Delete failed."));}}
-async function restoreAgenda(id){if(!requireSupervisor())return;
-try{await AgendaRepository.ready();const now=new Date().toISOString();
-const updates={["meetingAgendas/"+id+"/deleted"]:false,["meetingAgendas/"+id+"/restoredAt"]:now,["meetingAgendas/"+id+"/updatedAt"]:now};
-await AgendaRepository.update(updates,{action:"agenda.restore",path:"meetingAgendas",recordId:id,afterUpdatedAt:now});
-await reloadAgendaKeep();}catch(e){console.error(e);showToast(agendaWriteFailure(e,"Restore failed."));}}

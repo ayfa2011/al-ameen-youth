@@ -23,9 +23,9 @@
 
   <link
     rel="stylesheet"
-    href="css/style.css?v=20261021-layered-views"
+    href="css/style.css?v=20261022-member-crud-fix"
   >
-  <link rel="stylesheet" href="css/agenda.css?v=20261022-agenda-detail-actions">
+  <link rel="stylesheet" href="css/agenda.css?v=20261022-agenda-compact-icon">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Kannada:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -560,6 +560,7 @@
       <div class="ayfa-supervisor-bar member-supervisor-bar"><span data-supervisor-login></span></div>
 
       <label class="member-search-box" for="memberSearchInput"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><input id="memberSearchInput" type="search" placeholder="Search name, ID, designation, father, education or location" autocomplete="off" data-view-event="input" data-view-handler="filterMemberCards" data-view-pass-value="true" aria-label="Search members"></label>
+      <button type="button" class="member-add-button hidden" id="memberAddButton" onclick="openMemberAdd()"><i class="fa-solid fa-plus" aria-hidden="true"></i> Add new member</button>
 
       <div
         id="membersContainer"
@@ -1215,7 +1216,10 @@
     >
 
       <h2 id="selectedYearTitle" class="page-view-title">Office Bearers</h2>
-      <label class="page-search"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><input id="bearerSearch" type="search" placeholder="Search office bearers" aria-label="Search office bearers" oninput="filterBearerTable(this.value)"></label>
+      <div class="bearer-table-tools">
+        <label class="page-search"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><input id="bearerSearch" type="search" placeholder="Search office bearers" aria-label="Search office bearers" oninput="filterBearerTable(this.value)"></label>
+        <div id="bearerAdminActions"></div>
+      </div>
 
 
       <div
@@ -1315,18 +1319,18 @@
   <script src="js/firebase-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="js/firebase-data.js"></script>
-  <script src="js/data/members.repository.js"></script>
+  <script src="js/data/members.repository.js?v=20261022-member-crud-fix"></script>
   <script src="js/data/rentals.repository.js"></script>
   <script src="js/data/attendance.repository.js"></script>
   <script src="js/data/agenda.repository.js"></script>
   <script src="js/data/activity-reports.repository.js"></script>
-  <script src="js/data/reference-data.repository.js"></script>
+  <script src="js/data/reference-data.repository.js?v=20261022-office-bearers-write"></script>
 
   <script src="js/supervisor.js"></script>
 
-  <script src="js/script.js"></script>
+  <script src="js/script.js?v=20261022-office-bearers-edit"></script>
 
-  <script src="js/members.js"></script>
+  <script src="js/members.js?v=20261022-member-crud-fix"></script>
 
   <script src="js/attendance.js"></script>
 
@@ -1337,7 +1341,7 @@
   <script src="js/services/rentals.service.js"></script>
   <script src="js/rentals.js"></script>
   <script src="js/activity-reports.js"></script>
-  <script src="js/agenda.js?v=20261022-agenda-firebase-multipath"></script>
+  <script src="js/agenda.js?v=20261022-agenda-no-trash"></script>
   <script src="js/views/app-bootstrap.view.js"></script>
 
   <!-- =========================================================
