@@ -18,7 +18,10 @@ async function loadProgramReports() {
   try {
     await ActivityReportsRepository.ready();
     const snapshot = await ActivityReportsRepository.read("programReports");
-    const records = Object.entries(snapshot.val() || {}).map(([id, report]) => ({ id, ...report }));
+    // Firebase's child key is the canonical identifier used by every write.
+    // Some older records contain their own `id` field; keep that data from
+    // shadowing the actual Realtime Database key.
+    const records = Object.entries(snapshot.val() || {}).map(([id, report]) => ({ ...(report || {}), id: String(id) }));
     programReportState.deletedReports = records.filter(report => report.deleted === true);
     programReportState.reports = records.filter(report => report.deleted !== true).sort((a, b) => String(b.date || b.createdAt || "").localeCompare(String(a.date || a.createdAt || "")));
     populateProgramReportYears();
