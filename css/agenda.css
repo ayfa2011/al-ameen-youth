@@ -344,6 +344,18 @@
   white-space:pre-wrap;
   overflow-wrap:anywhere;
 }
+.agTextAction {
+  margin:7px 0 2px;
+  padding:6px 10px;
+  border:1px solid #d8e2dc;
+  border-radius:8px;
+  background:#fff;
+  color:#0b6b4f;
+  font:inherit;
+  font-size:12px;
+  font-weight:600;
+  cursor:pointer;
+}
 .agIn {
   width:100%;
   padding:9px 11px;
