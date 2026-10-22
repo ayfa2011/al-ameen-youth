@@ -57,10 +57,9 @@ else ft='<div class="agFt"><button type="button" class="agPm" onclick="moveAgend
 v.innerHTML='<section class="agW"><div class="agTop"><button type="button" class="agBk" onclick="backToAgendaList()">&#8592;</button></div><span class="agPill">'+pill+'</span>'+tB+dB+dEdit+fields+'<p class="agMt">Added: '+escapeHTML(String(it.createdAt||it.meetingDate||"").slice(0,10)||"-")+'</p>'+ft+'</section>';}
 async function saveAgendaField(id,field,val){if(!requireSupervisor())return false;
 const old=agendaState.items.find(x=>x.id===id)||{};const now=new Date().toISOString();
-try{await AgendaRepository.ready();const exp=String(old.updatedAt||"");
-const r=await AgendaRepository.transaction("meetingAgendas/"+id, cur=>{if(!cur||cur.deleted===true)return;const o={...cur};o[field]=val;o.updatedAt=now;return o;});
-if(!r.committed)throw new Error("Agenda item not found or deleted.");
-await AgendaRepository.audit({action:"agenda.update",path:"meetingAgendas",recordId:id,beforeUpdatedAt:exp,afterUpdatedAt:now});
+try{await AgendaRepository.ready();
+const updates={["meetingAgendas/"+id+"/"+field]:val,["meetingAgendas/"+id+"/updatedAt"]:now};
+await AgendaRepository.update(updates,{action:"agenda.update",path:"meetingAgendas",recordId:id,beforeUpdatedAt:String(old.updatedAt||""),afterUpdatedAt:now});
 const loc=agendaState.items.find(x=>x.id===id);if(loc){loc[field]=val;loc.updatedAt=now;}return true;}
 catch(e){console.error(e);showToast(agendaWriteFailure(e,"Save failed. Refresh and try again."));return false;}}
 async function saveAgendaOneField(f){const e=document.getElementById("agF");const v=String(e?.value||"").trim();
@@ -94,11 +93,9 @@ if(status==="Under Action")p.discussedDate=now;
 if(status==="Upcoming"){p.discussedDate="";p.implementedDate="";p.decisionStatus="Pending";}
 if(status==="Completed")p.implementedDate=now;
 const wasD=agendaState.view==="detail",previous={...it};Object.assign(it,p);if(!wasD)renderAgendas();
-try{await AgendaRepository.ready();const exp=String(previous.updatedAt||"");
-const r=await AgendaRepository.transaction("meetingAgendas/"+id,cur=>{if(!cur||cur.deleted===true)return;return{...cur,...p};});
-if(!r.committed)throw new Error("Agenda item not found or deleted.");
-await AgendaRepository.audit({action:"agenda.status",path:"meetingAgendas",recordId:id,beforeUpdatedAt:exp,afterUpdatedAt:now});await reloadAgendaKeepSilent();
-if(wasD&&agendaState.items.find(x=>x.id===id)){agendaState.view="detail";agendaState.activeId=id;agendaState.editTitle=false;agendaState.editDesc=false;}else agendaState.view="list";renderAgendas();
+try{await AgendaRepository.ready();const updates={};Object.entries(p).forEach(([field,value])=>{updates["meetingAgendas/"+id+"/"+field]=value;});
+await AgendaRepository.update(updates,{action:"agenda.status",path:"meetingAgendas",recordId:id,beforeUpdatedAt:String(previous.updatedAt||""),afterUpdatedAt:now});
+await reloadAgendaKeepSilent();if(wasD&&agendaState.items.find(x=>x.id===id)){agendaState.view="detail";agendaState.activeId=id;agendaState.editTitle=false;agendaState.editDesc=false;}else agendaState.view="list";renderAgendas();
 }catch(e){console.error(e);await reloadAgendaKeepSilent();agendaState.view=wasD?"detail":"list";renderAgendas();showToast(agendaWriteFailure(e,"Update failed."));}}
 async function reloadAgendaKeepSilent(){try{await AgendaRepository.ready();
 const d=(await AgendaRepository.read("meetingAgendas")).val()||{};
@@ -109,12 +106,11 @@ async function deleteAgenda(id){if(!requireSupervisor())return;
 const it=agendaState.items.find(x=>x.id===id);if(!it)return;
 if(!await showConfirmSheet({title:"Delete agenda item?",message:'"'+(it.title||"")+'" will move to Trash and can be restored.',confirmLabel:"Delete",danger:true}))return;
 try{await AgendaRepository.ready();const now=new Date().toISOString();
-const r=await AgendaRepository.transaction("meetingAgendas/"+id, cur=>cur&&cur.deleted!==true?{...cur,deleted:true,deletedAt:now,updatedAt:now}:undefined);
-if(!r.committed){const latest=r.snapshot?.val();await reloadAgendaKeep();if(!latest||latest.deleted===true)return;throw new Error("Agenda changed before it could be hidden. Refresh and try again.");}
-await AgendaRepository.audit({action:"agenda.hide",path:"meetingAgendas",recordId:id,afterUpdatedAt:now});
-agendaState.view="list";agendaState.activeId="";await reloadAgendaKeep();}catch(e){console.error(e);showToast("Delete failed.");}}
+const updates={["meetingAgendas/"+id+"/deleted"]:true,["meetingAgendas/"+id+"/deletedAt"]:now,["meetingAgendas/"+id+"/updatedAt"]:now};
+await AgendaRepository.update(updates,{action:"agenda.hide",path:"meetingAgendas",recordId:id,afterUpdatedAt:now});
+agendaState.view="list";agendaState.activeId="";await reloadAgendaKeep();}catch(e){console.error(e);showToast(agendaWriteFailure(e,"Delete failed."));}}
 async function restoreAgenda(id){if(!requireSupervisor())return;
-try{const r=await AgendaRepository.transaction("meetingAgendas/"+id, cur=>cur?.deleted===true?{...cur,deleted:false,restoredAt:new Date().toISOString(),updatedAt:new Date().toISOString()}:undefined);
-if(!r.committed)throw new Error("no trash");
-await AgendaRepository.audit({action:"agenda.restore",path:"meetingAgendas",recordId:id});
-await reloadAgendaKeep();}catch(e){console.error(e);showToast("Restore failed.");}}
+try{await AgendaRepository.ready();const now=new Date().toISOString();
+const updates={["meetingAgendas/"+id+"/deleted"]:false,["meetingAgendas/"+id+"/restoredAt"]:now,["meetingAgendas/"+id+"/updatedAt"]:now};
+await AgendaRepository.update(updates,{action:"agenda.restore",path:"meetingAgendas",recordId:id,afterUpdatedAt:now});
+await reloadAgendaKeep();}catch(e){console.error(e);showToast(agendaWriteFailure(e,"Restore failed."));}}
