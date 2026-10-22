@@ -5,6 +5,7 @@
 const programReportState = { reports: [], deletedReports: [] };
 const driveGalleryState = { folders: [], activeFolder: null, activeIndex: 0 };
 let selectedProgramPreviewUrls = [];
+const programReportEditSnapshots = new Map();
 
 function programDate(value) {
   if (!value) return "—";
@@ -21,7 +22,11 @@ async function loadProgramReports() {
     // Firebase's child key is the canonical identifier used by every write.
     // Some older records contain their own `id` field; keep that data from
     // shadowing the actual Realtime Database key.
-    const records = Object.entries(snapshot.val() || {}).map(([id, report]) => ({ ...(report || {}), id: String(id) }));
+    const records = Object.entries(snapshot.val() || {}).map(([id, report]) => ({
+      ...(report || {}),
+      legacyId: String(report?.id ?? report?.reportId ?? ""),
+      id: String(id)
+    }));
     programReportState.deletedReports = records.filter(report => report.deleted === true);
     programReportState.reports = records.filter(report => report.deleted !== true).sort((a, b) => String(b.date || b.createdAt || "").localeCompare(String(a.date || a.createdAt || "")));
     populateProgramReportYears();
@@ -30,6 +35,19 @@ async function loadProgramReports() {
     console.error(error);
     if (list) list.innerHTML = '<div class="program-reports-empty">Activity reports could not be loaded. Check the connection.</div>';
   }
+}
+
+async function resolveProgramReportRecord(candidateId) {
+  const requested = String(candidateId ?? "");
+  const snapshot = await ActivityReportsRepository.read("programReports");
+  const entries = Object.entries(snapshot.val() || {});
+  const direct = entries.find(([key]) => String(key) === requested);
+  if (direct) return { id: String(direct[0]), report: { ...(direct[1] || {}), id: String(direct[0]) } };
+  const matches = entries.filter(([, report]) => [report?.id, report?.reportId]
+    .some(value => value !== null && value !== undefined && String(value) === requested));
+  if (matches.length === 1) return { id: String(matches[0][0]), report: { ...(matches[0][1] || {}), id: String(matches[0][0]) } };
+  if (matches.length > 1) throw new Error("This report ID matches multiple database records. Refresh the report list before changing it.");
+  return null;
 }
 
 function populateProgramReportYears() {
@@ -125,18 +143,28 @@ function renderProgramReports() {
 }
 
 function programModal(content) { document.body.insertAdjacentHTML("beforeend", `<div class="program-modal" id="programModal" role="dialog" aria-modal="true">${content}</div>`); }
-function closeProgramModal() { document.getElementById("programModal")?.remove(); }
+function closeProgramModal() {
+  const editId = document.getElementById("programReportForm")?.getAttribute("data-edit-id") || "";
+  if (editId) programReportEditSnapshots.delete(editId);
+  document.getElementById("programModal")?.remove();
+}
 
 function openProgramReportForm(editId = "") {
   if (!requireSupervisor()) return;
-  const existing = editId ? programReportState.reports.concat(programReportState.deletedReports).find(item => item.id === editId) : null;
+  const existing = editId ? programReportState.reports.concat(programReportState.deletedReports).find(item => item.id === editId || item.legacyId === editId) : null;
   if (editId && !existing) {
     showToast("This report is no longer active. The report list has been refreshed.");
     void loadProgramReports();
     return;
   }
   const today = new Date().toISOString().slice(0, 10);
-  const safeEditId = escapeHTML(String(editId || ""));
+  const canonicalEditId = String(existing?.id || editId || "");
+  if (existing && canonicalEditId) {
+    const snapshot = JSON.parse(JSON.stringify(existing));
+    programReportEditSnapshots.set(canonicalEditId, snapshot);
+    if (editId) programReportEditSnapshots.set(String(editId), snapshot);
+  }
+  const safeEditId = escapeHTML(canonicalEditId);
   const existingPhotos = existing ? normalizeReportPhotos(existing) : [];
   programModal(`<div class="program-modal-card"><div class="program-modal-header"><div><h3>${existing ? "Edit Activity Report" : "Submit Activity Report"}</h3></div><button type="button" class="program-close" onclick="closeProgramModal()"><i class="fa-solid fa-xmark"></i></button></div><form id="programReportForm" class="program-report-form" data-edit-id="${safeEditId}"><label>Program title *<input name="title" maxlength="200" value="${escapeHTML(existing?.title || "")}" required></label><label>Description *<textarea name="description" maxlength="20000" required>${escapeHTML(existing?.description || "")}</textarea></label><label>Date *<input name="date" type="date" value="${escapeHTML(existing?.date || today)}" required></label><label class="program-photo-field">Upload photos <span>Multiple photos allowed. Newly uploaded photos are added to this report.</span><input name="photos" type="file" accept="image/*" multiple onchange="previewSelectedProgramPhotos(this.files)"></label><div id="programPhotoPreview" class="program-photo-preview"></div>${existingPhotos.length ? `<div class="program-photo-gallery">${existingPhotos.map(url => `<img src="${escapeHTML(displayPhotoUrl(url))}" alt="Existing activity photo" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">`).join("")}</div>` : ""}<p id="programFormMessage" class="program-form-message"></p><div class="program-form-actions"><button type="button" class="program-cancel" onclick="closeProgramModal()">Cancel</button><button type="submit" class="program-submit">${existing ? "Save changes" : "Submit report"}</button></div></form></div>`);
   document.getElementById("programReportForm")?.addEventListener("submit", (e) => {
@@ -362,7 +390,8 @@ async function submitProgramReport(event, editId = "") {
   const submit = form.querySelector("button[type='submit']");
   const values = Object.fromEntries(new FormData(form).entries());
   const photos = Array.from(form.querySelector("[name='photos']").files || []);
-  let existing = editId ? programReportState.reports.concat(programReportState.deletedReports).find(item => item.id === editId) : null;
+  let existing = editId ? (programReportState.reports.concat(programReportState.deletedReports).find(item => item.id === editId || item.legacyId === editId) || programReportEditSnapshots.get(editId) || null) : null;
+  if (existing?.id) editId = String(existing.id);
   if (form.dataset.submitting === "true") return;
   try {
     if (!submit || !message) throw new Error("Form status area is unavailable. Please reopen the form and try again.");
@@ -373,9 +402,11 @@ async function submitProgramReport(event, editId = "") {
     message.textContent = photos.length ? "Photos uploading to Google Drive..." : "Report saving...";
     await ActivityReportsRepository.ready();
     if (editId) {
-      const latestSnapshot = await ActivityReportsRepository.read(`programReports/${editId}`);
-      existing = latestSnapshot.val();
-      if (!existing) {
+      const resolved = await resolveProgramReportRecord(editId);
+      if (resolved) {
+        editId = resolved.id;
+        existing = resolved.report;
+      } else if (!existing) {
         await loadProgramReports();
         throw new Error("This activity report no longer exists. The report list has been refreshed.");
       }
@@ -407,12 +438,16 @@ async function submitProgramReport(event, editId = "") {
       });
       if (!result.committed) {
         const latest = result.snapshot?.val();
-        await loadProgramReports();
-        throw new Error(!latest || latest.deleted === true
-          ? "This activity report no longer exists. The report list has been refreshed."
-          : "The report update was not committed. Check the Firebase connection and rules, then retry. Any uploaded photos remain in Google Drive.");
+        if (latest) throw new Error("The report update was not committed. Check the Firebase connection and rules, then retry. Any uploaded photos remain in Google Drive.");
+        // Recover an item that was removed while an edit form was open, using
+        // the record snapshot already loaded into that form.
+        const recoveredPhotos = [...normalizeReportPhotos(existing), ...photoUrls];
+        const recovered = { ...existing, ...nextFields, id: undefined, deleted: false, deletedAt: null, photos: recoveredPhotos, photosUploaded: Math.max(Number(existing.photosUploaded) || 0, recoveredPhotos.length), createdAt: existing.createdAt || updatedAt, submittedBy: existing.submittedBy || "AYFA supervisor" };
+        delete recovered.id;
+        delete recovered.legacyId;
+        await ActivityReportsRepository.set(`programReports/${reportId}`, recovered, { action: "programReport.update", path: "programReports", recordId: reportId, beforeUpdatedAt: String(existing.updatedAt || ""), afterUpdatedAt: updatedAt });
       }
-      await ActivityReportsRepository.audit({ action: "programReport.update", path: "programReports", recordId: editId, beforeUpdatedAt: String(existing?.updatedAt || ""), afterUpdatedAt: updatedAt });
+      else await ActivityReportsRepository.audit({ action: "programReport.update", path: "programReports", recordId: editId, beforeUpdatedAt: String(existing?.updatedAt || ""), afterUpdatedAt: updatedAt });
     } else {
       const newReport = { ...nextFields, photos:photoUrls, photosUploaded:photoUrls.length, createdAt:updatedAt, submittedBy:"AYFA supervisor", deleted:false };
       await ActivityReportsRepository.create({ [`programReports/${reportId}`]: newReport }, { action: "programReport.create", path: "programReports", recordId: reportId, afterUpdatedAt: updatedAt });
@@ -431,7 +466,7 @@ async function submitProgramReport(event, editId = "") {
 }
 
 function openProgramReportDetail(id) {
-  const report = programReportState.reports.find(item => String(item.id) === String(id));
+  const report = programReportState.reports.find(item => String(item.id) === String(id) || String(item.legacyId || "") === String(id));
   if (!report) return;
   const storedPhotos = normalizeReportPhotos(report);
   const photos = storedPhotos.map(displayPhotoUrl).filter(Boolean);
@@ -452,11 +487,14 @@ function openProgramPhotoPreview(url, label) {
 
 async function deleteProgramReport(id) {
   if (!requireSupervisor()) return;
-  const reportId = String(id || "");
-  const report = programReportState.reports.concat(programReportState.deletedReports).find(item => String(item.id) === reportId);
+  let reportId = String(id || "");
+  let report = programReportState.reports.concat(programReportState.deletedReports).find(item => String(item.id) === reportId || String(item.legacyId || "") === reportId);
   if (!report || !await showConfirmSheet({ title: "Delete report permanently?", message: `“${report.title}” will be removed from the activity list. Uploaded Google Drive files will remain in Drive.`, confirmLabel: "Delete", danger: true })) return;
   try {
     await ActivityReportsRepository.ready();
+    const resolved = await resolveProgramReportRecord(reportId);
+    reportId = resolved?.id || String(report.id || reportId);
+    report = resolved?.report || report;
     const updatedAt = new Date().toISOString();
     await ActivityReportsRepository.remove(`programReports/${reportId}`,
       { action: "programReport.delete", path: "programReports", recordId: reportId, beforeUpdatedAt: String(report.updatedAt || ""), afterUpdatedAt: updatedAt });
@@ -473,7 +511,9 @@ async function deleteProgramReport(id) {
 async function restoreProgramReport(id) {
   if (!requireSupervisor()) return;
   try {
-    const reportId = String(id || "");
+    const resolved = await resolveProgramReportRecord(id);
+    const cached = programReportState.deletedReports.find(item => String(item.id) === String(id) || String(item.legacyId || "") === String(id));
+    const reportId = resolved?.id || String(cached?.id || id);
     await ActivityReportsRepository.ready();
     const restoredAt = new Date().toISOString();
     const result = await ActivityReportsRepository.transaction(`programReports/${reportId}`, current => current?.deleted === true ? { ...current, deleted: false, restoredAt, updatedAt: restoredAt } : undefined);
