@@ -11,6 +11,7 @@ const rentalState = {
   category: "",
   filter: "all",
   search: "",
+  tab: "upcoming",
   reportYear: RENTAL_CURRENT_FINANCIAL_YEAR
 };
 
@@ -108,6 +109,7 @@ function openRentalManagement() {
   updateAppTopBar("rentals");
   rentalState.category = "";
   rentalState.search = "";
+  rentalState.tab = "upcoming";
   hideAllViews();
   document.getElementById("appContainer")?.setAttribute("data-active-view", "rental");
   const view = document.getElementById("rentalView");
@@ -172,6 +174,10 @@ function renderRentalDashboard() {
       reportPaymentStatus: detail.status || ""
     }))
     : yearRentals.filter(rental => !upcoming.includes(rental));
+  const query = String(rentalState.search || "").trim().toLowerCase();
+  const filterRentals = items => query ? items.filter(rental => `${rental.customerName || ""} ${rental.place || ""} ${rental.item || ""} ${rental.mobile || ""}`.toLowerCase().includes(query)) : items;
+  const visibleUpcoming = filterRentals(upcoming);
+  const visibleHistory = filterRentals(history);
   const categoryLabel = RENTAL_CATEGORY[category].label;
   const canManage = rentalCanManage(category);
 
@@ -203,18 +209,29 @@ function renderRentalDashboard() {
 
   const useCompactSpeaker = category === "speaker";
   target.innerHTML = `<div class="rental-department-toolbar"><button class="rental-secondary-button" type="button" onclick="setRentalCategory('')"><i class="fa-solid fa-arrow-left"></i> Categories</button><h3><i class="fa-solid ${RENTAL_CATEGORY[category].icon}"></i> ${categoryLabel} Rental Dashboard</h3>${isSupervisorLoggedIn() ? '<span class="rental-role-indicator">Officials access</span>' : ''}</div>
-    <div class="rental-year-filter"><label for="rentalReportYear">Year</label><select id="rentalReportYear" aria-label="Select year" onchange="setRentalReportYear(this.value)">${rentalReportYearOptions()}</select></div>
+    <label class="page-search"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><input id="rentalSearch" type="search" value="${escapeHTML(rentalState.search)}" placeholder="Search rentals" aria-label="Search rentals" oninput="filterRentalSearch(this.value)"></label>
+    <details class="page-filter-collapse"><summary>Filter by year</summary><div class="rental-year-filter"><label for="rentalReportYear">Year</label><select id="rentalReportYear" aria-label="Select year" onchange="setRentalReportYear(this.value)">${rentalReportYearOptions()}</select></div></details>
     <div class="rental-summary-grid rental-simple-summary ${useCompactSpeaker ? "speaker-summary" : ""}"><div class="rental-stat-card"><span>Total Rentals</span><strong>${displayedTotals.count}</strong></div><div class="rental-stat-card collected"><span>Total Collected</span><strong>${rentalCurrencyOrDash(displayedTotals.collected)}</strong></div><div class="rental-stat-card pending"><span>Pending Dues</span><strong>${rentalCurrencyOrDash(displayedTotals.pending)}</strong></div></div>
     ${canManage ? `<button class="rental-primary-button rental-new-booking" type="button" onclick="openRentalEntry()"><i class="fa-solid fa-plus"></i> Add Rental</button>` : ""}
-    ${useCompactSpeaker ? `<div class="rental-tabs" role="tablist" aria-label="Rental records"><button type="button" role="tab" aria-selected="true" class="active" onclick="setRentalTab('upcoming', this)">Upcoming <span>${upcoming.length}</span></button><button type="button" role="tab" aria-selected="false" onclick="setRentalTab('history', this)">History <span>${history.length}</span></button></div><section class="rental-panel rental-order-section speaker-tab-panel" data-rental-tab-panel="upcoming">${bookingList(upcoming,"No upcoming rentals.")}</section><section class="rental-panel rental-order-section speaker-tab-panel hidden" data-rental-tab-panel="history">${bookingList(history,"No past rentals.")}</section>` : `<section class="rental-panel rental-order-section"><h3><i class="fa-regular fa-calendar-check"></i> Upcoming <span>${upcoming.length}</span></h3>${bookingList(upcoming,"No upcoming rentals.")}</section><section class="rental-panel rental-order-section"><h3><i class="fa-solid fa-clock-rotate-left"></i> Rental History <span>${history.length}</span></h3>${bookingList(history,"No past rentals.")}</section>`}
+    ${useCompactSpeaker ? `<div class="rental-tabs" role="tablist" aria-label="Rental records"><button type="button" role="tab" aria-selected="${rentalState.tab === "upcoming"}" class="${rentalState.tab === "upcoming" ? "active" : ""}" onclick="setRentalTab('upcoming', this)">Upcoming <span>${visibleUpcoming.length}</span></button><button type="button" role="tab" aria-selected="${rentalState.tab === "history"}" class="${rentalState.tab === "history" ? "active" : ""}" onclick="setRentalTab('history', this)">History <span>${visibleHistory.length}</span></button></div><section class="rental-panel rental-order-section speaker-tab-panel ${rentalState.tab === "upcoming" ? "" : "hidden"}" data-rental-tab-panel="upcoming">${bookingList(visibleUpcoming,"No upcoming rentals.")}</section><section class="rental-panel rental-order-section speaker-tab-panel ${rentalState.tab === "history" ? "" : "hidden"}" data-rental-tab-panel="history">${bookingList(visibleHistory,"No past rentals.")}</section>` : `<section class="rental-panel rental-order-section"><h3><i class="fa-regular fa-calendar-check"></i> Upcoming <span>${visibleUpcoming.length}</span></h3>${bookingList(visibleUpcoming,"No upcoming rentals.")}</section><section class="rental-panel rental-order-section"><h3><i class="fa-solid fa-clock-rotate-left"></i> Rental History <span>${visibleHistory.length}</span></h3>${bookingList(visibleHistory,"No past rentals.")}</section>`}
     <div class="rental-report-action"><button class="rental-secondary-button" type="button" onclick="downloadRentalPDFReport('${category}', document.getElementById('rentalReportYear').value)"><i class="fa-solid fa-file-pdf"></i> Export PDF</button><button class="rental-secondary-button" type="button" onclick="downloadRentalReport('${category}', document.getElementById('rentalReportYear').value)"><i class="fa-solid fa-file-excel"></i> Excel</button></div>`;
 
+}
+
+function filterRentalSearch(query) {
+  rentalState.search = String(query || "");
+  const currentTab = rentalState.tab;
+  renderRentalDashboard();
+  if (currentTab !== rentalState.tab) rentalState.tab = currentTab;
+  const input = document.getElementById("rentalSearch");
+  if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
 }
 
 function setRentalCategory(category) {
   rentalState.category = category;
   rentalState.filter = category || "all";
   rentalState.search = "";
+  rentalState.tab = "upcoming";
   renderRentalDashboard();
 }
 
@@ -224,6 +241,7 @@ function setRentalReportYear(year) {
 }
 
 function setRentalTab(tab, button) {
+  rentalState.tab = tab;
   const target = document.getElementById("rentalContent");
   if (!target) return;
   target.querySelectorAll(".rental-tabs [role='tab']").forEach(item => {
@@ -304,11 +322,11 @@ async function saveRentalEntry(event, id = "") {
   const existing = id ? rentalState.rentals.find(rental => rental.id === id) : null;
   const amounts = RentalsService.prepareEntry(values.totalAmount, values.advanceAmount, existing ? existing.paidAmount : null);
   const { total, requestedAdvance, paid } = amounts;
-  if (amounts.advanceExceedsTotal) { alert("Advance amount cannot be greater than the total rental amount."); return; }
-  if (amounts.paidExceedsTotal) { alert("Total amount cannot be less than the payments already received."); return; }
+  if (amounts.advanceExceedsTotal) { showToast("Advance amount cannot be greater than the total rental amount."); return; }
+  if (amounts.paidExceedsTotal) { showToast("Total amount cannot be less than the payments already received."); return; }
   const start = new Date(`${values.startDate}T00:00:00`);
   const end = new Date(`${values.returnDate}T00:00:00`);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) { alert("Return date must be on or after the rental date."); return; }
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) { showToast("Return date must be on or after the rental date."); return; }
   const days = Math.max(0, Math.round((end - start) / 86400000));
   const equipmentProvided = Array.from(event.currentTarget.querySelectorAll("[name='equipmentProvided']:checked"), input => input.value);
   const paymentDate = values.startDate;
@@ -339,14 +357,14 @@ async function saveRentalEntry(event, id = "") {
     }
     closeRentalModal(); await loadRentals(); renderRentalDashboard();
   }
-  catch (error) { console.error(error); alert(error.message?.includes("changed while") ? "Another official changed this rental. Refresh and reapply your changes." : "Rental could not be saved. Check your connection and permissions."); }
+  catch (error) { console.error(error); showToast(error.message?.includes("changed while") ? "Another official changed this rental. Refresh and reapply your changes." : "Rental could not be saved. Check your connection and permissions."); }
 }
 
 async function deleteRental(id) {
   if (!requireSupervisor()) return;
   const rental = rentalState.rentals.find(item => item.id === id);
   if (!rental || !rentalCanManage(rental.category)) return;
-  if (!confirm(`Hide the rental record for "${rental.customerName}"? It can be restored later.`)) return;
+  if (!await showConfirmSheet({ title: "Hide rental record?", message: `“${rental.customerName}” can be restored later.`, confirmLabel: "Hide record", danger: true })) return;
   try {
     const updatedAt = new Date().toISOString();
     const result = await RentalsRepository.transaction(`rentals/${id}`, current => current && current.deleted !== true ? { ...current, deleted: true, deletedAt: updatedAt, updatedAt } : undefined);
@@ -362,7 +380,7 @@ async function deleteRental(id) {
     renderRentalDashboard();
   } catch (error) {
     console.error(error);
-    alert("Rental record could not be deleted. Please try again.");
+    showToast("Rental record could not be deleted. Please try again.");
   }
 }
 
@@ -378,7 +396,7 @@ async function restoreRental(id) {
     renderRentalDashboard();
   } catch (error) {
     console.error("Rental restore error:", error);
-    alert("Rental could not be restored. Refresh and try again.");
+    showToast("Rental could not be restored. Refresh and try again.");
   }
 }
 
@@ -411,11 +429,11 @@ async function saveRentalPayment(event, id) {
     await RentalsRepository.audit({ action: "rental.payment", path: "rentals", recordId: id, beforeUpdatedAt: rental.updatedAt });
     closeRentalModal(); await loadRentals(); renderRentalDashboard();
   }
-  catch (error) { console.error(error); alert(error.message?.includes("Another official changed") ? error.message : "Payment could not be updated. Check your connection and permissions."); }
+  catch (error) { console.error(error); showToast(error.message?.includes("Another official changed") ? error.message : "Payment could not be updated. Check your connection and permissions."); }
 }
 
 function downloadRentalReport(category, selectedYear) {
-  if (typeof XLSX === "undefined") { alert("Excel report library load ಆಗಿಲ್ಲ. Internet connection ಪರಿಶೀಲಿಸಿ."); return; }
+  if (typeof XLSX === "undefined") { showToast("Excel report library load ಆಗಿಲ್ಲ. Internet connection ಪರಿಶೀಲಿಸಿ."); return; }
   const year = selectedYear || String(new Date().getFullYear());
   const historicalReport = importedRentalReport(category, String(year));
   const rentals = historicalReport ? [] : rentalState.rentals.filter(rental => rental.category === category && rentalBelongsToFinancialYear(rental, year));
@@ -449,7 +467,7 @@ function downloadRentalReport(category, selectedYear) {
 
 function downloadRentalPDFReport(category, selectedYear) {
   const PDF = window.jspdf?.jsPDF;
-  if (!PDF) { alert("PDF report library is unavailable. Please try again."); return; }
+  if (!PDF) { showToast("PDF report library is unavailable. Please try again."); return; }
   const year = String(selectedYear || new Date().getFullYear());
   const historicalReport = importedRentalReport(category, year);
   const rentals = historicalReport ? [] : rentalState.rentals.filter(rental => rental.category === category && String(rental.startDate || "").startsWith(year));

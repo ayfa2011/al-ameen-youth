@@ -2,6 +2,9 @@
 const ROLE_SESSION_MS = 60 * 60 * 1000;
 let ayfaAuthContext = { user: null, role: null, expiresAt: 0, ready: false };
 let authExpiryTimer = 0;
+let authWarningTimer = 0;
+let sessionDraftSaveTimer = 0;
+let pendingSessionDraft = null;
 let authLoginInProgress = false;
 let selectedLoginRole = "";
 let authScreenNotice = "";
@@ -9,6 +12,42 @@ let authScreenNotice = "";
 function currentUserRole() {
   return isRoleAuthenticated() ? ayfaAuthContext.role : "";
 }
+
+function saveSessionDraft() {
+  const controls = [...document.querySelectorAll("#appContainer input, #appContainer textarea, #appContainer select, .program-modal input, .program-modal textarea, .program-modal select, .rental-modal input, .rental-modal textarea, .rental-modal select")]
+    .filter(control => !["password", "file", "search", "button", "submit", "reset"].includes(String(control.type || "").toLowerCase()) && (control.id || control.name));
+  const fields = controls.map(control => ({ id: control.id || "", name: control.name || "", formClass: control.form?.className || "", type: control.type || "", value: control.type === "checkbox" || control.type === "radio" ? control.checked : control.value }));
+  pendingSessionDraft = { fields, savedAt: Date.now() };
+  return fields.length > 0;
+}
+
+function restoreSessionDraft() {
+  const draft = pendingSessionDraft;
+  pendingSessionDraft = null;
+  if (!draft || Date.now() - Number(draft.savedAt || 0) > 60 * 60 * 1000) return;
+  draft.fields.forEach(field => {
+    const scope = field.formClass ? [...document.querySelectorAll("form")].find(form => form.className === field.formClass) : null;
+    const control = field.id ? document.getElementById(field.id) : scope?.elements.namedItem(field.name) || [...document.getElementsByName(field.name)].find(Boolean);
+    if (!control) return;
+    if (field.type === "checkbox" || field.type === "radio") control.checked = Boolean(field.value);
+    else control.value = field.value;
+  });
+  if (draft.fields.length) showToast("Your saved draft is ready to continue.", "success");
+}
+
+document.addEventListener("input", event => {
+  const target = event.target;
+  if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement)) return;
+  if (["password", "file", "search"].includes(String(target.type || "").toLowerCase())) return;
+  clearTimeout(sessionDraftSaveTimer);
+  sessionDraftSaveTimer = window.setTimeout(() => { if (isRoleAuthenticated()) saveSessionDraft(); }, 350);
+});
+document.addEventListener("change", event => {
+  const target = event.target;
+  if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement)) return;
+  if (["password", "file", "search"].includes(String(target.type || "").toLowerCase())) return;
+  if (isRoleAuthenticated()) saveSessionDraft();
+});
 
 function isRoleAuthenticated() {
   if (!ayfaAuthContext.user || !ayfaAuthContext.role) return false;
@@ -34,6 +73,7 @@ function authErrorMessage(error) {
 
 function showAuthScreen(role = "", message = "") {
   clearTimeout(authExpiryTimer);
+  clearTimeout(authWarningTimer);
   const app = document.getElementById("appContainer");
   const screen = document.getElementById("pinScreen");
   app?.classList.add("hidden");
@@ -94,11 +134,21 @@ async function activateRoleSession(user, resolved) {
   ayfaAuthContext = { user, role: resolved.role, expiresAt: resolved.expiresAt, ready: true };
   authScreenNotice = "";
   clearTimeout(authExpiryTimer);
+  clearTimeout(authWarningTimer);
   authExpiryTimer = window.setTimeout(() => { void expireRoleSession(); }, Math.max(0, resolved.expiresAt - Date.now()));
+  authWarningTimer = window.setTimeout(() => {
+    if (!ayfaAuthContext.user || Date.now() >= ayfaAuthContext.expiresAt) return;
+    const activeView = document.getElementById("appContainer")?.dataset.activeView || "";
+    if (activeView === "attendance" && typeof saveAttendanceDraft === "function") saveAttendanceDraft();
+    document.dispatchEvent(new CustomEvent("ayfa:session-ending", { detail: { expiresAt: ayfaAuthContext.expiresAt } }));
+    const draftSaved = saveSessionDraft();
+    showToast(draftSaved ? "Session ending in 5 minutes. Your draft has been saved." : "Session ending in 5 minutes. Save any unfinished changes now.", "warning");
+  }, Math.max(0, resolved.expiresAt - Date.now() - 5 * 60 * 1000));
   document.getElementById("pinScreen")?.classList.add("hidden");
   document.getElementById("appContainer")?.classList.remove("hidden");
   refreshSupervisorUI();
   if (typeof showDashboard === "function") showDashboard();
+  restoreSessionDraft();
   updateAuthSessionTimer();
 }
 
@@ -171,6 +221,7 @@ async function restoreRoleSession(user) {
 
 async function expireRoleSession() {
   clearTimeout(authExpiryTimer);
+  clearTimeout(authWarningTimer);
   const notice = "Your session expired. Please sign in again.";
   ayfaAuthContext = { user: null, role: null, expiresAt: 0, ready: true };
   authScreenNotice = notice;
@@ -181,8 +232,10 @@ async function expireRoleSession() {
 }
 
 async function manualRoleLogout() {
-  if (!confirm("Log out of the AYFA website?")) return;
+  if (!await showConfirmSheet({ title: "Log out?", message: "You will need to sign in again to continue.", confirmLabel: "Log out", danger: true })) return;
+  pendingSessionDraft = null;
   clearTimeout(authExpiryTimer);
+  clearTimeout(authWarningTimer);
   ayfaAuthContext = { user: null, role: null, expiresAt: 0, ready: true };
   authScreenNotice = "";
   await window.firebaseAuth.signOut().catch(error => console.error("Logout error:", error));
@@ -202,7 +255,7 @@ function openSupervisorLogin() {
 
 function requireSupervisor() {
   if (isSupervisorLoggedIn()) return true;
-  alert("Officials access is required for this action.");
+  showToast("Officials access is required for this action.");
   return false;
 }
 

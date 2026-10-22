@@ -145,10 +145,18 @@ async function loadAttendanceReports() {
         </tr>`).join("")
       : `<tr><td colspan="3" class="empty-cell">ಯಾವ ವರದಿಯೂ ಸಿಗಲಿಲ್ಲ.</td></tr>`;
     if (isSupervisorLoggedIn() && deletedPrograms.length) tbody.insertAdjacentHTML("beforeend", `<tr><td colspan="3"><section class="attendance-trash"><strong>Trash</strong>${deletedPrograms.map(([id, program]) => `<div class="attendance-trash-row"><span>${escapeHTML(program.programName || "Untitled program")} · ${escapeHTML(program.date || "")}</span><button type="button" onclick="restoreAttendanceProgram(${JSON.stringify(id)})">Restore</button></div>`).join("")}</section></td></tr>`);
+    filterAttendanceReports(document.getElementById("attendanceReportSearch")?.value || "");
   } catch (error) {
     console.error(error);
     tbody.innerHTML = `<tr><td colspan="3" class="error-cell">ವರದಿ ಲೋಡ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.</td></tr>`;
   }
+}
+
+function filterAttendanceReports(query) {
+  const term = String(query || "").trim().toLowerCase();
+  document.querySelectorAll("#reportsTableBody tr").forEach(row => {
+    row.hidden = Boolean(term) && !row.textContent.toLowerCase().includes(term);
+  });
 }
 
 async function editAttendanceProgram(programId) {
@@ -170,14 +178,14 @@ async function editAttendanceProgram(programId) {
 }
 
 async function deleteAttendanceProgram(programId) {
-  if (!requireSupervisor() || !confirm("Hide this attendance record? It will remain in Firebase for recovery.")) return;
+  if (!requireSupervisor() || !await showConfirmSheet({ title: "Hide attendance record?", message: "It will remain in Firebase and can be restored later.", confirmLabel: "Hide record", danger: true })) return;
   try {
     const updatedAt = new Date().toISOString();
     await AttendanceRepository.update({ [`programs/${programId}/deleted`]: true, [`programs/${programId}/deletedAt`]: updatedAt, [`programs/${programId}/updatedAt`]: updatedAt }, { action: "attendance.hide", path: "programs", recordId: programId, afterUpdatedAt: updatedAt });
     await loadAttendanceReports();
   } catch (error) {
     console.error("Attendance hide error:", error);
-    alert("Attendance record could not be hidden. Check the connection and try again.");
+    showToast("Attendance record could not be hidden. Check the connection and try again.");
   }
 }
 
@@ -191,7 +199,7 @@ async function restoreAttendanceProgram(programId) {
     await loadAttendanceReports();
   } catch (error) {
     console.error("Attendance restore error:", error);
-    alert("Attendance record could not be restored. Refresh and try again.");
+    showToast("Attendance record could not be restored. Refresh and try again.");
   }
 }
 
@@ -204,17 +212,17 @@ async function submitAttendance() {
   saveAttendanceDraft();
 
   if (!progName || !progDate) {
-    alert("ದಯವಿಟ್ಟು ಕಾರ್ಯಕ್ರಮದ ಹೆಸರು ಮತ್ತು ದಿನಾಂಕ ನಮೂದಿಸಿ!");
+    showToast("ದಯವಿಟ್ಟು ಕಾರ್ಯಕ್ರಮದ ಹೆಸರು ಮತ್ತು ದಿನಾಂಕ ನಮೂದಿಸಿ!");
     return;
   }
   if (Number.isNaN(new Date(`${progDate}T00:00:00`).getTime())) {
-    alert("Please enter a valid program date.");
+    showToast("Please enter a valid program date.");
     return;
   }
 
   const selected = fullMembersList.filter(member => attendanceSelectedMemberIds.has(String(member.id)));
   if (!selected.length) {
-    alert("ದಯವಿಟ್ಟು ಕನಿಷ್ಠ ಒಬ್ಬ ಸದಸ್ಯರನ್ನು ಆಯ್ಕೆ ಮಾಡಿ!");
+    showToast("ದಯವಿಟ್ಟು ಕನಿಷ್ಠ ಒಬ್ಬ ಸದಸ್ಯರನ್ನು ಆಯ್ಕೆ ಮಾಡಿ!");
     return;
   }
 
@@ -262,12 +270,12 @@ async function submitAttendance() {
     await loadAttendanceReports();
 
     if (typeof showToast === "function") showToast("Attendance saved successfully.", "success");
-    else alert("Attendance ಯಶಸ್ವಿಯಾಗಿ Firebaseನಲ್ಲಿ Save ಆಗಿದೆ!");
+    else showToast("Attendance ಯಶಸ್ವಿಯಾಗಿ Firebaseನಲ್ಲಿ Save ಆಗಿದೆ!");
     resetAttendanceForm();
   } catch (error) {
     console.error(error);
     if (typeof showToast === "function") showToast("Attendance save failed. Check the Firebase connection.", "error");
-    else alert("Attendance save ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. Firebase connection ಪರಿಶೀಲಿಸಿ.");
+    else showToast("Attendance save ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. Firebase connection ಪರಿಶೀಲಿಸಿ.");
   } finally {
     attendanceSubmitting = false;
     if (button) { button.disabled = false; button.innerHTML = originalLabel || "Save Attendance"; }

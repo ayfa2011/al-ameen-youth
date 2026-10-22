@@ -27,6 +27,58 @@ function escapeHTML(value) {
 
 }
 
+function showToast(message, type = "info") {
+  let stack = document.querySelector(".app-toast-stack");
+  if (!stack) {
+    stack = document.createElement("div");
+    stack.className = "app-toast-stack";
+    stack.setAttribute("aria-live", "polite");
+    stack.setAttribute("aria-atomic", "false");
+    document.body.appendChild(stack);
+  }
+  const toast = document.createElement("div");
+  toast.className = `app-toast app-toast-${["success", "error", "warning"].includes(type) ? type : "info"}`;
+  toast.setAttribute("role", type === "error" ? "alert" : "status");
+  toast.textContent = String(message ?? "");
+  stack.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add("is-visible"));
+  window.setTimeout(() => {
+    toast.classList.remove("is-visible");
+    window.setTimeout(() => toast.remove(), 220);
+  }, 4200);
+}
+
+function showConfirmSheet({ title = "Please confirm", message = "Are you sure?", confirmLabel = "Confirm", cancelLabel = "Cancel", danger = false } = {}) {
+  return new Promise(resolve => {
+    const sheet = document.createElement("dialog");
+    sheet.className = "app-confirm-sheet";
+    sheet.setAttribute("aria-labelledby", "appConfirmTitle");
+    sheet.innerHTML = `<form method="dialog"><h2 id="appConfirmTitle"></h2><p class="app-confirm-message"></p><div class="app-confirm-actions"><button type="button" class="app-confirm-cancel"></button><button type="button" class="app-confirm-accept"></button></div></form>`;
+    sheet.querySelector("#appConfirmTitle").textContent = title;
+    sheet.querySelector(".app-confirm-message").textContent = message;
+    sheet.querySelector(".app-confirm-cancel").textContent = cancelLabel;
+    const accept = sheet.querySelector(".app-confirm-accept");
+    accept.textContent = confirmLabel;
+    if (danger) accept.classList.add("is-danger");
+
+    let settled = false;
+    const finish = accepted => {
+      if (settled) return;
+      settled = true;
+      sheet.close();
+      sheet.remove();
+      resolve(accepted);
+    };
+    sheet.querySelector(".app-confirm-cancel").addEventListener("click", () => finish(false));
+    accept.addEventListener("click", () => finish(true));
+    sheet.addEventListener("cancel", event => { event.preventDefault(); finish(false); });
+    sheet.addEventListener("click", event => { if (event.target === sheet) finish(false); });
+    document.body.appendChild(sheet);
+    sheet.showModal();
+    sheet.querySelector(".app-confirm-cancel").focus();
+  });
+}
+
 
 // ============================================================
 // HIDE ALL APPLICATION VIEWS
@@ -74,15 +126,8 @@ function hideAllViews() {
 function navigateAppView(viewName, callback) {
   if (history.state?.appView !== viewName) history.pushState({ appView: viewName }, "", location.pathname + location.search + `#${viewName}`);
   callback();
+  document.getElementById("appContainer")?.setAttribute("data-active-view", viewName);
   updateAppTopBar(viewName);
-}
-
-// Universal back button on every page (top bar)
-function goBackToDashboard() {
-  showDashboard();
-  history.replaceState({ appView: "dashboard" }, "", location.pathname + location.search + "#dashboard");
-  updateAppTopBar("dashboard");
-  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 // Back icon in the top bar: visible on every page except the dashboard.
@@ -102,12 +147,14 @@ function goBackToDashboard() {
 
 window.addEventListener("popstate", event => {
   if (!isRoleAuthenticated()) return;
-  const view = event.state?.appView || "dashboard";
+  const state = event.state;
+  const view = state?.appView || "dashboard";
   if (location.hash !== `#${view}` && view !== "dashboard") history.replaceState({ appView: view }, "", location.pathname + location.search + `#${view}`);
   const routes = {
     dashboard: showDashboard,
     members: openMembersProfile,
     officeBearers: openOfficeBearers,
+    bearersTable: () => loadBearers(state?.year || "", { updateHistory: false }),
     activities: openActivityReports,
     blood: openBloodDonors,
     agenda: openAgendaManagement,
@@ -122,12 +169,15 @@ window.addEventListener("popstate", event => {
   updateAppTopBar(view);
 });
 
-const APP_PAGE_TITLES = { dashboard: "ಅಲ್ ಅಮೀನ್ ಯೂತ್ ಫೆಡರೇಶನ್", members: "Members", officeBearers: "Office Bearers", activities: "Activities", blood: "Blood Donors", agenda: "Agenda", finance: "Finance", assets: "Assets", attendance: "Attendance", rentals: "Rentals", poster: "Blood Donation Poster", about: "About" };
+const APP_PAGE_TITLES = { dashboard: "ಅಲ್ ಅಮೀನ್ ಯೂತ್ ಫೆಡರೇಶನ್", members: "Members", officeBearers: "Office Bearers", bearersTable: "Office Bearers", activities: "Activities", blood: "Blood Donors", agenda: "Agenda", finance: "Finance", assets: "Assets", attendance: "Attendance", rentals: "Rentals", poster: "Blood Donation Poster", about: "About" };
 
 function updateAppTopBar(view = history.state?.appView || "dashboard") {
   const back = document.getElementById("appBackButton");
-  // Uniform top bar on ALL pages: Logo left + Logout right. No center page name.
-  document.getElementById("appPageTitle")?.classList.add("hidden");
+  const pageTitle = document.getElementById("appPageTitle");
+  if (pageTitle) {
+    pageTitle.textContent = APP_PAGE_TITLES[view] || APP_PAGE_TITLES.dashboard;
+    pageTitle.classList.remove("hidden");
+  }
   if (back) back.classList.toggle("hidden", view === "dashboard");
 }
 
@@ -330,7 +380,14 @@ function openAttendance() {
 // OFFICE BEARERS TABLE
 // ============================================================
 
-async function loadBearers(year) {
+async function loadBearers(year, options = {}) {
+
+  const search = document.getElementById("bearerSearch");
+  if (search) search.value = "";
+
+  if (options.updateHistory !== false && (history.state?.appView !== "bearersTable" || history.state?.year !== year)) {
+    history.pushState({ appView: "bearersTable", year: String(year) }, "", location.pathname + location.search + "#bearersTable");
+  }
 
   hideAllViews();
 
@@ -437,6 +494,13 @@ async function loadBearers(year) {
 
 }
 
+function filterBearerTable(query) {
+  const term = String(query || "").trim().toLowerCase();
+  document.querySelectorAll("#bearersTableBody tr").forEach(row => {
+    row.hidden = Boolean(term) && !row.textContent.toLowerCase().includes(term);
+  });
+}
+
 
 // ============================================================
 // PDF PRINT
@@ -445,22 +509,6 @@ async function loadBearers(year) {
 function downloadPDF() {
 
   window.print();
-
-}
-
-
-// ============================================================
-// COMING SOON
-// ============================================================
-
-function showComingSoon(title) {
-
-  alert(
-
-    `${title}\n\n` +
-    `ಈ ವಿಭಾಗಕ್ಕೆ ಇನ್ನೂ Google Sheet / backend data connect ಮಾಡಲಾಗಿಲ್ಲ.`
-
-  );
 
 }
 

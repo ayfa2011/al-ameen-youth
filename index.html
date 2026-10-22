@@ -322,7 +322,7 @@
 
         <button type="button"
           class="grid-card"
-          data-view-event="click" data-view-handler="showComingSoon" data-view-args='["Badr Masjid"]'
+          hidden
         >
 
           <i class="fa-solid fa-mosque card-icon"></i>
@@ -387,7 +387,7 @@
               <em><i class="fa-solid fa-arrow-up-right-from-square"></i> Open PDF</em>
             </span>
           </a>
-          <a href="#" data-view-event="click" data-view-handler="showComingSoon" data-view-args='["2023 Annual Activity Report"]' data-view-prevent-default="true" class="annual-activity-card annual-activity-card-lg annual-activity-card-soon">
+          <a href="#" hidden class="annual-activity-card annual-activity-card-lg annual-activity-card-soon">
             <span class="annual-pdf-thumb annual-pdf-thumb-empty">
               <span class="annual-pdf-empty"><i class="fa-regular fa-file-pdf"></i></span>
             </span>
@@ -415,8 +415,10 @@
         <div class="ayfa-supervisor-bar"><span data-supervisor-login></span></div>
         <div class="program-reports-toolbar">
           <div><p class="program-reports-kicker">AYFA ACTIVITIES &amp; PROGRAMS</p><h3 id="programReportsTitle">Activities</h3></div>
-          <div class="program-reports-actions"><select id="programReportYear" data-view-event="change" data-view-handler="renderProgramReports" aria-label="Select report year"></select><button type="button" class="program-report-submit" data-view-event="click" data-view-handler="openProgramReportForm"><i class="fa-solid fa-plus"></i> Submit Activity Report</button></div>
+          <button type="button" class="program-report-submit" data-view-event="click" data-view-handler="openProgramReportForm"><i class="fa-solid fa-plus"></i> Submit Activity Report</button>
         </div>
+        <label class="page-search"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><input id="programReportSearch" type="search" placeholder="Search activities" oninput="renderProgramReports()" aria-label="Search activities"></label>
+        <details class="page-filter-collapse"><summary>Filter by year</summary><select id="programReportYear" data-view-event="change" data-view-handler="renderProgramReports" aria-label="Select report year"></select></details>
         <div id="programReportsList" class="program-reports-list" aria-live="polite"></div>
       </section>
 
@@ -510,6 +512,8 @@
         class="hidden"
       >
 
+        <label class="page-search"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><input id="attendanceReportSearch" type="search" placeholder="Search attendance reports" aria-label="Search attendance reports" oninput="filterAttendanceReports(this.value)"></label>
+
         <div class="table-scroll">
 
           <table class="attendance-report-table">
@@ -595,7 +599,7 @@
     <div id="agendaView" class="view-section hidden">
       <section class="agenda-section">
         <div class="ayfa-supervisor-bar"><span data-supervisor-login></span></div>
-        <div class="agenda-toolbar"><span></span><div class="agenda-toolbar-actions"><button id="agendaImportButton" class="agenda-import-button" type="button" data-view-event="click" data-view-handler="importLegacyAgendas" hidden>Import legacy records</button><button class="agenda-add-button" data-view-event="click" data-view-handler="openAgendaForm"><i class="fa-solid fa-plus"></i> Add new agenda</button></div></div>
+        <div class="agenda-toolbar"><span></span><div class="agenda-toolbar-actions"><button class="agenda-add-button" data-view-event="click" data-view-handler="openAgendaForm"><i class="fa-solid fa-plus"></i> Add new agenda</button></div></div>
         <div class="agenda-simple-sections"><div class="agenda-panel"><h3><i class="fa-solid fa-list-check"></i> Meeting Agenda</h3><div class="agenda-list-head"><span>Agenda Item</span><span>Date Added</span></div><div id="allAgendaList"></div></div><div class="agenda-panel"><h3><i class="fa-solid fa-comments"></i> Topics Discussed</h3><div class="agenda-list-head"><span>Agenda Item</span><span>Date Added</span></div><div id="actionAgendaList"></div></div><div class="agenda-panel"><h3><i class="fa-solid fa-circle-check"></i> Decisions Taken</h3><div class="agenda-list-head"><span>Agenda Item</span><span>Date Added</span></div><div id="completedAgendaList"></div></div><div class="agenda-panel" id="agendaTrashPanel"><h3><i class="fa-solid fa-trash-can"></i> Trash</h3><div id="agendaTrashList"></div></div></div>
       </section>
     </div>
@@ -608,13 +612,13 @@
       <section id="finance" class="finance-section">
         <div class="container">
           <div class="section-card">
-            <div class="finance-tabs" id="financeYearTabs">
+            <details class="page-filter-collapse"><summary>Choose report year</summary><div class="finance-tabs" id="financeYearTabs">
               <button class="tab-btn active" data-view-event="click" data-view-handler="showFinanceYear" data-view-args='["2026"]'>2026</button>
               <button class="tab-btn" data-view-event="click" data-view-handler="showFinanceYear" data-view-args='["2025"]'>2025</button>
               <button class="tab-btn" data-view-event="click" data-view-handler="showFinanceYear" data-view-args='["2024"]'>2024</button>
               <button class="tab-btn" data-view-event="click" data-view-handler="showFinanceYear" data-view-args='["2023"]'>2023</button>
               <button class="tab-btn" data-view-event="click" data-view-handler="showFinanceYear" data-view-args='["2022"]'>2022</button>
-            </div>
+            </div></details>
 
             <div class="finance-summary-grid">
               <div class="fin-card fin-income">
@@ -719,7 +723,7 @@
           placeholder="Search member name or blood group..."
         >
 
-        <div id="bloodFilterPills" class="blood-filter-pills" aria-label="Filter by blood group"></div>
+        <details class="page-filter-collapse"><summary>Filter by blood group</summary><div id="bloodFilterPills" class="blood-filter-pills" aria-label="Filter by blood group"></div></details>
 
 
         <!-- =====================================================
@@ -1209,6 +1213,9 @@
       id="bearersTableView"
       class="view-section hidden"
     >
+
+      <h2 id="selectedYearTitle" class="page-view-title">Office Bearers</h2>
+      <label class="page-search"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><input id="bearerSearch" type="search" placeholder="Search office bearers" aria-label="Search office bearers" oninput="filterBearerTable(this.value)"></label>
 
 
       <div

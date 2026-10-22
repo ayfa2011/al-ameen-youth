@@ -62,7 +62,7 @@
 
       if (!donorName) {
 
-        alert(
+        showToast(
           "ದಯವಿಟ್ಟು ರಕ್ತದಾನಿಯ ಹೆಸರನ್ನು ನಮೂದಿಸಿ."
         );
 
@@ -73,7 +73,7 @@
 
       if (!bloodGroup) {
 
-        alert(
+        showToast(
           "ದಯವಿಟ್ಟು ರಕ್ತದ ಗುಂಪನ್ನು ನಮೂದಿಸಿ."
         );
 
@@ -84,7 +84,7 @@
 
       if (!donationPlace) {
 
-        alert(
+        showToast(
           "ದಯವಿಟ್ಟು ರಕ್ತ ನೀಡಿದ ಸ್ಥಳವನ್ನು ನಮೂದಿಸಿ."
         );
 
@@ -95,7 +95,7 @@
 
       if (!patientName) {
 
-        alert(
+        showToast(
           "ದಯವಿಟ್ಟು ರೋಗಿಯ ಹೆಸರನ್ನು ನಮೂದಿಸಿ."
         );
 
@@ -106,7 +106,7 @@
 
       if (!date) {
 
-        alert(
+        showToast(
           "ದಯವಿಟ್ಟು ದಿನಾಂಕವನ್ನು ಆಯ್ಕೆ ಮಾಡಿ."
         );
 
@@ -120,7 +120,7 @@
         !photoInput.files[0]
       ) {
 
-        alert(
+        showToast(
           "ದಯವಿಟ್ಟು ರಕ್ತದಾನಿಯ ಫೋಟೋ upload ಮಾಡಿ."
         );
 
@@ -310,7 +310,7 @@
 
       if (!canvas) {
 
-        alert(
+        showToast(
           "Poster canvas ಸಿಗಲಿಲ್ಲ."
         );
 
@@ -330,7 +330,7 @@
 
       if (!donorName) {
 
-        alert(
+        showToast(
           "ಮೊದಲು Poster Generate ಮಾಡಿ."
         );
 
@@ -346,7 +346,7 @@
         "undefined"
       ) {
 
-        alert(
+        showToast(
           "Poster download library load ಆಗಿಲ್ಲ."
         );
 
@@ -460,7 +460,7 @@
         );
 
 
-        alert(
+        showToast(
           "Poster download ಮಾಡುವಾಗ ಸಮಸ್ಯೆ ಉಂಟಾಗಿದೆ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ."
         );
 
@@ -511,7 +511,7 @@
             )
           ) {
 
-            alert(
+            showToast(
               "ದಯವಿಟ್ಟು image file ಮಾತ್ರ ಆಯ್ಕೆ ಮಾಡಿ."
             );
 

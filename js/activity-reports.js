@@ -88,7 +88,8 @@ function renderProgramReports() {
   const year = document.getElementById("programReportYear")?.value || String(new Date().getFullYear());
   if (!list) return;
   if (title) title.textContent = `${year} AYFA Activities & Programs`;
-  const reports = programReportState.reports.filter(report => String(report.date || "").startsWith(year));
+  const query = String(document.getElementById("programReportSearch")?.value || "").trim().toLowerCase();
+  const reports = programReportState.reports.filter(report => String(report.date || "").startsWith(year) && (!query || `${report.title || ""} ${report.description || ""}`.toLowerCase().includes(query)));
   const supervisor = typeof isSupervisorLoggedIn === "function" ? isSupervisorLoggedIn() : false;
   list.innerHTML = reports.length ? reports.map(report => {
     const photos = normalizeReportPhotos(report);
@@ -426,7 +427,7 @@ async function deleteProgramReport(id) {
   if (!requireSupervisor()) return;
   const reportId = String(id || "");
   const report = programReportState.reports.find(item => String(item.id) === reportId);
-  if (!report || !confirm(`Hide "${report.title}"? It can be restored later.`)) return;
+  if (!report || !await showConfirmSheet({ title: "Hide report?", message: `“${report.title}” can be restored later.`, confirmLabel: "Hide report", danger: true })) return;
   try {
     await ActivityReportsRepository.ready();
     const updatedAt = new Date().toISOString();
@@ -447,7 +448,7 @@ async function deleteProgramReport(id) {
     await loadProgramReports();
   } catch (error) {
     console.error("Activity report delete error:", error);
-    alert("Report could not be deleted. Please check the connection.");
+    showToast("Report could not be deleted. Please check the connection.");
   }
 }
 
@@ -461,5 +462,5 @@ async function restoreProgramReport(id) {
     if (!result.committed) throw new Error("Report is no longer in Trash.");
     await ActivityReportsRepository.audit({ action: "programReport.restore", path: "programReports", recordId: reportId, afterUpdatedAt: restoredAt });
     await loadProgramReports();
-  } catch (error) { console.error("Activity restore error:", error); alert("Report could not be restored. Refresh and try again."); }
+  } catch (error) { console.error("Activity restore error:", error); showToast("Report could not be restored. Refresh and try again."); }
 }

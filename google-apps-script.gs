@@ -86,17 +86,11 @@ function doGet(e) {
     switch (action) {
       case "getMembers":
         return jsonOutput(getMembers());
-      case "getPrograms":
-        return jsonOutput(getPrograms());
-      case "getReports":
-        return jsonOutput(getAttendanceReports());
-      case "getAgendas":
-        return jsonOutput(getAgendas_());
       default:
         return jsonOutput({ error: "Unknown action: " + action });
     }
   } catch (error) {
-    return jsonOutput({ success: false, error: error.message, errorType: error.name || "Error", stack: error.stack || "" });
+    return jsonOutput({ success: false, error: error.message, errorType: error.name || "Error" });
   }
 }
 
@@ -108,17 +102,12 @@ function doPost(e) {
       return jsonOutput({ success: true, customToken: issueRoleCustomToken_(String(body.role || ""), String(body.password || "")) });
     }
 
-    if (body.action === "getAgendas") {
-      authorizeWebUser_(body.authToken, ["member", "official"]);
-      return jsonOutput(getAgendas_());
-    }
-
     if (body.action === "listDrivePhotoFolders") {
       authorizeWebUser_(body.authToken, ["member", "official"]);
       return jsonOutput(listDrivePhotoFolders_());
     }
 
-    if (["uploadDrivePhoto", "saveAttendance", "saveAgenda", "deleteAgenda", "syncAgendas"].includes(body.action)) {
+    if (body.action === "uploadDrivePhoto") {
       authorizeWebUser_(body.authToken, ["official"]);
     }
 
@@ -126,77 +115,12 @@ function doPost(e) {
       return jsonOutput(uploadDrivePhoto(body));
     }
 
-    if (body.action === "saveAttendance") {
-      const result = saveAttendance(body);
-      return jsonOutput(result);
-    }
-
-    if (body.action === "saveAgenda") return jsonOutput(saveAgenda_(body.agenda || {}));
-    if (body.action === "deleteAgenda") return jsonOutput(deleteAgenda_(body.id));
-    if (body.action === "syncAgendas") return jsonOutput(syncExistingAgendasToSheet_(body.agendas || []));
 
     return jsonOutput({ error: "Unknown POST action" });
   } catch (error) {
-    return jsonOutput({ success: false, error: error.message, errorType: error.name || "Error", stack: error.stack || "" });
+    return jsonOutput({ success: false, error: error.message, errorType: error.name || "Error" });
   }
 }
-
-function getOrCreateAgendaSheet_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName("Agenda");
-  if (!sheet) sheet = ss.insertSheet("Agenda");
-  const headers = ["ID", "ಸಭೆಯ ದಿನಾಂಕ", "ಅಜೆಂಡಾ / ವಿಷಯ", "ವಿವರ", "ಸ್ಥಿತಿ", "ನಿರ್ಣಯ", "ಜಾರಿಯಾದ ದಿನಾಂಕ", "Priority", "ಜವಾಬ್ದಾರಿ", "ಗುರಿ ದಿನಾಂಕ", "Created At", "Updated At"];
-  if (sheet.getLastRow() === 0) sheet.appendRow(headers);
-  else if (String(sheet.getRange(1, 1).getValue()).trim() !== "ID") sheet.insertRowBefore(1), sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  if (sheet.getLastColumn() < 13) sheet.getRange(1, 13).setValue("Discussed At");
-  if (sheet.getLastColumn() < 14) sheet.getRange(1, 14).setValue("Deleted At");
-  return sheet;
-}
-
-function syncExistingAgendasToSheet_(items) {
-  const sheet = getOrCreateAgendaSheet_();
-  const rows = sheet.getDataRange().getDisplayValues();
-  const known = new Set(rows.slice(1).map(row => String(row[0])));
-  (items || []).forEach(item => {
-    if (!item || !item.id || known.has(String(item.id)) || !item.title || !item.meetingDate) return;
-    sheet.appendRow([String(item.id), item.meetingDate || "", item.title || "", item.description || "", item.status || "Upcoming", item.decision || "", item.implementedDate || "", item.priority || "Normal", item.responsible || "", item.targetDate || "", item.createdAt || "", item.updatedAt || "", item.discussedDate || ""]);
-    known.add(String(item.id));
-  });
-  return { success: true };
-}
-
-function getAgendas_() {
-  const sheet = getOrCreateAgendaSheet_();
-  const values = sheet.getDataRange().getDisplayValues();
-  if (values.length < 2) return [];
-  const headers = values[0].map(value => String(value).trim());
-  return values.slice(1).filter(row => row[0] && !row[13]).map(row => {
-    const item = {};
-    headers.forEach((header, index) => { if (header) item[header] = row[index] || ""; });
-    return { id: String(item.ID), meetingDate: item["ಸಭೆಯ ದಿನಾಂಕ"], title: item["ಅಜೆಂಡಾ / ವಿಷಯ"], description: item["ವಿವರ"], status: item["ಸ್ಥಿತಿ"], decision: item["ನಿರ್ಣಯ"], discussedDate: item["Discussed At"] || "", implementedDate: item["ಜಾರಿಯಾದ ದಿನಾಂಕ"], priority: item.Priority, responsible: item["ಜವಾಬ್ದಾರಿ"], targetDate: item["ಗುರಿ ದಿನಾಂಕ"], createdAt: item["Created At"], updatedAt: item["Updated At"], decisionStatus: item["ಸ್ಥಿತಿ"] === "Completed" ? "Completed" : "Pending" };
-  });
-}
-
-function saveAgenda_(item) {
-  if (!item.id || !item.title || !item.meetingDate) throw new Error("Agenda ID, title and meeting date are required.");
-  const sheet = getOrCreateAgendaSheet_();
-  const rows = sheet.getDataRange().getDisplayValues();
-  const index = rows.findIndex((row, i) => i > 0 && String(row[0]) === String(item.id));
-  const row = [String(item.id), item.meetingDate || "", item.title || "", item.description || "", item.status || "Upcoming", item.decision || "", item.implementedDate || "", item.priority || "Normal", item.responsible || "", item.targetDate || "", item.createdAt || "", item.updatedAt || new Date().toISOString(), item.discussedDate || ""];
-  if (sheet.getLastColumn() < 13) sheet.getRange(1, 13).setValue("Discussed At");
-  if (index > 0) sheet.getRange(index + 1, 1, 1, row.length).setValues([row]); else sheet.appendRow(row);
-  return { success: true, id: String(item.id) };
-}
-
-function deleteAgenda_(id) {
-  if (!id) throw new Error("Agenda ID is required.");
-  const sheet = getOrCreateAgendaSheet_();
-  const rows = sheet.getDataRange().getDisplayValues();
-  const index = rows.findIndex((row, i) => i > 0 && String(row[0]) === String(id));
-  if (index > 0 && !rows[index][13]) sheet.getRange(index + 1, 14).setValue(new Date().toISOString());
-  return { success: true, id: String(id) };
-}
-
 
 function uploadDrivePhoto(data) {
   try {
@@ -234,8 +158,7 @@ function uploadDrivePhoto(data) {
     return {
       success: false,
       error: error.message || String(error),
-      errorType: error.name || "Error",
-      stack: error.stack || ""
+      errorType: error.name || "Error"
     };
   }
 }
@@ -313,74 +236,6 @@ function rowsAsObjects(sheetName) {
 
 function getMembers() {
   return rowsAsObjects("Members");
-}
-
-function getPrograms() {
-  return rowsAsObjects("Programs");
-}
-
-function saveAttendance(data) {
-  if (!data.programName || !data.date) {
-    throw new Error("Program name and date are required.");
-  }
-
-  if (!Array.isArray(data.members) || data.members.length === 0) {
-    throw new Error("At least one member is required.");
-  }
-
-  const programs = getSheet("Programs");
-  const attendance = getSheet("Attendance");
-
-  const programId = "P" + new Date().getTime();
-  programs.appendRow([programId, data.programName, data.date]);
-
-  const allMembers = getMembers();
-  const selected = new Set(data.members.map(String));
-
-  const rows = allMembers.map(member => [
-    programId,
-    member["Name"] || "",
-    selected.has(String(member["Name"] || "")) ? "Present" : "Absent"
-  ]);
-
-  if (rows.length) {
-    attendance
-      .getRange(attendance.getLastRow() + 1, 1, rows.length, 3)
-      .setValues(rows);
-  }
-
-  return {
-    success: true,
-    programId: programId,
-    presentCount: data.members.length
-  };
-}
-
-function getAttendanceReports() {
-  const programs = rowsAsObjects("Programs");
-  const attendance = rowsAsObjects("Attendance");
-
-  return programs.map((program, index) => {
-    const id = String(program["ProgramID"] || "");
-    const records = attendance.filter(
-      row => String(row["ProgramID"] || "") === id
-    );
-    const present = records.filter(
-      row => String(row["Status"] || "").toLowerCase() === "present"
-    );
-
-    return {
-      slNo: index + 1,
-      programId: id,
-      programName: program["ProgramName"] || "",
-      date: program["Date"] || "",
-      presentCount: present.length,
-      membersList: present
-        .map(row => row["MemberName"] || "")
-        .filter(Boolean)
-        .join(", ")
-    };
-  }).reverse();
 }
 
 // ============================================================

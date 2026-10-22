@@ -45,6 +45,36 @@ button{font-family:inherit}
   display: none !important;
 }
 
+[hidden] {
+  display: none !important;
+}
+
+.page-search{display:flex;align-items:center;gap:10px;width:min(100%,620px);min-height:46px;margin:0 0 12px;padding:0 13px;border:1px solid #d9e5dd;border-radius:12px;background:#fff;color:#718579;box-sizing:border-box}
+.page-search input{width:100%;min-width:0;min-height:44px;border:0;outline:0;background:transparent;color:#172635;font:inherit;font-size:15px}
+.page-filter-collapse{margin:0 0 14px;padding:0 12px;border:1px solid #e1e9e4;border-radius:11px;background:#f8fbf9}
+.page-filter-collapse summary{min-height:42px;display:flex;align-items:center;color:#476153;font-size:13px;font-weight:700;cursor:pointer;list-style:none}
+.page-filter-collapse summary::-webkit-details-marker{display:none}
+.page-filter-collapse summary::after{content:"+";margin-left:auto;color:#678271;font-size:18px}
+.page-filter-collapse[open] summary::after{content:"−"}
+.page-filter-collapse>select,.page-filter-collapse>.finance-tabs,.page-filter-collapse>.blood-filter-pills{margin:0 0 12px}
+
+.app-toast-stack{position:fixed;z-index:10050;top:calc(env(safe-area-inset-top,0px) + 14px);left:50%;transform:translateX(-50%);display:grid;gap:9px;width:min(92vw,440px);pointer-events:none}
+.app-toast{padding:13px 16px;border:1px solid #d9e4dc;border-radius:13px;background:#fff;color:#244333;box-shadow:0 10px 28px rgba(22,48,34,.2);font-size:14px;line-height:1.45;opacity:0;transform:translateY(-8px);transition:opacity .2s ease,transform .2s ease}
+.app-toast.is-visible{opacity:1;transform:translateY(0)}
+.app-toast-success{border-color:#a8d3b8;background:#f2fbf4}
+.app-toast-error{border-color:#e6b8b4;background:#fff5f4;color:#842c27}
+.app-toast-warning{border-color:#efd59a;background:#fffaf0;color:#79510c}
+.app-confirm-sheet{width:min(92vw,440px);max-width:none;margin:auto;padding:0;border:0;border-radius:20px;background:transparent;color:#243b2f;box-shadow:0 22px 70px rgba(0,0,0,.28)}
+.app-confirm-sheet::backdrop{background:rgba(16,29,22,.48);backdrop-filter:blur(2px)}
+.app-confirm-sheet form{padding:24px;background:#fff;border-radius:20px}
+.app-confirm-sheet h2{margin:0 0 9px;font-size:20px;line-height:1.3}
+.app-confirm-message{margin:0;color:#5f7066;font-size:15px;line-height:1.55;white-space:pre-wrap}
+.app-confirm-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:24px}
+.app-confirm-actions button{min-height:44px;padding:0 17px;border:1px solid #d5dfd8;border-radius:11px;background:#f7faf8;color:#31493b;font:inherit;font-weight:700;cursor:pointer}
+.app-confirm-actions .app-confirm-accept{border-color:#1c6b4a;background:#1c6b4a;color:white}
+.app-confirm-actions .app-confirm-accept.is-danger{border-color:#b43c36;background:#b43c36}
+@media(max-width:520px){.app-confirm-sheet{width:100vw;margin:0 0 0 auto;border-radius:20px 20px 0 0}.app-confirm-sheet[open]{position:fixed;inset:auto 0 0}.app-confirm-sheet form{padding:24px 20px calc(20px + env(safe-area-inset-bottom,0px));border-radius:20px 20px 0 0}.app-confirm-actions button{flex:1}}
+
 /* Compact, touch-friendly baseline for small screens. */
 input, select, textarea { font-size: 16px; }
 button { min-height: 36px; }

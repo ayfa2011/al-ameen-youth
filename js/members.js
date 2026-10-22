@@ -211,7 +211,7 @@ async function saveMemberEdit(event, memberId) {
     mobile: String(values.mobile || "").trim(),
     contribution: String(values.contribution || "").trim()
   };
-  if (!update.name) { alert("Member name is required."); return; }
+  if (!update.name) { showToast("Member name is required."); return; }
   try {
     await waitForFirebase();
     const databaseKey = await MembersRepository.resolveMemberKey(memberId);
@@ -232,7 +232,7 @@ async function saveMemberEdit(event, memberId) {
     await renderMemberCards();
   } catch (error) {
     console.error("Member update error:", error);
-    alert(error.message?.includes("changed after") ? "Another official changed one of these member fields. Refresh and reapply your edits." : "Member details could not be updated. Check the connection and try again.");
+    showToast(error.message?.includes("changed after") ? "Another official changed one of these member fields. Refresh and reapply your edits." : "Member details could not be updated. Check the connection and try again.");
   }
 }
 
@@ -240,7 +240,7 @@ async function deleteMember(memberId) {
   if (!requireSupervisor()) return;
   const member = getMemberById(memberId);
   if (!member) return;
-  if (!confirm(`Deactivate ${member.name}? This removes them from the active member list. Historical attendance records will remain.`)) return;
+  if (!await showConfirmSheet({ title: "Deactivate member?", message: `${member.name} will be removed from the active member list. Historical attendance records will remain.`, confirmLabel: "Deactivate", danger: true })) return;
   try {
     await waitForFirebase();
     const databaseKey = await MembersRepository.resolveMemberKey(memberId);
@@ -256,7 +256,7 @@ async function deleteMember(memberId) {
     await renderMemberCards();
   } catch (error) {
     console.error("Member delete error:", error);
-    alert(error.message?.includes("changed before") ? "Another official changed this member. Refresh and try again." : "Member could not be deactivated. Check the connection and try again.");
+    showToast(error.message?.includes("changed before") ? "Another official changed this member. Refresh and try again." : "Member could not be deactivated. Check the connection and try again.");
   }
 }
 
@@ -277,7 +277,7 @@ async function restoreMember(memberId) {
     await renderMemberCards();
   } catch (error) {
     console.error("Member restore error:", error);
-    alert(error.message?.includes("changed before") ? "Another official changed this member. Refresh and try again." : "Member could not be restored. Check the connection and try again.");
+    showToast(error.message?.includes("changed before") ? "Another official changed this member. Refresh and try again." : "Member could not be restored. Check the connection and try again.");
   }
 }
 
@@ -559,7 +559,7 @@ async function saveBloodDonation(event) {
 
 async function deleteBloodDonation(memberId, recordId) {
   if (!requireSupervisor()) return;
-  if (!confirm("Hide this blood donation record? It can be restored later.")) return;
+  if (!await showConfirmSheet({ title: "Hide donation record?", message: "This record can be restored later.", confirmLabel: "Hide record", danger: true })) return;
   try {
     await waitForFirebase();
     const safeMemberId = String(memberId || "");
@@ -580,7 +580,7 @@ async function deleteBloodDonation(memberId, recordId) {
     renderBloodDonorCards(fullMembersList);
   } catch (error) {
     console.error("Blood donation delete error:", error);
-    alert("Could not delete this record. Please try again.");
+    showToast("Could not delete this record. Please try again.");
   }
 }
 
@@ -596,7 +596,7 @@ async function restoreBloodDonation(memberId, recordId) {
     await MembersRepository.audit({ action: "bloodDonation.restore", path: `bloodDonations/${safeMemberId}`, recordId: safeRecordId, afterUpdatedAt: restoredAt });
     await openBloodDonationHistory(safeMemberId);
     renderBloodDonorCards(fullMembersList);
-  } catch (error) { console.error("Blood donation restore error:", error); alert("Donation record could not be restored. Refresh and try again."); }
+  } catch (error) { console.error("Blood donation restore error:", error); showToast("Donation record could not be restored. Refresh and try again."); }
 }
 
 document.addEventListener("DOMContentLoaded", () => {

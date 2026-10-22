@@ -56,19 +56,19 @@ const r=await AgendaRepository.transaction("meetingAgendas/"+id, cur=>{if(!cur||
 if(!r.committed)throw new Error("changed");
 await AgendaRepository.audit({action:"agenda.update",path:"meetingAgendas",recordId:id,beforeUpdatedAt:exp,afterUpdatedAt:now});
 const loc=agendaState.items.find(x=>x.id===id);if(loc){loc[field]=val;loc.updatedAt=now;}return true;}
-catch(e){console.error(e);alert("Save failed. Refresh and try again.");return false;}}
+catch(e){console.error(e);showToast("Save failed. Refresh and try again.");return false;}}
 async function saveAgendaOneField(f){const e=document.getElementById("agF");const v=String(e?.value||"").trim();
-if((f==="title"||f==="meetingDate")&&!v){alert(f==="title"?"Title required.":"Meeting date required.");return;}
+if((f==="title"||f==="meetingDate")&&!v){showToast(f==="title"?"Title required.":"Meeting date required.");return;}
 if(await saveAgendaField(agendaState.activeId,f,v)){agendaState.editF="";renderAgendas();}}
 async function addAgendaInline(stage){if(!requireSupervisor())return;
 const e=document.getElementById("agAdd-"+stage);const title=String(e?.value||"").trim();
-if(!title){alert("Title bareyiri.");e?.focus();return;}
+if(!title){showToast("Title bareyiri.");e?.focus();return;}
 try{await AgendaRepository.ready();const now=new Date().toISOString();
 const st=stage==="disc"?"Under Action":stage==="done"?"Completed":"Upcoming";
 const p={title,description:"",meetingDate:now.slice(0,10),priority:"Normal",status:st,discussedDate:st==="Under Action"?now:"",implementedDate:st==="Completed"?now:"",decision:"",decisionStatus:st==="Completed"?"Completed":"Pending",responsible:"",targetDate:"",createdAt:now,updatedAt:now};
 const agendaId=AgendaRepository.key("meetingAgendas");
 await AgendaRepository.update({["meetingAgendas/"+agendaId]:{...p,id:agendaId}},{action:"agenda.create",path:"meetingAgendas",recordId:agendaId,afterUpdatedAt:now});
-agendaState.adding=false;await reloadAgendaKeep();}catch(e){console.error(e);alert("Add failed. Check connection.");}}
+agendaState.adding=false;await reloadAgendaKeep();}catch(e){console.error(e);showToast("Add failed. Check connection.");}}
 async function reloadAgendaKeep(){try{await AgendaRepository.ready();
 const d=(await AgendaRepository.read("meetingAgendas")).val()||{};
 const r=Object.entries(d).map(([id,v])=>({id,...v}));
@@ -93,7 +93,7 @@ if(!r.committed)throw new Error("changed");
 await AgendaRepository.audit({action:"agenda.status",path:"meetingAgendas",recordId:id,beforeUpdatedAt:exp,afterUpdatedAt:now});
 const wasD=agendaState.view==="detail";await reloadAgendaKeepSilent();
 if(wasD&&agendaState.items.find(x=>x.id===id)){agendaState.view="detail";agendaState.activeId=id;agendaState.editTitle=false;agendaState.editDesc=false;renderAgendas();}
-else{agendaState.view="list";renderAgendas();}}catch(e){console.error(e);alert("Update failed.");}}
+else{agendaState.view="list";renderAgendas();}}catch(e){console.error(e);showToast("Update failed.");}}
 async function reloadAgendaKeepSilent(){try{await AgendaRepository.ready();
 const d=(await AgendaRepository.read("meetingAgendas")).val()||{};
 const r=Object.entries(d).map(([id,v])=>({id,...v}));
@@ -101,26 +101,14 @@ agendaState.deletedItems=r.filter(x=>x.deleted===true);agendaState.items=r.filte
 agendaState.items.sort((a,b)=>String(b.createdAt||b.meetingDate||"").localeCompare(String(a.createdAt||a.meetingDate||"")));}catch(e){console.error(e);}}
 async function deleteAgenda(id){if(!requireSupervisor())return;
 const it=agendaState.items.find(x=>x.id===id);if(!it)return;
-if(!confirm('Delete "'+(it.title||"")+'"? Trash-ge hogutte.'))return;
+if(!await showConfirmSheet({title:"Delete agenda item?",message:'"'+(it.title||"")+'" will move to Trash and can be restored.',confirmLabel:"Delete",danger:true}))return;
 try{await AgendaRepository.ready();const now=new Date().toISOString();
 const r=await AgendaRepository.transaction("meetingAgendas/"+id, cur=>cur&&cur.deleted!==true?{...cur,deleted:true,deletedAt:now,updatedAt:now}:undefined);
 if(!r.committed){const latest=r.snapshot?.val();await reloadAgendaKeep();if(!latest||latest.deleted===true)return;throw new Error("Agenda changed before it could be hidden. Refresh and try again.");}
 await AgendaRepository.audit({action:"agenda.hide",path:"meetingAgendas",recordId:id,afterUpdatedAt:now});
-agendaState.view="list";agendaState.activeId="";await reloadAgendaKeep();}catch(e){console.error(e);alert("Delete failed.");}}
+agendaState.view="list";agendaState.activeId="";await reloadAgendaKeep();}catch(e){console.error(e);showToast("Delete failed.");}}
 async function restoreAgenda(id){if(!requireSupervisor())return;
 try{const r=await AgendaRepository.transaction("meetingAgendas/"+id, cur=>cur?.deleted===true?{...cur,deleted:false,restoredAt:new Date().toISOString(),updatedAt:new Date().toISOString()}:undefined);
 if(!r.committed)throw new Error("no trash");
 await AgendaRepository.audit({action:"agenda.restore",path:"meetingAgendas",recordId:id});
-await reloadAgendaKeep();}catch(e){console.error(e);alert("Restore failed.");}}
-async function importLegacyAgendas(){if(!requireSupervisor())return;
-try{await AgendaRepository.ready();const cur=(await AgendaRepository.read("meetingAgendas")).val()||{};
-const bk=new Date().toISOString().replace(/[:.]/g,"-");
-await AgendaRepository.update({["meetingAgendasMigrationBackups/"+bk]:{createdAt:new Date().toISOString(),source:"pre-import",items:Object.keys(cur).length?cur:null}},{action:"agenda.migrationBackup",path:"meetingAgendasMigrationBackups",recordId:bk});
-const tok=await window.firebaseAuth.currentUser.getIdToken();
-const resp=await fetch(SCRIPT_URL,{method:"POST",mode:"cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"getAgendas",authToken:tok})});
-const leg=await resp.json();
-if(!resp.ok||leg.success===false||leg.error||!Array.isArray(leg))throw new Error(leg.error||"Invalid data");
-const add={};leg.forEach(x=>{const id=String(x.id||"").trim();const t=String(x.title||"").trim();const md=String(x.meetingDate||"").trim();if(!id||!t||!md||cur[id])return;add[id]={...x,id,title:t,meetingDate:md,createdAt:x.createdAt||new Date().toISOString(),updatedAt:x.updatedAt||new Date().toISOString()};});
-if(Object.keys(add).length)await AgendaRepository.update(Object.fromEntries(Object.entries(add).map(([k,v])=>["meetingAgendas/"+k,v])),{action:"agenda.legacyImport",path:"meetingAgendas",recordId:Object.keys(add).join(",")});
-await reloadAgendaKeep();alert(Object.keys(add).length+" imported.");}
-catch(e){console.error(e);alert("Import failed: "+(e.message||e));}}
+await reloadAgendaKeep();}catch(e){console.error(e);showToast("Restore failed.");}}

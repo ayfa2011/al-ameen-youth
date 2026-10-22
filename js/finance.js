@@ -154,12 +154,12 @@ function openFinanceReport() {
 async function downloadFinancePDF() {
   const section = document.getElementById("finance");
   if (!section) {
-    alert("Finance Report ಸಿಗಲಿಲ್ಲ.");
+    showToast("Finance Report ಸಿಗಲಿಲ್ಲ.");
     return;
   }
 
   if (typeof html2canvas === "undefined") {
-    alert("PDF download library load ಆಗಿಲ್ಲ.");
+    showToast("PDF download library load ಆಗಿಲ್ಲ.");
     return;
   }
 
@@ -180,7 +180,7 @@ async function downloadFinancePDF() {
     });
 
     if (!window.jspdf || !window.jspdf.jsPDF) {
-      alert("PDF library load ಆಗಿಲ್ಲ. Report ಅನ್ನು Print → Save as PDF ಮೂಲಕ save ಮಾಡಬಹುದು.");
+      showToast("PDF library load ಆಗಿಲ್ಲ. Report ಅನ್ನು Print → Save as PDF ಮೂಲಕ save ಮಾಡಬಹುದು.");
       return;
     }
 
@@ -234,7 +234,7 @@ async function downloadFinancePDF() {
     pdf.save(`AYFA_Finance_Report_${currentFinanceYear}.pdf`);
   } catch (error) {
     console.error("Finance PDF error:", error);
-    alert("PDF download ಮಾಡುವಾಗ ಸಮಸ್ಯೆ ಉಂಟಾಗಿದೆ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.");
+    showToast("PDF download ಮಾಡುವಾಗ ಸಮಸ್ಯೆ ಉಂಟಾಗಿದೆ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.");
   } finally {
     if (button) {
       button.disabled = false;
