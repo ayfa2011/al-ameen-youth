@@ -1,5 +1,7 @@
 // Bump this name when deploying asset changes; activation replaces the old shell cache.
-const CACHE_NAME = "alameen-shell-v19-blood-donation-form";
+// This is required in addition to ?v= query bumps on index.html: once a same-origin
+// script is cached below, bumping its ?v= alone is not enough to evict it.
+const CACHE_NAME = "alameen-shell-v20-audit-write-split";
 const APP_SHELL = ["./", "./index.html", "./manifest.json", "./css/style.css", "./assets/icons/icon-192.png", "./assets/icons/icon-512.png", "./assets/icons/apple-touch-icon.png", "./assets/icons/favicon-32.png", "./assets/icons/favicon-16.png", "./assets/app-icon.png", "./assets/images/reports/r2026.jpg", "./assets/images/reports/r2025.jpg", "./assets/images/reports/r2024.jpg", "./assets/images/reports/r2022.jpg", "./assets/images/group-photo.png"];
 
 self.addEventListener("install", event => {
