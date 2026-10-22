@@ -3,13 +3,14 @@ async function openAgendaManagement(){agendaState.view="list";agendaState.active
 if(typeof navigateAppView==="function"&&history.state?.appView!=="agenda")history.pushState({appView:"agenda"},"",location.pathname+location.search+"#agenda");
 updateAppTopBar("agenda");hideAllViews();document.getElementById("agendaView")?.classList.remove("hidden");window.scrollTo({top:0});
 try{await AgendaRepository.ready();const data=(await AgendaRepository.read("meetingAgendas")).val()||{};
-const recs=Object.entries(data).map(([id,v])=>({id,...v}));
+const recs=Object.entries(data).map(([id,v])=>({...v,id}));
 agendaState.deletedItems=recs.filter(x=>x.deleted===true);agendaState.items=recs.filter(x=>x.deleted!==true);
 agendaState.items.sort((a,b)=>String(b.createdAt||b.meetingDate||"").localeCompare(String(a.createdAt||a.meetingDate||"")));
 renderAgendas();}catch(e){console.error(e);const v=document.getElementById("agendaView");if(v)v.innerHTML='<section class="agW"><p class="agEmpty">Load failed. Check connection.</p><button class="agBack" onclick="openAgendaManagement()">Retry</button></section>';}}
 function agendaStatus(i){return i.status||"Upcoming";}
 function agendaStage(i){const s=agendaStatus(i);if(s==="Completed"||i.decisionStatus==="Completed")return"done";if(s==="Decision Taken"||s==="Under Action")return"disc";return"age";}
 function agCanEdit(){return typeof isSupervisorLoggedIn==="function"?isSupervisorLoggedIn():true;}
+function agendaWriteFailure(error,fallback){const detail=String(error?.code||error?.message||"").toLowerCase();return detail.includes("permission_denied")||detail.includes("permission denied")?"Firebase denied this write. Please sign in again as an official.":fallback;}
 function agFilter(list){const q=String(agendaState.search||"").trim().toLowerCase();if(!q)return list;return list.filter(x=>((x.title||"")+" "+(x.description||"")).toLowerCase().includes(q));}
 function agInlineArg(value){return JSON.stringify(String(value??"")).replace(/"/g,"&quot;");}
 function agRow(it,i){const ce=agCanEdit();const st=agendaStage(it);const id=agInlineArg(it.id);const date=String(it.meetingDate||"").trim();const menuOpen=agendaState.statusMenuId===it.id;
@@ -57,11 +58,11 @@ v.innerHTML='<section class="agW"><div class="agTop"><button type="button" class
 async function saveAgendaField(id,field,val){if(!requireSupervisor())return false;
 const old=agendaState.items.find(x=>x.id===id)||{};const now=new Date().toISOString();
 try{await AgendaRepository.ready();const exp=String(old.updatedAt||"");
-const r=await AgendaRepository.transaction("meetingAgendas/"+id, cur=>{if(!cur||cur.deleted===true||String(cur.updatedAt||"")!==exp)return;const o={...cur};o[field]=val;o.updatedAt=now;return o;});
-if(!r.committed)throw new Error("changed");
+const r=await AgendaRepository.transaction("meetingAgendas/"+id, cur=>{if(!cur||cur.deleted===true)return;const o={...cur};o[field]=val;o.updatedAt=now;return o;});
+if(!r.committed)throw new Error("Agenda item not found or deleted.");
 await AgendaRepository.audit({action:"agenda.update",path:"meetingAgendas",recordId:id,beforeUpdatedAt:exp,afterUpdatedAt:now});
 const loc=agendaState.items.find(x=>x.id===id);if(loc){loc[field]=val;loc.updatedAt=now;}return true;}
-catch(e){console.error(e);showToast("Save failed. Refresh and try again.");return false;}}
+catch(e){console.error(e);showToast(agendaWriteFailure(e,"Save failed. Refresh and try again."));return false;}}
 async function saveAgendaOneField(f){const e=document.getElementById("agF");const v=String(e?.value||"").trim();
 if((f==="title"||f==="meetingDate")&&!v){showToast(f==="title"?"Title required.":"Meeting date required.");return;}
 if(await saveAgendaField(agendaState.activeId,f,v)){agendaState.editF="";renderAgendas();}}
@@ -73,10 +74,10 @@ const st=stage==="disc"?"Under Action":stage==="done"?"Completed":"Upcoming";
 const p={title,description:"",meetingDate:now.slice(0,10),priority:"Normal",status:st,discussedDate:st==="Under Action"?now:"",implementedDate:st==="Completed"?now:"",decision:"",decisionStatus:st==="Completed"?"Completed":"Pending",responsible:"",targetDate:"",createdAt:now,updatedAt:now};
 const agendaId=AgendaRepository.key("meetingAgendas");
 await AgendaRepository.update({["meetingAgendas/"+agendaId]:{...p,id:agendaId}},{action:"agenda.create",path:"meetingAgendas",recordId:agendaId,afterUpdatedAt:now});
-agendaState.adding=false;await reloadAgendaKeep();}catch(e){console.error(e);showToast("Add failed. Check connection.");}}
+agendaState.adding=false;await reloadAgendaKeep();}catch(e){console.error(e);showToast(agendaWriteFailure(e,"Add failed. Check connection."));}}
 async function reloadAgendaKeep(){try{await AgendaRepository.ready();
 const d=(await AgendaRepository.read("meetingAgendas")).val()||{};
-const r=Object.entries(d).map(([id,v])=>({id,...v}));
+const r=Object.entries(d).map(([id,v])=>({...v,id}));
 agendaState.deletedItems=r.filter(x=>x.deleted===true);agendaState.items=r.filter(x=>x.deleted!==true);
 agendaState.items.sort((a,b)=>String(b.createdAt||b.meetingDate||"").localeCompare(String(a.createdAt||a.meetingDate||"")));}catch(e){console.error(e);}renderAgendas();}
 function openAgendaForm(editId){if(!requireSupervisor())return;
@@ -95,13 +96,13 @@ if(status==="Completed")p.implementedDate=now;
 const wasD=agendaState.view==="detail",previous={...it};Object.assign(it,p);if(!wasD)renderAgendas();
 try{await AgendaRepository.ready();const exp=String(previous.updatedAt||"");
 const r=await AgendaRepository.transaction("meetingAgendas/"+id,cur=>{if(!cur||cur.deleted===true)return;return{...cur,...p};});
-if(!r.committed)throw new Error("changed");
+if(!r.committed)throw new Error("Agenda item not found or deleted.");
 await AgendaRepository.audit({action:"agenda.status",path:"meetingAgendas",recordId:id,beforeUpdatedAt:exp,afterUpdatedAt:now});await reloadAgendaKeepSilent();
 if(wasD&&agendaState.items.find(x=>x.id===id)){agendaState.view="detail";agendaState.activeId=id;agendaState.editTitle=false;agendaState.editDesc=false;}else agendaState.view="list";renderAgendas();
-}catch(e){console.error(e);await reloadAgendaKeepSilent();agendaState.view=wasD?"detail":"list";renderAgendas();showToast("Update failed.");}}
+}catch(e){console.error(e);await reloadAgendaKeepSilent();agendaState.view=wasD?"detail":"list";renderAgendas();showToast(agendaWriteFailure(e,"Update failed."));}}
 async function reloadAgendaKeepSilent(){try{await AgendaRepository.ready();
 const d=(await AgendaRepository.read("meetingAgendas")).val()||{};
-const r=Object.entries(d).map(([id,v])=>({id,...v}));
+const r=Object.entries(d).map(([id,v])=>({...v,id}));
 agendaState.deletedItems=r.filter(x=>x.deleted===true);agendaState.items=r.filter(x=>x.deleted!==true);
 agendaState.items.sort((a,b)=>String(b.createdAt||b.meetingDate||"").localeCompare(String(a.createdAt||a.meetingDate||"")));}catch(e){console.error(e);}}
 async function deleteAgenda(id){if(!requireSupervisor())return;
