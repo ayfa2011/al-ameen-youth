@@ -258,10 +258,19 @@ async function deleteMember(memberId) {
   try {
     await waitForFirebase();
     const databaseKey = await MembersRepository.resolveMemberKey(memberId);
-    const expectedUpdatedAt = String(member.updatedAt || "");
+    // Use the record's current server-side updatedAt, not the possibly stale
+    // local list copy, so the concurrency check only fails on a real race.
+    const currentRecord = (await MembersRepository.read(`members/${databaseKey}`)).val();
+    if (!currentRecord) throw new Error("Member record is no longer in the database. Refresh and try again.");
+    const expectedUpdatedAt = String(currentRecord.updatedAt || "");
+    if (currentRecord.active === false) throw new Error("Member is already deactivated. Refresh and try again.");
     const deactivatedAt = new Date().toISOString();
     const result = await MembersRepository.transaction(`members/${databaseKey}`, current => {
-      if (!current || current.active === false || String(current.updatedAt || "") !== expectedUpdatedAt) return;
+      if (!current) return;
+      if (current.active === false) return;
+      // Only block on a genuine concurrent edit made after we read the record.
+      const currentUpdatedAt = String(current.updatedAt || "");
+      if (currentUpdatedAt && expectedUpdatedAt && currentUpdatedAt !== expectedUpdatedAt) return;
       return { ...current, active: false, deactivatedAt, updatedAt: deactivatedAt };
     });
     if (!result.committed) throw new Error("Member changed before deactivation. Refresh and try again.");
@@ -270,7 +279,7 @@ async function deleteMember(memberId) {
     await renderMemberCards();
   } catch (error) {
     console.error("Member delete error:", error);
-    showToast(error.message?.includes("changed before") ? "Another official changed this member. Refresh and try again." : "Member could not be deactivated. Check the connection and try again.");
+    showToast(error.message?.includes("changed before") ? "Another official changed this member. Refresh and try again." : (error.message?.includes("already deactivated") || error.message?.includes("no longer in the database") ? error.message : "Member could not be deactivated. Check the connection and try again."));
   }
 }
 
@@ -280,18 +289,28 @@ async function restoreMember(memberId) {
   if (!member) return;
   try {
     const databaseKey = await MembersRepository.resolveMemberKey(memberId);
+    // Use the record's current server-side updatedAt, not the possibly stale
+    // local list copy, so the concurrency check only fails on a real race.
+    const currentRecord = (await MembersRepository.read(`members/${databaseKey}`)).val();
+    if (!currentRecord) throw new Error("Member record is no longer in the database. Refresh and try again.");
+    const expectedUpdatedAt = String(currentRecord.updatedAt || "");
+    if (currentRecord.active !== false) throw new Error("Member is already active. Refresh and try again.");
     const restoredAt = new Date().toISOString();
     const result = await MembersRepository.transaction(`members/${databaseKey}`, current => {
-      if (!current || current.active !== false || String(current.updatedAt || "") !== String(member.updatedAt || "")) return;
+      if (!current) return;
+      if (current.active !== false) return;
+      // Only block on a genuine concurrent edit made after we read the record.
+      const currentUpdatedAt = String(current.updatedAt || "");
+      if (currentUpdatedAt && expectedUpdatedAt && currentUpdatedAt !== expectedUpdatedAt) return;
       return { ...current, active: true, restoredAt, updatedAt: restoredAt };
     });
     if (!result.committed) throw new Error("Member changed before restore. Refresh and try again.");
-    await MembersRepository.audit({ action: "member.restore", path: "members", recordId: databaseKey, beforeUpdatedAt: member.updatedAt, afterUpdatedAt: restoredAt });
+    await MembersRepository.audit({ action: "member.restore", path: "members", recordId: databaseKey, beforeUpdatedAt: expectedUpdatedAt, afterUpdatedAt: restoredAt });
     await fetchMembersFromFirebase(true);
     await renderMemberCards();
   } catch (error) {
     console.error("Member restore error:", error);
-    showToast(error.message?.includes("changed before") ? "Another official changed this member. Refresh and try again." : "Member could not be restored. Check the connection and try again.");
+    showToast(error.message?.includes("changed before") ? "Another official changed this member. Refresh and try again." : (error.message?.includes("already active") || error.message?.includes("no longer in the database") ? error.message : "Member could not be restored. Check the connection and try again."));
   }
 }
 

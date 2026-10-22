@@ -54,15 +54,16 @@ function createFirebaseAuditEvent({ action, path, recordId = "", beforeUpdatedAt
   };
 }
 
-function createFirebaseAuditUpdate(event) {
-  const auditId = window.firebaseDb.ref("auditLog").push().key;
-  return { [`auditLog/${auditId}`]: createFirebaseAuditEvent(event) };
-}
-
 async function auditedFirebaseUpdate(updates, event) {
   await window.firebaseReady;
   if (!window.firebaseDb) throw new Error(window.firebaseConfigError || "Firebase Database is unavailable.");
-  await window.firebaseDb.ref().update({ ...updates, ...createFirebaseAuditUpdate(event) });
+  // Write the business data first and on its own. Bundling the audit record into
+  // the same root update() made one atomic write whose failure surfaced as
+  // "update at / failed: permission_denied" — impossible to attribute, and it
+  // rolled back a legitimate save because of a logging rule.
+  await window.firebaseDb.ref().update(updates);
+  // The data is already committed, so an audit failure must not fail the save.
+  if (event) await appendFirebaseAudit(event);
 }
 
 // Record transactions only after their data transaction commits. If this
