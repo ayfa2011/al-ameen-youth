@@ -1,4 +1,4 @@
-const agendaState={items:[],deletedItems:[],view:"list",activeId:"",search:"",editTitle:false,editDesc:false,adding:false};
+const agendaState={items:[],deletedItems:[],view:"list",activeId:"",search:"",editTitle:false,editDesc:false,adding:false,statusMenuId:""};
 async function openAgendaManagement(){agendaState.view="list";agendaState.activeId="";agendaState.search="";agendaState.editTitle=false;agendaState.editDesc=false;agendaState.adding=false;
 if(typeof navigateAppView==="function"&&history.state?.appView!=="agenda")history.pushState({appView:"agenda"},"",location.pathname+location.search+"#agenda");
 updateAppTopBar("agenda");hideAllViews();document.getElementById("agendaView")?.classList.remove("hidden");window.scrollTo({top:0});
@@ -11,8 +11,11 @@ function agendaStatus(i){return i.status||"Upcoming";}
 function agendaStage(i){const s=agendaStatus(i);if(s==="Completed"||i.decisionStatus==="Completed")return"done";if(s==="Decision Taken"||s==="Under Action")return"disc";return"age";}
 function agCanEdit(){return typeof isSupervisorLoggedIn==="function"?isSupervisorLoggedIn():true;}
 function agFilter(list){const q=String(agendaState.search||"").trim().toLowerCase();if(!q)return list;return list.filter(x=>((x.title||"")+" "+(x.description||"")).toLowerCase().includes(q));}
-function agRow(it,i){const ce=agCanEdit();const st=agendaStage(it);const id=JSON.stringify(it.id);const date=String(it.meetingDate||"").trim();
-return '<div class="agCard agCardRow'+(st==="done"?" agDone":st==="disc"?" agDisc":"")+'"><div class="agCardMain" role="button" tabindex="0" onclick="openAgendaDetail('+id+')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openAgendaDetail('+id+')}" aria-label="Open '+escapeHTML(it.title||"Untitled")+'"><span class="n">'+(i+1)+'.</span><span class="agCardTxt"><span class="t">'+escapeHTML(it.title||"Untitled")+'</span>'+(date?'<small class="agCardMeta"><i class="fa-regular fa-calendar"></i> '+escapeHTML(date)+'</small>':"")+'</span></div>'+(ce?'<select class="agStatus agSt-'+st+'" onchange="updateAgendaStage('+id+',this.value)" aria-label="Change status" title="Change status"><option value="Upcoming"'+(st==="age"?" selected":"")+'>Agenda</option><option value="Under Action"'+(st==="disc"?" selected":"")+'>On Discussion</option><option value="Completed"'+(st==="done"?" selected":"")+'>Completed</option></select><button type="button" class="agIco agIcoDel" onclick="deleteAgenda('+id+')" aria-label="Delete" title="Delete"><i class="fa-solid fa-trash"></i></button>':'<i class="fa-solid fa-chevron-right agChev"></i>')+'</div>';}
+function agRow(it,i){const ce=agCanEdit();const st=agendaStage(it);const id=JSON.stringify(it.id);const date=String(it.meetingDate||"").trim();const menuOpen=agendaState.statusMenuId===it.id;
+const menu=menuOpen?'<div class="agStatusMenu" role="menu"><button type="button" role="menuitem" onclick="chooseAgendaStage('+id+',\'Upcoming\')">Agenda</button><button type="button" role="menuitem" onclick="chooseAgendaStage('+id+',\'Under Action\')">On Discussion</button><button type="button" role="menuitem" onclick="chooseAgendaStage('+id+',\'Completed\')">Completed</button></div>':'';
+return '<div class="agCard agCardRow'+(st==="done"?" agDone":st==="disc"?" agDisc":"")+'"><button type="button" class="agCardMain" onclick="openAgendaDetail('+id+')" aria-label="Open '+escapeHTML(it.title||"Untitled")+'"><span class="n">'+(i+1)+'.</span><span class="agCardTxt"><span class="t">'+escapeHTML(it.title||"Untitled")+'</span>'+(date?'<small class="agCardMeta"><i class="fa-regular fa-calendar"></i> '+escapeHTML(date)+'</small>':"")+'</span></button>'+(ce?'<div class="agStatusWrap"><button type="button" class="agStatus agSt-'+st+'" onclick="toggleAgendaStatusMenu('+id+')" aria-label="Change status" title="Change status"><i class="fa-solid fa-chevron-down"></i></button>'+menu+'</div>':'<i class="fa-solid fa-chevron-right agChev"></i>')+'</div>';}
+function toggleAgendaStatusMenu(id){agendaState.statusMenuId=agendaState.statusMenuId===id?"":id;renderAgendas();}
+async function chooseAgendaStage(id,status){agendaState.statusMenuId="";await updateAgendaStage(id,status);}
 function agSec(stage,pill,list,empty,canAdd,ico){const ce=agCanEdit();let h='<span class="agPill agPill-'+stage+'">'+(ico?'<i class="'+ico+'"></i>':'')+pill+' <b class="agCnt">('+list.length+')</b></span>';
 h+=list.length?list.map((x,i)=>agRow(x,i)).join(""):'<div class="agEmpty"><i class="'+(stage==="done"?"fa-regular fa-circle-check":"fa-regular fa-clipboard")+'"></i>'+(stage==="done"?'<strong>Nothing completed yet</strong>':escapeHTML(empty))+'</div>';
 if(ce&&canAdd){if(agendaState.adding===stage){h+='<div class="agRow"><input id="agAdd-'+stage+'" placeholder="New title..." maxlength="120" onkeydown="if(event.key===\'Enter\')addAgendaInline(\''+stage+'\')"><button type="button" onclick="addAgendaInline(\''+stage+'\')">Add</button></div><button type="button" class="agGh" onclick="agendaState.adding=false;renderAgendas()">Cancel</button>';}
@@ -29,7 +32,7 @@ v.innerHTML='<section class="agW"><div class="agTop"><button type="button" class
 +agSec("age","Agenda",A,"No agenda items yet.",true,"fa-solid fa-list-check")+agSec("disc","On Discussion",D,"Nothing on discussion.",false,"fa-solid fa-comments")+agSec("done","Completed",C,"",false,"fa-solid fa-check-double")+trash
 +'</section>';}
 function agKeepFocus(){const a=document.activeElement?.value??"";renderAgendas();const n=document.querySelector(".agSrch input");if(n){n.focus();try{n.setSelectionRange(n.value.length,n.value.length);}catch(e){}}void a;}
-function openAgendaDetail(id){agendaState.view="detail";agendaState.activeId=id;agendaState.editF="";renderAgendas();window.scrollTo({top:0});}
+function openAgendaDetail(id){agendaState.view="detail";agendaState.statusMenuId="";agendaState.activeId=id;agendaState.editF="";renderAgendas();window.scrollTo({top:0});}
 function backToAgendaList(){agendaState.view="list";agendaState.activeId="";agendaState.editF="";renderAgendas();}
 function agFieldRow(it,f,label){const ce=agCanEdit();const val=String(it[f]||"").trim()||"—";
 if(agendaState.editF===f&&ce){const isDate=(f==="meetingDate"||f==="targetDate");const isTA=(f==="description"||f==="decision");
@@ -87,13 +90,13 @@ const p={status,decisionStatus:status==="Completed"?"Completed":(it.decisionStat
 if(status==="Under Action")p.discussedDate=now;
 if(status==="Upcoming"){p.discussedDate="";p.implementedDate="";p.decisionStatus="Pending";}
 if(status==="Completed")p.implementedDate=now;
-try{await AgendaRepository.ready();const exp=String(it.updatedAt||"");
-const r=await AgendaRepository.transaction("meetingAgendas/"+id, cur=>{if(!cur||cur.deleted===true)return;return{...cur,...p};});
+const wasD=agendaState.view==="detail",previous={...it};Object.assign(it,p);if(!wasD)renderAgendas();
+try{await AgendaRepository.ready();const exp=String(previous.updatedAt||"");
+const r=await AgendaRepository.transaction("meetingAgendas/"+id,cur=>{if(!cur||cur.deleted===true)return;return{...cur,...p};});
 if(!r.committed)throw new Error("changed");
-await AgendaRepository.audit({action:"agenda.status",path:"meetingAgendas",recordId:id,beforeUpdatedAt:exp,afterUpdatedAt:now});
-const wasD=agendaState.view==="detail";await reloadAgendaKeepSilent();
-if(wasD&&agendaState.items.find(x=>x.id===id)){agendaState.view="detail";agendaState.activeId=id;agendaState.editTitle=false;agendaState.editDesc=false;renderAgendas();}
-else{agendaState.view="list";renderAgendas();}}catch(e){console.error(e);showToast("Update failed.");}}
+await AgendaRepository.audit({action:"agenda.status",path:"meetingAgendas",recordId:id,beforeUpdatedAt:exp,afterUpdatedAt:now});await reloadAgendaKeepSilent();
+if(wasD&&agendaState.items.find(x=>x.id===id)){agendaState.view="detail";agendaState.activeId=id;agendaState.editTitle=false;agendaState.editDesc=false;}else agendaState.view="list";renderAgendas();
+}catch(e){console.error(e);await reloadAgendaKeepSilent();agendaState.view=wasD?"detail":"list";renderAgendas();showToast("Update failed.");}}
 async function reloadAgendaKeepSilent(){try{await AgendaRepository.ready();
 const d=(await AgendaRepository.read("meetingAgendas")).val()||{};
 const r=Object.entries(d).map(([id,v])=>({id,...v}));
