@@ -544,21 +544,33 @@ function closeBloodDonationForm() {
 async function saveBloodDonation(event) {
   event.preventDefault();
   if (!requireSupervisor()) return;
-  const form = event.currentTarget;
+  // The delegated `submit` listener in js/views/app-events.view.js runs on
+  // `document`, so `event.currentTarget` is the document and not the form.
+  // Resolve the submitted form from the event target (the form itself) or
+  // from the element the handler is bound to.
+  const form =
+    (event?.target instanceof HTMLFormElement && event.target) ||
+    (this instanceof HTMLFormElement && this) ||
+    document.getElementById("bloodDonationForm") ||
+    null;
   const memberId = document.getElementById("bloodDonationModal")?.dataset.memberId;
   const member = getMemberById(memberId);
   if (!member) return;
-  const values = Object.fromEntries(new FormData(form).entries());
-  const record = {
-    memberId: String(member.id), memberName: member.name,
-    patientName: String(values.patientName || "").trim(),
-    place: String(values.place || "").trim(), hospital: String(values.hospital || "").trim(),
-    donationDate: String(values.donationDate || ""), units: Number(values.units),
-    remarks: String(values.remarks || "").trim(), createdAt: new Date().toISOString()
-  };
   const error = document.getElementById("bloodDonationFormError");
-  error.textContent = "";
+  if (error) error.textContent = "";
+  if (!form) {
+    if (error) error.textContent = "The donation form could not be opened. Please close it and try again.";
+    return;
+  }
   try {
+    const values = Object.fromEntries(new FormData(form).entries());
+    const record = {
+      memberId: String(member.id), memberName: member.name,
+      patientName: String(values.patientName || "").trim(),
+      place: String(values.place || "").trim(), hospital: String(values.hospital || "").trim(),
+      donationDate: String(values.donationDate || ""), units: Number(values.units),
+      remarks: String(values.remarks || "").trim(), createdAt: new Date().toISOString()
+    };
     await waitForFirebase();
     const recordId = MembersRepository.key(`bloodDonations/${member.id}`);
     await MembersRepository.update({ [`bloodDonations/${member.id}/${recordId}`]: record }, { action: "bloodDonation.create", path: `bloodDonations/${member.id}`, recordId, afterUpdatedAt: record.createdAt });
@@ -567,7 +579,7 @@ async function saveBloodDonation(event) {
     renderBloodDonorCards(fullMembersList);
   } catch (saveError) {
     console.error("Blood donation save error:", saveError);
-    error.textContent = "Could not save this record. Check your connection and try again.";
+    if (error) error.textContent = "Could not save this record. Check your connection and try again.";
   }
 }
 
