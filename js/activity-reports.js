@@ -125,7 +125,7 @@ function openProgramReportForm(editId = "") {
   const today = new Date().toISOString().slice(0, 10);
   const safeEditId = escapeHTML(String(editId || ""));
   const existingPhotos = existing ? normalizeReportPhotos(existing) : [];
-  programModal(`<div class="program-modal-card"><div class="program-modal-header"><div><h3>${existing ? "Edit Activity Report" : "Submit Activity Report"}</h3></div><button type="button" class="program-close" onclick="closeProgramModal()"><i class="fa-solid fa-xmark"></i></button></div><form id="programReportForm" class="program-report-form" data-edit-id="${safeEditId}"><label>Program title *<input name="title" value="${escapeHTML(existing?.title || "")}" required></label><label>Description *<textarea name="description" required>${escapeHTML(existing?.description || "")}</textarea></label><label>Date *<input name="date" type="date" value="${escapeHTML(existing?.date || today)}" required></label><label class="program-photo-field">Upload photos <span>Multiple photos allowed. Newly uploaded photos are added to this report.</span><input name="photos" type="file" accept="image/*" multiple onchange="previewSelectedProgramPhotos(this.files)"></label><div id="programPhotoPreview" class="program-photo-preview"></div>${existingPhotos.length ? `<div class="program-photo-gallery">${existingPhotos.map(url => `<img src="${escapeHTML(displayPhotoUrl(url))}" alt="Existing activity photo" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">`).join("")}</div>` : ""}<p id="programFormMessage" class="program-form-message"></p><div class="program-form-actions"><button type="button" class="program-cancel" onclick="closeProgramModal()">Cancel</button><button type="submit" class="program-submit">${existing ? "Save changes" : "Submit report"}</button></div></form></div>`);
+  programModal(`<div class="program-modal-card"><div class="program-modal-header"><div><h3>${existing ? "Edit Activity Report" : "Submit Activity Report"}</h3></div><button type="button" class="program-close" onclick="closeProgramModal()"><i class="fa-solid fa-xmark"></i></button></div><form id="programReportForm" class="program-report-form" data-edit-id="${safeEditId}"><label>Program title *<input name="title" maxlength="200" value="${escapeHTML(existing?.title || "")}" required></label><label>Description *<textarea name="description" maxlength="20000" required>${escapeHTML(existing?.description || "")}</textarea></label><label>Date *<input name="date" type="date" value="${escapeHTML(existing?.date || today)}" required></label><label class="program-photo-field">Upload photos <span>Multiple photos allowed. Newly uploaded photos are added to this report.</span><input name="photos" type="file" accept="image/*" multiple onchange="previewSelectedProgramPhotos(this.files)"></label><div id="programPhotoPreview" class="program-photo-preview"></div>${existingPhotos.length ? `<div class="program-photo-gallery">${existingPhotos.map(url => `<img src="${escapeHTML(displayPhotoUrl(url))}" alt="Existing activity photo" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">`).join("")}</div>` : ""}<p id="programFormMessage" class="program-form-message"></p><div class="program-form-actions"><button type="button" class="program-cancel" onclick="closeProgramModal()">Cancel</button><button type="submit" class="program-submit">${existing ? "Save changes" : "Submit report"}</button></div></form></div>`);
   document.getElementById("programReportForm")?.addEventListener("submit", (e) => {
     submitProgramReport(e, e.target?.getAttribute("data-edit-id") || "");
   });
@@ -191,6 +191,7 @@ async function uploadPhotosToDrive(files, folderName) {
   const results = [];
   const message = document.getElementById("programFormMessage");
   await ActivityReportsRepository.ready();
+  folderName = String(folderName || "Activity Report").trim().slice(0, 200) || "Activity Report";
   const authToken = await window.firebaseAuth.currentUser.getIdToken();
   for (const [index, file] of files.entries()) {
     if (message) message.textContent = `Uploading photo ${index + 1} of ${files.length}: ${file.name}`;
@@ -359,7 +360,7 @@ async function submitProgramReport(event, editId = "") {
     message.textContent = photos.length ? "Photos uploading to Google Drive..." : "Report saving...";
     await ActivityReportsRepository.ready();
     const reportId = editId || ActivityReportsRepository.key("programReports");
-    const folderName = `${values.date} - ${values.title.trim()}`;
+    const folderName = `${values.date} - ${values.title.trim()}`.slice(0, 200);
     const uploaded = photos.length ? await uploadPhotosToDrive(photos, folderName) : [];
     const photoUrls = uploaded.map(item => item.imageUrl || item.thumbnailUrl || item.webViewLink || item.url).filter(Boolean);
     const driveFolderUrl = uploaded.find(item => item && item.folderUrl)?.folderUrl || existing?.driveFolderUrl || "";
@@ -367,9 +368,8 @@ async function submitProgramReport(event, editId = "") {
     const updatedAt = new Date().toISOString();
     const nextFields = { title: values.title.trim(), description: values.description.trim(), date: values.date, driveFolderName: folderName, driveFolderUrl, updatedAt };
     if (editId) {
-      const expectedUpdatedAt = String(existing?.updatedAt || "");
       const result = await ActivityReportsRepository.transaction(`programReports/${reportId}`, current => {
-        if (!current || current.deleted === true || String(current.updatedAt || "") !== expectedUpdatedAt) return;
+        if (!current || current.deleted === true) return;
         const currentPhotos = Array.isArray(current.photos) ? current.photos : Object.values(current.photos || {});
         const mergedPhotos = [...currentPhotos];
         const knownPhotos = new Set(currentPhotos.flatMap(photo => typeof photo === "object"
@@ -384,8 +384,14 @@ async function submitProgramReport(event, editId = "") {
         const newlyAttached = Math.max(0, mergedPhotos.length - currentPhotos.length);
         return { ...current, ...nextFields, photos:mergedPhotos, photosUploaded:(Number(current.photosUploaded) || currentPhotos.length) + newlyAttached, createdAt:current.createdAt || new Date().toISOString(), submittedBy:current.submittedBy || "AYFA supervisor" };
       });
-      if (!result.committed) throw new Error("This activity report changed while you were editing. Refresh and reapply your changes. Uploaded photos are safe in Drive but may need linking again.");
-      await ActivityReportsRepository.audit({ action: "programReport.update", path: "programReports", recordId: editId, beforeUpdatedAt: expectedUpdatedAt, afterUpdatedAt: updatedAt });
+      if (!result.committed) {
+        const latest = result.snapshot?.val();
+        await loadProgramReports();
+        throw new Error(!latest || latest.deleted === true
+          ? "This activity report was deleted while you were editing. Refresh the list before making another change."
+          : "The report update was not committed. Check the Firebase connection and rules, then retry. Any uploaded photos remain in Google Drive.");
+      }
+      await ActivityReportsRepository.audit({ action: "programReport.update", path: "programReports", recordId: editId, beforeUpdatedAt: String(existing?.updatedAt || ""), afterUpdatedAt: updatedAt });
     } else {
       const newReport = { ...nextFields, photos:photoUrls, photosUploaded:photoUrls.length, createdAt:updatedAt, submittedBy:"AYFA supervisor", deleted:false };
       await ActivityReportsRepository.create({ [`programReports/${reportId}`]: newReport }, { action: "programReport.create", path: "programReports", recordId: reportId, afterUpdatedAt: updatedAt });
