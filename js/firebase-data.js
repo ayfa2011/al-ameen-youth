@@ -11,18 +11,25 @@ async function firebaseRead(path) {
   return window.firebaseDb.ref(String(path || "")).once("value");
 }
 
-async function firebaseTransaction(path, updater) {
+async function firebaseTransaction(path, updater, options = {}) {
   await firebaseDataReady();
   const ref = window.firebaseDb.ref(String(path || ""));
   // RTDB can invoke a transaction updater immediately with its local cached
-  // value (including null) and abort before checking the server. Prime this
-  // exact path first so existing records are not mistaken for missing ones.
-  await ref.once("value");
-  return ref.transaction(updater);
+  // value, including null. When callers require a live record, return that
+  // cached value once and let RTDB retry the updater with server state.
+  let cachedValueSeen = false;
+  const transactionUpdater = current => {
+    if (options.retryOnCachedNull && current == null && !cachedValueSeen) {
+      cachedValueSeen = true;
+      return;
+    }
+    return updater(current);
+  };
+  return ref.transaction(transactionUpdater);
 }
 
-async function firebaseAuditedTransaction(path, updater, auditEvent) {
-  const result = await firebaseTransaction(path, updater);
+async function firebaseAuditedTransaction(path, updater, auditEvent, options = {}) {
+  const result = await firebaseTransaction(path, updater, options);
   if (result.committed && auditEvent) await appendFirebaseAudit(auditEvent);
   return result;
 }

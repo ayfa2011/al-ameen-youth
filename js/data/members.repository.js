@@ -20,7 +20,7 @@ window.MembersRepository = Object.freeze({
     if (matches.length > 1) throw new Error("Member ID matches more than one database record. No record was changed.");
     throw new Error("Member record could not be found. Refresh the Members page and try again.");
   },
-  transaction(path, updater, event) { return firebaseAuditedTransaction(path, updater, event); },
+  transaction(path, updater, event) { return firebaseAuditedTransaction(path, updater, event, { retryOnCachedNull: true }); },
   key(path) { return firebasePushKey(path); },
   update(updates, event) { return auditedFirebaseUpdate(updates, event); },
   audit(event) { return appendFirebaseAudit(event); }

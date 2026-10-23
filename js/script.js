@@ -534,7 +534,7 @@ async function saveOfficeBearerEditor(mode, index, formData) {
     console.error("Office bearer save failed:", error);
     const details = String(error?.code || error?.message || "").toLowerCase();
     showToast(details.includes("permission_denied") || details.includes("permission denied")
-      ? "Firebase denied this write. Sign in again as an official."
+      ? "Firebase denied this write. Sign in again as an official. If the problem continues, the deployed database rules may need updating."
       : "Could not save office bearer. Check the connection and try again.");
   }
 }
