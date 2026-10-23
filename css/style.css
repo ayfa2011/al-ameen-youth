@@ -1706,6 +1706,9 @@ html[data-auth-role="member"] .program-report-submit{display:none!important}
 .bearer-add-button{flex:0 0 44px;width:44px;height:44px;min-height:44px;padding:0;border:1px solid #cfe1d5;border-radius:12px;background:#edf7f1;color:#176b50;font-size:16px;cursor:pointer}
 .bearer-text-edit{display:block;width:100%;min-height:0;padding:2px 0;border:0;background:transparent;color:inherit;font:inherit;text-align:inherit;line-height:1.35;cursor:pointer}
 .bearer-text-edit:hover{text-decoration:underline;text-decoration-color:#83a995;text-underline-offset:3px}
+.bearer-row-actions{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+.bearer-row-actions button{min-height:32px;padding:5px 8px;border:1px solid #d6e3da;border-radius:7px;background:#fff;color:#24543e;font:inherit;font-size:11px;font-weight:700;cursor:pointer}
+.bearer-row-actions .bearer-row-delete{border-color:#f0d2cf;color:#a5342a}
 .office-bearer-modal{position:fixed;inset:0;z-index:1200;display:grid;place-items:center;padding:18px;background:rgba(18,35,27,.48)}
 .office-bearer-dialog{width:min(100%,440px);max-height:min(90dvh,650px);overflow:auto;padding:20px;border:1px solid #dce8e0;border-radius:18px;background:#fff;box-shadow:0 20px 60px rgba(0,0,0,.22)}
 .office-bearer-dialog h3{margin:0 0 16px;color:#173f2e;font-size:19px}

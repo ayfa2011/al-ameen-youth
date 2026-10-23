@@ -449,13 +449,21 @@ async function loadBearers(year, options = {}) {
     return;
   }
   activeOfficeBearerRoster.forEach((bearer, index) => {
+    const canEdit = typeof isSupervisorLoggedIn === "function" && isSupervisorLoggedIn();
     tbody.insertAdjacentHTML("beforeend", `
       <tr>
         <td>${escapeHTML(bearer.sl)}</td>
         <td><button type="button" class="bearer-text-edit" onclick="openOfficeBearerEdit(${index})">${escapeHTML(bearer.designation)}</button></td>
         <td><button type="button" class="bearer-text-edit" onclick="openOfficeBearerEdit(${index})">${escapeHTML(bearer.name)}</button></td>
+        ${canEdit ? `<td class="bearer-row-actions"><button type="button" class="bearer-row-edit" onclick="openOfficeBearerEdit(${index})">Edit</button><button type="button" class="bearer-row-delete" onclick="deleteOfficeBearer(${index})">Delete</button></td>` : ""}
       </tr>`);
   });
+  const headRow = tbody.closest("table")?.querySelector("thead tr");
+  if (headRow) {
+    const existing = headRow.querySelector(".bearer-actions-heading");
+    if (canEdit && !existing) headRow.insertAdjacentHTML("beforeend", '<th class="bearer-actions-heading">Actions</th>');
+    else if (!canEdit && existing) existing.remove();
+  }
 }
 
 function openOfficeBearerAdd() {
@@ -536,6 +544,34 @@ async function saveOfficeBearerEditor(mode, index, formData) {
     showToast(details.includes("permission_denied") || details.includes("permission denied")
       ? "Firebase denied this write. Sign in again as an official. If the problem continues, the deployed database rules may need updating."
       : "Could not save office bearer. Check the connection and try again.");
+  }
+}
+
+async function deleteOfficeBearer(index) {
+  if (!requireSupervisor()) return;
+  const bearer = activeOfficeBearerRoster[Number(index)];
+  if (!bearer) return;
+  if (!await showConfirmSheet({ title: "Delete office bearer?", message: `${bearer.name} (${bearer.designation}) will be removed from ${activeOfficeBearerYear}.`, confirmLabel: "Delete", danger: true })) return;
+  try {
+    const roster = activeOfficeBearerRoster
+      .filter((_, itemIndex) => itemIndex !== Number(index))
+      .map((item, itemIndex) => ({ ...item, sl: itemIndex + 1 }));
+    const now = new Date().toISOString();
+    await ReferenceDataRepository.writeOfficeBearers(activeOfficeBearerYear, roster, {
+      action: "officeBearer.delete",
+      path: `officeBearers/${activeOfficeBearerYear}`,
+      recordId: `${activeOfficeBearerYear}:${Number(index) + 1}`,
+      beforeUpdatedAt: "",
+      afterUpdatedAt: now
+    });
+    showToast("Office bearer deleted.", "success");
+    await loadBearers(activeOfficeBearerYear);
+  } catch (error) {
+    console.error("Office bearer delete failed:", error);
+    const details = String(error?.code || error?.message || "").toLowerCase();
+    showToast(details.includes("permission_denied") || details.includes("permission denied")
+      ? "Firebase denied this change. Sign in again as an official, and verify the deployed database rules."
+      : "Could not delete office bearer. Check the connection and try again.");
   }
 }
 
