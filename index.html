@@ -23,7 +23,7 @@
 
   <link
     rel="stylesheet"
-    href="css/style.css?v=20261022-member-crud-fix"
+    href="css/style.css?v=20261023-assets-compact-editor"
   >
   <link rel="stylesheet" href="css/agenda.css?v=20261023-agenda-accordion-compact">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -611,7 +611,7 @@
               <button class="tab-btn" data-view-event="click" data-view-handler="showFinanceYear" data-view-args='["2022"]'>2022</button>
             </div></details>
 
-            <div class="finance-summary-grid">
+            <div class="finance-summary-card" aria-label="Finance summary">
               <div class="fin-card fin-income">
                 <span class="fin-ico"><i class="fa-solid fa-arrow-trend-up"></i></span>
                 <span class="fin-text"><span class="fin-label">ಒಟ್ಟು ಆದಾಯ</span><h3 id="totalIncome">₹ 0.00</h3></span>
@@ -1322,7 +1322,7 @@
 
   <script src="js/members.js?v=20261023-donation-hide-leaf-update"></script>
 
-  <script src="js/attendance.js"></script>
+  <script src="js/attendance.js?v=20261023-attendance-inline-handler"></script>
 
   <script src="js/reference-data.js"></script>
   <script src="js/services/finance.service.js"></script>
@@ -1338,8 +1338,8 @@
        BLOOD DONATION POSTER JAVASCRIPT
   ========================================================== -->
 
-  <script src="js/services/asset-inventory.service.js"></script>
-  <script src="js/views/asset-inventory.view.js"></script>
+  <script src="js/services/asset-inventory.service.js?v=20261023-assets-compact-editor"></script>
+  <script src="js/views/asset-inventory.view.js?v=20261023-assets-compact-editor"></script>
   <script src="js/views/blood-donation-poster.view.js"></script>
   <script src="js/views/app-events.view.js"></script>
 

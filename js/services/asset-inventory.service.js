@@ -6,6 +6,10 @@ const AssetInventoryService = {
       ? assets
       : (Array.isArray(assets?.categories) ? assets.categories : Object.values(assets || {}).filter(value => value && typeof value === "object" && value.name));
     const highlights = Array.isArray(assets?.highlights) ? assets.highlights : [];
-    return { categories, highlights };
+    return { categories, highlights, raw: assets };
+  },
+  save(data, event) {
+    if (typeof auditedFirebaseUpdate !== "function") throw new Error("Asset editing is unavailable.");
+    return auditedFirebaseUpdate({ assets: data }, event);
   }
 };

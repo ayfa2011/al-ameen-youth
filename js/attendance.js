@@ -3,6 +3,7 @@
 // ============================================================
 
 const attendanceSelectedMemberIds = new Set();
+function attendanceInlineArg(value) { return JSON.stringify(String(value ?? "")).replace(/"/g, "&quot;"); }
 let attendanceSubmitting = false;
 const ATTENDANCE_DRAFT_KEY = "alameen.attendanceDraft.v1";
 
@@ -141,10 +142,10 @@ async function loadAttendanceReports() {
         <tr>
           <td>${escapeHTML(r.slNo ?? i + 1)}</td>
           <td><strong>${escapeHTML(r.programName)}</strong><br><small>${escapeHTML(r.date)}</small></td>
-          <td><strong>Total: ${escapeHTML(r.presentCount)} Members</strong><br>${escapeHTML(r.membersList)}${isSupervisorLoggedIn() ? `<div><button type="button" onclick="editAttendanceProgram(${JSON.stringify(r.programId)})">Edit</button> <button type="button" onclick="deleteAttendanceProgram(${JSON.stringify(r.programId)})">Delete</button></div>` : ""}</td>
+          <td><strong>Total: ${escapeHTML(r.presentCount)} Members</strong><br>${escapeHTML(r.membersList)}${isSupervisorLoggedIn() ? `<div><button type="button" onclick="editAttendanceProgram(${attendanceInlineArg(r.programId)})">Edit</button> <button type="button" onclick="deleteAttendanceProgram(${attendanceInlineArg(r.programId)})">Delete</button></div>` : ""}</td>
         </tr>`).join("")
       : `<tr><td colspan="3" class="empty-cell">ಯಾವ ವರದಿಯೂ ಸಿಗಲಿಲ್ಲ.</td></tr>`;
-    if (isSupervisorLoggedIn() && deletedPrograms.length) tbody.insertAdjacentHTML("beforeend", `<tr><td colspan="3"><section class="attendance-trash"><strong>Trash</strong>${deletedPrograms.map(([id, program]) => `<div class="attendance-trash-row"><span>${escapeHTML(program.programName || "Untitled program")} · ${escapeHTML(program.date || "")}</span><button type="button" onclick="restoreAttendanceProgram(${JSON.stringify(id)})">Restore</button></div>`).join("")}</section></td></tr>`);
+    if (isSupervisorLoggedIn() && deletedPrograms.length) tbody.insertAdjacentHTML("beforeend", `<tr><td colspan="3"><section class="attendance-trash"><strong>Trash</strong>${deletedPrograms.map(([id, program]) => `<div class="attendance-trash-row"><span>${escapeHTML(program.programName || "Untitled program")} · ${escapeHTML(program.date || "")}</span><button type="button" onclick="restoreAttendanceProgram(${attendanceInlineArg(id)})">Restore</button></div>`).join("")}</section></td></tr>`);
     filterAttendanceReports(document.getElementById("attendanceReportSearch")?.value || "");
   } catch (error) {
     console.error(error);
