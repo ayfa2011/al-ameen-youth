@@ -32,6 +32,7 @@ function normalizeMember(row) {
   const bloodGroupOverride = row.bloodGroupOverride;
   return {
     id: row.id ?? row["Member ID"] ?? "",
+    memberCode: row.memberCode ?? row.displayId ?? "",
     name: row.name ?? row["Name"] ?? "",
     designation: row.designation ?? row["Designation"] ?? "Member",
     education: row.education ?? row["Education"] ?? "",
@@ -63,6 +64,7 @@ async function fetchMembersFromFirebase(force = false) {
     .map(([databaseKey, row]) => {
       const member = normalizeMember(row || {});
       member.id = String(member.id || databaseKey);
+      member.databaseKey = String(databaseKey);
       return member;
     })
     .filter(m => String(m.name || "").trim());
@@ -80,14 +82,14 @@ async function fetchMembersFromFirebase(force = false) {
 function memberCardHTML(m) {
   const phone = String(m.mobile || "").replace(/[^0-9+]/g, "");
   const whatsapp = normalizePhoneForLinks(m.mobile);
-  const attendanceCount = Number(m.attendanceCount || 0);
+  const attendancePrograms = memberAttendanceHistory(m);
+  const attendanceCount = attendancePrograms.length;
   const details = [
     ["Education", m.education, "fa-graduation-cap"],
     ["Father", m.fatherName, "fa-user"],
     ["Location", m.location, "fa-location-dot"],
     ["Blood", m.bloodGroup, "fa-droplet"],
     ["Contribution", m.contribution === "" ? "" : `₹${m.contribution}`, "fa-coins"],
-    ["Attendance", `${attendanceCount} ${attendanceCount === 1 ? "Program" : "Programs"}`, "fa-people-group"]
   ].filter(([, value]) => value !== null && value !== undefined && String(value).trim() !== "");
   const supervisorActions = isSupervisorLoggedIn()
     ? `<div class="member-card-admin-actions"><button type="button" onclick="openMemberEdit('${escapeHTML(m.id)}')" aria-label="Edit ${escapeHTML(m.name)}"><i class="fa-solid fa-pen"></i> Edit</button><button type="button" class="member-card-delete" onclick="deleteMember('${escapeHTML(m.id)}')" aria-label="Delete ${escapeHTML(m.name)}"><i class="fa-solid fa-trash"></i> Delete</button></div>`
@@ -103,12 +105,27 @@ function memberCardHTML(m) {
       <div class="member-info-details">
         ${details.map(([label, value, icon]) => `<div class="member-detail"><i class="fa-solid ${icon}" aria-hidden="true"></i><div><span>${label}</span><strong>${escapeHTML(value)}</strong></div></div>`).join("")}
       </div>
+      <section class="member-attendance-history" aria-label="Attendance history">
+        <h4><i class="fa-solid fa-people-group" aria-hidden="true"></i> Attendance · ${attendanceCount} ${attendanceCount === 1 ? "Program" : "Programs"}</h4>
+        ${attendanceCount ? `<ul>${attendancePrograms.map(item => `<li><span>${escapeHTML(item.programName)}</span>${item.date ? `<time>${escapeHTML(item.date)}</time>` : ""}</li>`).join("")}</ul>` : `<p>No attended programs yet.</p>`}
+      </section>
       ${phone || whatsapp ? `<div class="card-actions">
         ${phone ? `<a class="btn-call" href="tel:${escapeHTML(phone)}" aria-label="Call ${escapeHTML(m.name)}" title="Call"></a>` : ""}
         ${whatsapp ? `<a class="btn-wa" href="https://wa.me/${escapeHTML(whatsapp)}" target="_blank" rel="noopener" aria-label="WhatsApp ${escapeHTML(m.name)}" title="WhatsApp"></a>` : ""}
       </div>` : ""}
       ${supervisorActions}
     </article>`;
+}
+
+function memberAttendanceHistory(member) {
+  const ids = [member?.id, member?.databaseKey, member?.memberCode, member?.displayId, memberDisplayId(member)]
+    .filter(value => value !== null && value !== undefined && String(value).trim())
+    .map(String);
+  for (const id of ids) {
+    const history = attendanceProgramsByMemberId[id];
+    if (history?.length) return history;
+  }
+  return [];
 }
 
 function filterMemberCards(query = "") {
@@ -119,10 +136,10 @@ function filterMemberCards(query = "") {
   container.innerHTML = matches.length ? matches.map(memberCardHTML).join("") : '<p class="empty-message">No Members Found</p>';
 }
 
-let attendanceCountsByMemberId = {};
+let attendanceProgramsByMemberId = {};
 
 async function loadMemberAttendanceCounts() {
-  attendanceCountsByMemberId = {};
+  attendanceProgramsByMemberId = {};
   await waitForFirebase();
 
   const { attendance: attendanceSnapshot, programs: programSnapshot } = await AttendanceRepository.readMemberSummarySources();
@@ -130,13 +147,23 @@ async function loadMemberAttendanceCounts() {
   const programs = programSnapshot.val() || {};
 
   Object.entries(allAttendance).forEach(([programId, programAttendance]) => {
-    if (programs[programId]?.deleted === true) return;
+    const program = programs[programId];
+    // Match the main Attendance page: only existing, non-deleted programs
+    // contribute to each member's visible attendance history.
+    if (!program || program.deleted === true) return;
     Object.entries(programAttendance || {}).forEach(([memberId, record]) => {
       if (String(record?.status || "").toLowerCase() !== "present") return;
-      attendanceCountsByMemberId[memberId] =
-        (attendanceCountsByMemberId[memberId] || 0) + 1;
+      const attendeeId = String(record?.memberId || memberId);
+      const history = attendanceProgramsByMemberId[attendeeId] || (attendanceProgramsByMemberId[attendeeId] = []);
+      if (history.some(item => item.programId === String(programId))) return;
+      history.push({
+        programId: String(programId),
+        programName: String(program.programName || "Untitled program"),
+        date: String(program.date || "")
+      });
     });
   });
+  Object.values(attendanceProgramsByMemberId).forEach(history => history.sort((a, b) => String(a.date).localeCompare(String(b.date)) || a.programName.localeCompare(b.programName)));
 }
 
 async function renderMemberCards() {
@@ -150,10 +177,6 @@ async function renderMemberCards() {
   try {
     await fetchMembersFromFirebase();
     await loadMemberAttendanceCounts();
-
-    fullMembersList.forEach(member => {
-      member.attendanceCount = attendanceCountsByMemberId[String(member.id)] || 0;
-    });
 
     const search = document.getElementById("memberSearchInput")?.value || "";
     filterMemberCards(search);
