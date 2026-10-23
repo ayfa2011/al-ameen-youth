@@ -116,7 +116,7 @@ function renderProgramReports() {
     const photos = normalizeReportPhotos(report);
     const cover = photos[0] ? displayPhotoUrl(photos[0]) : "";
     const safeId = escapeHTML(String(report.id ?? ""));
-    return `<article class="program-report-card">${supervisor ? `<div class="program-report-admin-icons"><button type="button" data-action="edit" data-id="${safeId}" aria-label="Edit" title="Edit"><i class="fa-solid fa-pen"></i></button><button type="button" class="program-report-delete" data-action="delete" data-id="${safeId}" aria-label="Delete" title="Delete"><i class="fa-solid fa-trash"></i></button></div>` : ""}<div class="program-report-cover">${cover ? `<img src="${escapeHTML(cover)}" alt="${escapeHTML(report.title || "AYFA activity photo")}" loading="lazy" referrerpolicy="no-referrer" onerror="programCoverFallback(this)">` : `<img class="program-report-default" src="assets/images/group-photo.png" alt="AYFA activity" loading="lazy" onerror="this.remove()"><div class="program-report-placeholder"><i class="fa-solid fa-calendar-check"></i><span>AYFA Activity</span></div>`}</div><div class="program-report-copy"><h3><button type="button" class="program-report-title-link" data-action="view" data-id="${safeId}">${escapeHTML(report.title || "Untitled program")}</button></h3><div class="program-report-meta"><span><i class="fa-regular fa-calendar"></i> ${programDate(report.date)}</span>${photos.length > 1 ? `<span><i class="fa-solid fa-images"></i> ${photos.length} photos</span>` : ""}</div><p>${escapeHTML(reportPreview(report.description))}</p>${supervisor ? "" : `<button type="button" class="program-report-read" data-action="view" data-id="${safeId}">Read more <i class="fa-solid fa-arrow-right"></i></button>`}</div></article>`;
+    return `<article class="program-report-card">${supervisor ? `<div class="program-report-admin-icons"><button type="button" data-action="edit" data-id="${safeId}" aria-label="Edit" title="Edit"><i class="fa-solid fa-pen"></i></button><button type="button" data-action="uploadPhotos" data-id="${safeId}" aria-label="Upload Photos" title="Upload Photos"><i class="fa-solid fa-camera"></i></button><button type="button" class="program-report-delete" data-action="delete" data-id="${safeId}" aria-label="Delete" title="Delete"><i class="fa-solid fa-trash"></i></button></div>` : ""}<div class="program-report-cover">${cover ? `<img src="${escapeHTML(cover)}" alt="${escapeHTML(report.title || "AYFA activity photo")}" loading="lazy" referrerpolicy="no-referrer" onerror="programCoverFallback(this)">` : `<img class="program-report-default" src="assets/images/group-photo.png" alt="AYFA activity" loading="lazy" onerror="this.remove()"><div class="program-report-placeholder"><i class="fa-solid fa-calendar-check"></i><span>AYFA Activity</span></div>`}</div><div class="program-report-copy"><h3><button type="button" class="program-report-title-link" data-action="view" data-id="${safeId}">${escapeHTML(report.title || "Untitled program")}</button></h3><div class="program-report-meta"><span><i class="fa-regular fa-calendar"></i> ${programDate(report.date)}</span>${photos.length > 1 ? `<span><i class="fa-solid fa-images"></i> ${photos.length} photos</span>` : ""}</div><p>${escapeHTML(reportPreview(report.description))}</p>${supervisor ? "" : `<button type="button" class="program-report-read" data-action="view" data-id="${safeId}">Read more <i class="fa-solid fa-arrow-right"></i></button>`}</div></article>`;
   }).join("") : `<div class="program-reports-empty"><i class="fa-regular fa-folder-open"></i><strong>No activities for ${escapeHTML(year)}</strong> <span>Submit the first program report for this year.</span></div>`;
   // Delegated buttons — no inline quoting bugs, works with any Firebase push-id.
   list.querySelectorAll("[data-action][data-id]").forEach(btn => {
@@ -125,6 +125,7 @@ function renderProgramReports() {
       const action = btn.getAttribute("data-action") || "";
       if (action === "view") openProgramReportDetail(id);
       else if (action === "edit") openProgramReportForm(id);
+      else if (action === "uploadPhotos") openProgramPhotoUpload(id);
       else if (action === "delete") deleteProgramReport(id);
       else if (action === "restore") restoreProgramReport(id);
     });
@@ -170,6 +171,65 @@ function openProgramReportForm(editId = "") {
   document.getElementById("programReportForm")?.addEventListener("submit", (e) => {
     submitProgramReport(e, e.target?.getAttribute("data-edit-id") || "");
   });
+}
+
+function openProgramPhotoUpload(reportId) {
+  if (!requireSupervisor()) return;
+  const report = programReportState.reports.find(item => String(item.id) === String(reportId));
+  if (!report) return;
+  const folderName = String(report.driveFolderName || `${report.date} - ${report.title}`).slice(0, 200);
+  const photos = normalizeReportPhotos(report);
+  programModal(`<div class="program-modal-card"><div class="program-modal-header"><div><h3>Upload Photos</h3><p>${escapeHTML(report.title || "Activity")}</p></div><button type="button" class="program-close" onclick="closeProgramModal()" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div><form id="programPhotoUploadForm" class="program-report-form" data-report-id="${escapeHTML(String(report.id))}"><label class="program-photo-field">Select photos *<span>Photos will be added to this activity's existing Drive folder.</span><input name="photos" type="file" accept="image/*" multiple required onchange="previewSelectedProgramPhotos(this.files)"></label><div id="programPhotoPreview" class="program-photo-preview"></div>${photos.length ? `<div class="program-photo-gallery">${photos.map(photo => `<img src="${escapeHTML(displayPhotoUrl(photo))}" alt="Existing activity photo" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">`).join("")}</div>` : ""}<p id="programFormMessage" class="program-form-message"></p><div class="program-form-actions"><button type="button" class="program-cancel" onclick="closeProgramModal()">Cancel</button><button type="submit" class="program-submit">Upload Photos</button></div></form></div>`);
+  document.getElementById("programPhotoUploadForm")?.addEventListener("submit", submitProgramPhotoUpload);
+}
+
+async function submitProgramPhotoUpload(event) {
+  event.preventDefault();
+  if (!requireSupervisor()) return;
+  const form = event.currentTarget;
+  if (form.dataset.submitting === "true") return;
+  const reportId = form.dataset.reportId;
+  const report = programReportState.reports.find(item => String(item.id) === String(reportId));
+  const files = Array.from(form.querySelector('[name="photos"]')?.files || []);
+  const message = document.getElementById("programFormMessage");
+  const submit = form.querySelector('[type="submit"]');
+  if (!report || !files.length || !message || !submit) return;
+  form.dataset.submitting = "true";
+  submit.disabled = true;
+  try {
+    const resolved = await resolveProgramReportRecord(reportId);
+    if (!resolved) throw new Error("This activity report no longer exists. Refresh the report list and try again.");
+    const current = resolved.report;
+    const folderName = String(current.driveFolderName || `${current.date} - ${current.title}`).slice(0, 200);
+    message.textContent = "Photos uploading to this activity's Drive folder…";
+    const uploaded = await uploadPhotosToDrive(files, folderName);
+    const result = await ActivityReportsRepository.transaction(`programReports/${resolved.id}`, value => {
+      if (!value || value.deleted === true) return;
+      const existingPhotos = normalizeReportPhotos(value);
+      const merged = [...existingPhotos];
+      const keys = new Set(existingPhotos.flatMap(photo => typeof photo === "object"
+        ? [photo.fileId, photo.imageUrl, photo.thumbnailUrl, photo.webViewLink].filter(Boolean).map(String)
+        : [String(photo || "")]));
+      uploaded.forEach(photo => {
+        const aliases = [photo.fileId, photo.imageUrl, photo.thumbnailUrl, photo.webViewLink].filter(Boolean).map(String);
+        if (aliases.some(key => keys.has(key))) return;
+        aliases.forEach(key => keys.add(key));
+        merged.push({ fileId: photo.fileId || "", fileName: photo.fileName || "", imageUrl: photo.imageUrl || "", thumbnailUrl: photo.thumbnailUrl || "", webViewLink: photo.webViewLink || "" });
+      });
+      const added = merged.length - existingPhotos.length;
+      return { ...value, photos: merged, photosUploaded: Math.max(Number(value.photosUploaded) || 0, existingPhotos.length) + added, driveFolderName: folderName, driveFolderUrl: uploaded.find(photo => photo.folderUrl)?.folderUrl || value.driveFolderUrl || "", updatedAt: new Date().toISOString() };
+    });
+    if (!result.committed) throw new Error("Photos uploaded, but their links could not be attached to this activity. Check Firebase rules and try again.");
+    await ActivityReportsRepository.audit({ action: "programReport.photos.add", path: "programReports", recordId: resolved.id, afterUpdatedAt: result.snapshot?.val()?.updatedAt });
+    closeProgramModal();
+    await loadProgramReports();
+    showToast("Photos added to this activity.", "success");
+  } catch (error) {
+    console.error("Activity photo upload failed:", error);
+    message.textContent = `Photos could not be added: ${error.message || error}`;
+    submit.disabled = false;
+    delete form.dataset.submitting;
+  }
 }
 
 function previewSelectedProgramPhotos(files) {
@@ -414,7 +474,7 @@ async function submitProgramReport(event, editId = "") {
     const reportId = editId || ActivityReportsRepository.key("programReports");
     const folderName = `${values.date} - ${values.title.trim()}`.slice(0, 200);
     const uploaded = photos.length ? await uploadPhotosToDrive(photos, folderName) : [];
-    const photoUrls = uploaded.map(item => item.imageUrl || item.thumbnailUrl || item.webViewLink || item.url).filter(Boolean);
+    const photoUrls = uploaded.map(item => ({ fileId: item.fileId || "", fileName: item.fileName || "", imageUrl: item.imageUrl || "", thumbnailUrl: item.thumbnailUrl || "", webViewLink: item.webViewLink || "" })).filter(item => item.imageUrl || item.thumbnailUrl || item.webViewLink);
     const driveFolderUrl = uploaded.find(item => item && item.folderUrl)?.folderUrl || existing?.driveFolderUrl || "";
     if (photos.length && photoUrls.length !== uploaded.length) throw new Error("One or more Drive uploads returned no photo URL. The report was not published.");
     const updatedAt = new Date().toISOString();
@@ -431,7 +491,7 @@ async function submitProgramReport(event, editId = "") {
           const aliases = [item.fileId, item.imageUrl, item.thumbnailUrl, item.webViewLink, item.url].filter(Boolean).map(String);
           if (aliases.some(key => knownPhotos.has(key))) return;
           aliases.forEach(key => knownPhotos.add(key));
-          mergedPhotos.push(item.imageUrl || item.thumbnailUrl || item.webViewLink || item.url || "");
+          mergedPhotos.push({ fileId: item.fileId || "", fileName: item.fileName || "", imageUrl: item.imageUrl || "", thumbnailUrl: item.thumbnailUrl || "", webViewLink: item.webViewLink || "" });
         });
         const newlyAttached = Math.max(0, mergedPhotos.length - currentPhotos.length);
         return { ...current, ...nextFields, deleted:false, deletedAt:null, photos:mergedPhotos, photosUploaded:(Number(current.photosUploaded) || currentPhotos.length) + newlyAttached, createdAt:current.createdAt || new Date().toISOString(), submittedBy:current.submittedBy || "AYFA supervisor" };

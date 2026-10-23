@@ -2447,6 +2447,7 @@ body{display:flex;align-items:center;justify-content:center;background:#eef2f1}
 .program-report-admin-icons button{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;padding:0;border:1px solid #e3ebe5;border-radius:8px;background:#fff;color:#5a8068;font-size:12px;cursor:pointer;box-shadow:0 1px 4px rgba(23,76,55,.1)}
 .program-report-admin-icons button:hover{background:#eef5f0;color:#173e2d}
 .program-report-admin-icons .program-report-delete{color:#b42318;border-color:#f5c6c0;background:#fff7f6}
+.program-report-admin-icons button[data-action="uploadPhotos"]{color:#176b50}
 .program-report-admin-icons .program-report-delete:hover{background:#fdecec;color:#b42318}
 .program-report-read{display:inline-flex;align-items:center;gap:8px;min-height:44px;margin-top:8px;padding:10px 16px;border:0;border-radius:11px;background:#1c6b4a;color:#fff;font:inherit;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 4px 12px rgba(28,107,74,.25);transition:background .15s}
 .program-report-read i{font-size:13px}

@@ -597,17 +597,18 @@ async function deleteBloodDonation(memberId, recordId) {
     await waitForFirebase();
     const safeMemberId = String(memberId || "");
     const safeRecordId = String(recordId || "");
-    const updatedAt = new Date().toISOString();
-    const result = await MembersRepository.transaction(`bloodDonations/${safeMemberId}/${safeRecordId}`, current => {
-      if (!current || current.deleted === true) return;
-      return { ...current, deleted: true, deletedAt: updatedAt, updatedAt };
-    });
-    if (!result.committed) {
+    const path = `bloodDonations/${safeMemberId}/${safeRecordId}`;
+    const current = (await MembersRepository.read(path)).val();
+    if (!current || current.deleted === true) {
       await openBloodDonationHistory(safeMemberId);
-      const latest = result.snapshot?.val();
-      if (!latest || latest.deleted === true) return;
-      throw new Error("Donation record changed before it could be hidden. Refresh and try again.");
+      return;
     }
+    const updatedAt = new Date().toISOString();
+    await MembersRepository.update({
+      [`${path}/deleted`]: true,
+      [`${path}/deletedAt`]: updatedAt,
+      [`${path}/updatedAt`]: updatedAt
+    });
     await MembersRepository.audit({ action: "bloodDonation.hide", path: `bloodDonations/${safeMemberId}`, recordId: safeRecordId, afterUpdatedAt: updatedAt });
     await openBloodDonationHistory(safeMemberId);
     renderBloodDonorCards(fullMembersList);
@@ -623,9 +624,15 @@ async function restoreBloodDonation(memberId, recordId) {
     await waitForFirebase();
     const safeMemberId = String(memberId || "");
     const safeRecordId = String(recordId || "");
+    const path = `bloodDonations/${safeMemberId}/${safeRecordId}`;
+    const current = (await MembersRepository.read(path)).val();
+    if (!current || current.deleted !== true) throw new Error("Donation record is no longer in Trash.");
     const restoredAt = new Date().toISOString();
-    const result = await MembersRepository.transaction(`bloodDonations/${safeMemberId}/${safeRecordId}`, current => current?.deleted === true ? { ...current, deleted: false, restoredAt, updatedAt: restoredAt } : undefined);
-    if (!result.committed) throw new Error("Donation record is no longer in Trash.");
+    await MembersRepository.update({
+      [`${path}/deleted`]: false,
+      [`${path}/restoredAt`]: restoredAt,
+      [`${path}/updatedAt`]: restoredAt
+    });
     await MembersRepository.audit({ action: "bloodDonation.restore", path: `bloodDonations/${safeMemberId}`, recordId: safeRecordId, afterUpdatedAt: restoredAt });
     await openBloodDonationHistory(safeMemberId);
     renderBloodDonorCards(fullMembersList);
@@ -633,6 +640,11 @@ async function restoreBloodDonation(memberId, recordId) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  const bloodGroupFilter = document.getElementById("bloodGroupFilter");
+  if (bloodGroupFilter) {
+    bloodGroupFilter.open = true;
+    bloodGroupFilter.querySelector("summary")?.addEventListener("click", event => event.preventDefault());
+  }
   const input = document.getElementById("memberSearchInput");
   if (input) {
     input.addEventListener("input", () => {

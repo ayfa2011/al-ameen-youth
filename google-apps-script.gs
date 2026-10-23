@@ -142,6 +142,7 @@ function uploadDrivePhoto(data) {
     const safeFolderName = String(data.folderName || "Activity Report").trim().slice(0, 120);
     const folders = root.getFoldersByName(safeFolderName);
     const folder = folders.hasNext() ? folders.next() : root.createFolder(safeFolderName);
+    folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     const uploadMarker = "AYFA_UPLOAD_ID:" + String(data.uploadId).slice(0, 128);
     const lock = LockService.getScriptLock();
     if (!lock.tryLock(30000)) throw new Error("Another photo upload is in progress. Retry this photo shortly.");
@@ -157,6 +158,7 @@ function uploadDrivePhoto(data) {
       const bytes = Utilities.base64Decode(data.base64);
       const blob = Utilities.newBlob(bytes, data.mimeType || "image/jpeg", data.fileName);
       const file = folder.createFile(blob);
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
       file.setDescription(uploadMarker);
       return drivePhotoResult_(file, folder, false);
     } finally {
