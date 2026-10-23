@@ -122,6 +122,13 @@ function doPost(e) {
   }
 }
 
+// Run this once from the Apps Script editor as the deployment owner after
+// adding Drive scopes. It triggers the Drive authorization prompt before the
+// web app handles photo uploads through DriveApp.
+function authorizeDriveAccess_() {
+  DriveApp.getRootFolder().getId();
+}
+
 function uploadDrivePhoto(data) {
   try {
     if (!data || !data.base64 || !data.fileName || !data.uploadId) {

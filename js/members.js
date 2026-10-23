@@ -117,7 +117,6 @@ function filterMemberCards(query = "") {
   const container = document.getElementById("membersContainer");
   if (!container) return;
   container.innerHTML = matches.length ? matches.map(memberCardHTML).join("") : '<p class="empty-message">No Members Found</p>';
-  renderDeactivatedMemberTrash();
 }
 
 let attendanceCountsByMemberId = {};
@@ -162,12 +161,6 @@ async function renderMemberCards() {
     console.error(error);
     container.innerHTML = `<p class="error-message">Members data load ಆಗಲಿಲ್ಲ. Firebase connection ಪರಿಶೀಲಿಸಿ.</p>`;
   }
-}
-
-function renderDeactivatedMemberTrash() {
-  const container = document.getElementById("membersContainer");
-  if (!container || !isSupervisorLoggedIn() || !deactivatedMembersList.length) return;
-  container.insertAdjacentHTML("beforeend", `<section class="member-trash"><h3>Deactivated members</h3>${deactivatedMembersList.map(member => `<div class="member-trash-row"><span>${escapeHTML(member.name)}</span><button type="button" onclick="restoreMember(${JSON.stringify(String(member.id))})">Restore</button></div>`).join("")}</section>`);
 }
 
 function openMemberEdit(memberId) {
