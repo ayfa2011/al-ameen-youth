@@ -127,6 +127,7 @@ function doPost(e) {
 // web app handles photo uploads through DriveApp.
 function authorizeDriveAccess_() {
   DriveApp.getRootFolder().getId();
+  UrlFetchApp.fetch("https://www.googleapis.com/", { muteHttpExceptions: true });
 }
 
 function uploadDrivePhoto(data) {
