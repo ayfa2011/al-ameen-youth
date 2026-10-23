@@ -258,23 +258,28 @@ async function deleteMember(memberId) {
   try {
     await waitForFirebase();
     const databaseKey = await MembersRepository.resolveMemberKey(memberId);
-    // Use the record's current server-side updatedAt, not the possibly stale
-    // local list copy, so the concurrency check only fails on a real race.
+    // Read the current server record for early validation and audit logging.
+    // The transaction updater below relies on Firebase's own concurrency
+    // handling: RTDB re-runs the updater with the latest server data
+    // whenever a peer writes to the path, so the updater must NOT compare
+    // against an updatedAt captured before the transaction — that caused
+    // spurious aborts whenever any concurrent write (a blood-group edit, a
+    // field save, etc.) changed updatedAt between this read and the
+    // transaction round. The updater only guards on a logical condition
+    // (already deactivated) and always spreads the latest `current`,
+    // preserving any peer edits to other fields.
     const currentRecord = (await MembersRepository.read(`members/${databaseKey}`)).val();
     if (!currentRecord) throw new Error("Member record is no longer in the database. Refresh and try again.");
-    const expectedUpdatedAt = String(currentRecord.updatedAt || "");
+    const beforeUpdatedAt = String(currentRecord.updatedAt || "");
     if (currentRecord.active === false) throw new Error("Member is already deactivated. Refresh and try again.");
     const deactivatedAt = new Date().toISOString();
     const result = await MembersRepository.transaction(`members/${databaseKey}`, current => {
       if (!current) return;
       if (current.active === false) return;
-      // Only block on a genuine concurrent edit made after we read the record.
-      const currentUpdatedAt = String(current.updatedAt || "");
-      if (currentUpdatedAt && expectedUpdatedAt && currentUpdatedAt !== expectedUpdatedAt) return;
       return { ...current, active: false, deactivatedAt, updatedAt: deactivatedAt };
     });
     if (!result.committed) throw new Error("Member changed before deactivation. Refresh and try again.");
-    await MembersRepository.audit({ action: "member.deactivate", path: "members", recordId: databaseKey, beforeUpdatedAt: expectedUpdatedAt, afterUpdatedAt: deactivatedAt });
+    await MembersRepository.audit({ action: "member.deactivate", path: "members", recordId: databaseKey, beforeUpdatedAt, afterUpdatedAt: deactivatedAt });
     await fetchMembersFromFirebase(true);
     await renderMemberCards();
   } catch (error) {
@@ -289,23 +294,23 @@ async function restoreMember(memberId) {
   if (!member) return;
   try {
     const databaseKey = await MembersRepository.resolveMemberKey(memberId);
-    // Use the record's current server-side updatedAt, not the possibly stale
-    // local list copy, so the concurrency check only fails on a real race.
+    // Read the current server record for early validation and audit logging.
+    // The transaction updater relies on Firebase's own concurrency: RTDB
+    // re-runs the updater with the latest server data on any concurrent
+    // write, so the updater must NOT compare against an updatedAt captured
+    // before the transaction started. See deleteMember() for details.
     const currentRecord = (await MembersRepository.read(`members/${databaseKey}`)).val();
     if (!currentRecord) throw new Error("Member record is no longer in the database. Refresh and try again.");
-    const expectedUpdatedAt = String(currentRecord.updatedAt || "");
+    const beforeUpdatedAt = String(currentRecord.updatedAt || "");
     if (currentRecord.active !== false) throw new Error("Member is already active. Refresh and try again.");
     const restoredAt = new Date().toISOString();
     const result = await MembersRepository.transaction(`members/${databaseKey}`, current => {
       if (!current) return;
       if (current.active !== false) return;
-      // Only block on a genuine concurrent edit made after we read the record.
-      const currentUpdatedAt = String(current.updatedAt || "");
-      if (currentUpdatedAt && expectedUpdatedAt && currentUpdatedAt !== expectedUpdatedAt) return;
       return { ...current, active: true, restoredAt, updatedAt: restoredAt };
     });
     if (!result.committed) throw new Error("Member changed before restore. Refresh and try again.");
-    await MembersRepository.audit({ action: "member.restore", path: "members", recordId: databaseKey, beforeUpdatedAt: expectedUpdatedAt, afterUpdatedAt: restoredAt });
+    await MembersRepository.audit({ action: "member.restore", path: "members", recordId: databaseKey, beforeUpdatedAt, afterUpdatedAt: restoredAt });
     await fetchMembersFromFirebase(true);
     await renderMemberCards();
   } catch (error) {

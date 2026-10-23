@@ -61,7 +61,16 @@ async function auditedFirebaseUpdate(updates, event) {
   // the same root update() made one atomic write whose failure surfaced as
   // "update at / failed: permission_denied" — impossible to attribute, and it
   // rolled back a legitimate save because of a logging rule.
-  await window.firebaseDb.ref().update(updates);
+  // Also avoid a root-level update() entirely: the rules grant writes at
+  // individual nodes (e.g. /officeBearers/$year) but not at "/", so a
+  // multi-location update() at the root is always denied even for officials.
+  // Write each path to its own ref so the node-level .write rules apply.
+  const entries = Object.entries(updates || {});
+  if (entries.length === 1) {
+    await window.firebaseDb.ref(entries[0][0]).set(entries[0][1]);
+  } else {
+    await Promise.all(entries.map(([path, value]) => window.firebaseDb.ref(path).set(value)));
+  }
   // The data is already committed, so an audit failure must not fail the save.
   if (event) await appendFirebaseAudit(event);
 }
