@@ -449,21 +449,13 @@ async function loadBearers(year, options = {}) {
     return;
   }
   activeOfficeBearerRoster.forEach((bearer, index) => {
-    const canEdit = typeof isSupervisorLoggedIn === "function" && isSupervisorLoggedIn();
     tbody.insertAdjacentHTML("beforeend", `
       <tr>
         <td>${escapeHTML(bearer.sl)}</td>
         <td><button type="button" class="bearer-text-edit" onclick="openOfficeBearerEdit(${index})">${escapeHTML(bearer.designation)}</button></td>
         <td><button type="button" class="bearer-text-edit" onclick="openOfficeBearerEdit(${index})">${escapeHTML(bearer.name)}</button></td>
-        ${canEdit ? `<td class="bearer-row-actions"><button type="button" class="bearer-row-edit" onclick="openOfficeBearerEdit(${index})">Edit</button><button type="button" class="bearer-row-delete" onclick="deleteOfficeBearer(${index})">Delete</button></td>` : ""}
       </tr>`);
   });
-  const headRow = tbody.closest("table")?.querySelector("thead tr");
-  if (headRow) {
-    const existing = headRow.querySelector(".bearer-actions-heading");
-    if (canEdit && !existing) headRow.insertAdjacentHTML("beforeend", '<th class="bearer-actions-heading">Actions</th>');
-    else if (!canEdit && existing) existing.remove();
-  }
 }
 
 function openOfficeBearerAdd() {
@@ -490,12 +482,16 @@ function openOfficeBearerEditor(mode, index) {
       ${editing ? "" : `<label>Year<input name="year" type="number" min="1900" max="2200" step="1" value="${escapeHTML(activeOfficeBearerYear || new Date().getFullYear())}" required></label>`}
       <label>Designation<input name="designation" type="text" maxlength="150" value="${escapeHTML(bearer.designation)}" required></label>
       <label>Name<input name="name" type="text" maxlength="150" value="${escapeHTML(bearer.name)}" required></label>
-      <div class="office-bearer-dialog-actions"><button type="button" class="office-bearer-cancel">Cancel</button><button type="submit" class="office-bearer-save">Save</button></div>
+      <div class="office-bearer-dialog-actions">${editing ? '<button type="button" class="office-bearer-delete">Delete</button>' : ""}<button type="button" class="office-bearer-cancel">Cancel</button><button type="submit" class="office-bearer-save">Save</button></div>
     </form>
   </section>`;
   document.body.append(modal);
   const close = () => modal.remove();
   modal.querySelector(".office-bearer-cancel").addEventListener("click", close);
+  modal.querySelector(".office-bearer-delete")?.addEventListener("click", async () => {
+    close();
+    await deleteOfficeBearer(index);
+  });
   modal.addEventListener("click", event => { if (event.target === modal) close(); });
   modal.querySelector("form").addEventListener("submit", event => {
     event.preventDefault();
