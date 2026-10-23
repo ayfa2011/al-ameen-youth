@@ -2617,22 +2617,24 @@ body{display:flex;align-items:center;justify-content:center;background:#eef2f1}
 
 /* Only the two primary dashboard shortcuts use the paired hero-card layout. */
 #dashboardHomeActions .quick-actions{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-#dashboardHomeActions .quick-action{min-width:0;min-height:132px;padding:14px 12px;gap:10px;border:0;border-radius:18px;align-items:center}
+#dashboardHomeActions .quick-action{min-width:0;min-height:96px;padding:10px 11px;gap:8px;border:0;border-radius:18px;align-items:center}
 #dashboardHomeActions .quick-action-contribution{background:linear-gradient(120deg,#059669 0%,#16a34a 60%,#15803d 100%);color:#fff;box-shadow:0 8px 22px -6px rgba(22,163,74,.45)}
 #dashboardHomeActions .quick-action-featured{background:linear-gradient(120deg,#f59e0b 0%,#f97316 60%,#ea580c 100%);color:#fff;box-shadow:0 8px 22px -6px rgba(234,88,12,.45)}
-#dashboardHomeActions .quick-action-icon{width:48px;height:48px;flex:0 0 48px;border-radius:14px;background:rgba(255,255,255,.22);color:#fff;font-size:21px}
-#dashboardHomeActions .quick-action-copy{flex:1;align-self:center;gap:5px}
-#dashboardHomeActions .quick-action-copy strong{font-size:clamp(15px,2.4vw,20px);font-weight:800;line-height:1.2;color:#fff;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;line-clamp:3;overflow:hidden;overflow-wrap:anywhere}
+#dashboardHomeActions .quick-action-icon{width:42px;height:42px;flex:0 0 42px;border-radius:13px;background:rgba(255,255,255,.22);color:#fff;font-size:19px}
+#dashboardHomeActions .quick-action-copy{flex:1;align-self:center;gap:0}
+#dashboardHomeActions .quick-action-copy strong{font-size:clamp(16px,2.4vw,20px);font-weight:800;line-height:1.2;color:#fff;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;line-clamp:3;overflow:hidden;overflow-wrap:anywhere;text-wrap:balance}
 #dashboardHomeActions .quick-action-copy small{font-size:clamp(11px,1.5vw,14px);line-height:1.25;color:rgba(255,255,255,.88)}
-#dashboardHomeActions .quick-action-arrow{width:30px;height:30px;flex:0 0 30px;display:grid;place-items:center;border-radius:50%;background:rgba(255,255,255,.2);color:#fff}
+#dashboardHomeActions .quick-action-arrow{width:27px;height:27px;flex:0 0 27px;display:grid;place-items:center;border-radius:50%;background:rgba(255,255,255,.2);color:#fff}
+#dashboardHomeActions .quick-action-contribution::after,#dashboardHomeActions .quick-action-featured::after{content:none}
 @media(max-width:520px){
   #dashboardHomeActions .quick-actions{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;padding:10px 10px 2px}
-  #dashboardHomeActions .quick-action{min-height:128px;padding:11px 9px;gap:8px;border-radius:15px}
-  #dashboardHomeActions .quick-action-icon{width:40px;height:40px;flex-basis:40px;font-size:18px}
-  #dashboardHomeActions .quick-action-copy strong{font-size:clamp(14px,4vw,17px)}
+  #dashboardHomeActions .quick-action{min-height:88px;padding:8px 8px;gap:6px;border-radius:15px}
+  #dashboardHomeActions .quick-action-icon{width:36px;height:36px;flex-basis:36px;font-size:16px}
+  #dashboardHomeActions .quick-action-copy strong{font-size:clamp(14px,3.7vw,17px)}
   #dashboardHomeActions .quick-action-copy small{font-size:11px}
-  #dashboardHomeActions .quick-action-arrow{width:25px;height:25px;flex-basis:25px;font-size:10px}
+  #dashboardHomeActions .quick-action-arrow{width:23px;height:23px;flex-basis:23px;font-size:10px}
 }
+#dashboardView .grid-card span{font-size:14px;font-weight:800}
 
 
 /* Styles moved out of index.html during the view-layer cleanup. */
