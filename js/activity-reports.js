@@ -330,7 +330,10 @@ async function uploadPhotosToDrive(files, folderName) {
       throw new Error(`Photo "${file.name}" upload failed — ${error.message || error}`);
     }
   }
-  if (results.length) {
+  // Members may upload to Drive, but Firebase's photo metadata mirror is
+  // intentionally writable only by officials. The gallery reads Drive as its
+  // source of truth, so member uploads appear there without widening DB rules.
+  if (results.length && isSupervisorLoggedIn()) {
     const folderId = String(results[0].folderId || "");
     const folderKey = folderId || String(folderName || "Activity Report").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
     const photos = results.map(item => ({ fileId:item.fileId || "", fileName:item.fileName || "", imageUrl:item.imageUrl || "", thumbnailUrl:item.thumbnailUrl || "", webViewLink:item.webViewLink || "", folderUrl:item.folderUrl || "", uploadedAt:new Date().toISOString() }));
@@ -355,8 +358,8 @@ async function uploadPhotosToDrive(files, folderName) {
 
 function openDrivePhotoUpload() {
   if (!isRoleAuthenticated()) { showAuthScreen(); return; }
-  const uploadForm = isSupervisorLoggedIn() ? `<form class="program-report-form" onsubmit="submitDrivePhotoUpload(event)"><label>Folder name *<input name="folderName" list="driveFolderNames" placeholder="Create or select a folder" required></label><datalist id="driveFolderNames"></datalist><label class="program-photo-field">Select photos *<input name="photos" type="file" accept="image/*" multiple required onchange="previewSelectedProgramPhotos(this.files)"></label><div id="programPhotoPreview" class="program-photo-preview"></div><p id="programFormMessage" class="program-form-message"></p><div class="program-form-actions"><button type="submit" class="program-submit">Upload to Drive</button></div></form>` : "";
-  programModal(`<div class="program-modal-card drive-library-modal"><div class="program-modal-header"><div><h3>Photo Gallery</h3><p>${isSupervisorLoggedIn() ? "Upload photos or browse existing folders." : "Browse existing Google Drive photo folders."}</p></div><button type="button" class="program-close" onclick="closeProgramModal()" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>${uploadForm}<section class="drive-folders-section"><h4>Uploaded folders</h4><div id="driveFolderList" class="drive-folder-list"><p class="program-reports-empty">Loading folders…</p></div></section></div>`);
+  const uploadForm = `<form class="program-report-form" onsubmit="submitDrivePhotoUpload(event)"><label>Folder name *<input name="folderName" list="driveFolderNames" placeholder="Create or select a folder" required></label><datalist id="driveFolderNames"></datalist><label class="program-photo-field">Select photos *<input name="photos" type="file" accept="image/*" multiple required onchange="previewSelectedProgramPhotos(this.files)"></label><div id="programPhotoPreview" class="program-photo-preview"></div><p id="programFormMessage" class="program-form-message"></p><div class="program-form-actions"><button type="submit" class="program-submit">Upload to Drive</button></div></form>`;
+  programModal(`<div class="program-modal-card drive-library-modal"><div class="program-modal-header"><div><h3>Photo Gallery</h3><p>Upload photos or browse existing folders.</p></div><button type="button" class="program-close" onclick="closeProgramModal()" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>${uploadForm}<section class="drive-folders-section"><h4>Uploaded folders</h4><div id="driveFolderList" class="drive-folder-list"><p class="program-reports-empty">Loading folders…</p></div></section></div>`);
   void loadDriveFolders();
 }
 
@@ -374,9 +377,13 @@ async function loadDriveFolders() {
     const response = await fetch(SCRIPT_URL, { method:"POST", mode:"cors", headers:{"Content-Type":"text/plain;charset=utf-8"}, body:JSON.stringify({action:"listDrivePhotoFolders",authToken:token}) });
     const driveData = await response.json();
     if (!response.ok || driveData.success === false || driveData.error) throw new Error(driveData.error || "Google Drive folder list could not be loaded.");
-    const byFolder = new Map(cached.map(folder => [String(folder.driveFolderId || folder.id), folder]));
+    // Drive is the source of truth for folder existence. Firebase only enriches
+    // folders Drive still returns; starting from cached rows kept deleted Drive
+    // folders visible in this picker indefinitely.
+    const cachedByDriveId = new Map(cached.map(folder => [String(folder.driveFolderId || folder.id), folder]));
+    const byFolder = new Map();
     (driveData.folders || []).forEach(folder => {
-      const old = byFolder.get(String(folder.id)) || {};
+      const old = cachedByDriveId.get(String(folder.id)) || {};
       const oldPhotos = Array.isArray(old.photos) ? old.photos : Object.values(old.photos || {});
       const photoById = new Map(oldPhotos.map(photo => [String(photo.fileId || photo.imageUrl || photo.webViewLink || ""), photo]));
       (folder.photos || []).forEach(photo => {
@@ -430,7 +437,7 @@ function stepDrivePhoto(delta) {
 
 async function submitDrivePhotoUpload(event) {
   event.preventDefault();
-  if (!requireSupervisor()) return;
+  if (!isRoleAuthenticated()) { showAuthScreen(); return; }
   const form = event.target;
   const files = Array.from(form.querySelector("[name='photos']").files || []);
   const message = document.getElementById("programFormMessage");

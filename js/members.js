@@ -379,6 +379,7 @@ function renderBloodDonorCards(members) {
 const BLOOD_GROUP_OPTIONS = ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"];
 
 function openBloodGroupModal(memberId) {
+  if (!isRoleAuthenticated()) { showAuthScreen(); return; }
   const member = getMemberById(memberId);
   if (!member) return;
   const current = String(member.bloodGroup || "");
@@ -395,6 +396,7 @@ function openBloodGroupModal(memberId) {
 }
 
 async function saveBloodGroup(memberId, group) {
+  if (!isRoleAuthenticated()) { showAuthScreen(); return; }
   const member = getMemberById(memberId);
   if (!member) return;
   const message = document.getElementById("bloodGroupMessage");
@@ -405,22 +407,13 @@ async function saveBloodGroup(memberId, group) {
     if (message) message.textContent = "Saving...";
     await waitForFirebase();
     const databaseKey = await MembersRepository.resolveMemberKey(memberId);
-    const updatedAt = new Date().toISOString();
-    const result = await MembersRepository.transaction(`members/${databaseKey}`, current => {
-      if (!current) return;
-      // Update only the blood-group fields on the latest database value. A
-      // stale member updatedAt must not block this independent field edit.
-      return { ...current, bloodGroupOverride: String(group || ""), updatedAt };
-    });
-    if (!result.committed) {
-      const latest = result.snapshot?.val();
-      if (!latest) throw new Error("Member record could not be found. Refresh the Members page and try again.");
-      throw new Error("Blood group update did not commit. Refresh and try again.");
-    }
-    await MembersRepository.audit({ action: "member.bloodGroup.update", path: "members", recordId: databaseKey, afterUpdatedAt: updatedAt });
+    const normalizedGroup = String(group || "");
+    // Write the independently editable leaf. A transaction on the whole
+    // member record requires parent write permission and can fail even when
+    // the current member is allowed to update their blood group.
+    await MembersRepository.update({ [`members/${databaseKey}/bloodGroupOverride`]: normalizedGroup });
     member.bloodGroup = String(group || "");
     member.bloodGroupOverride = String(group || "");
-    member.updatedAt = updatedAt;
     closeProgramModal();
     renderBloodDonorCards(fullMembersList.filter(m => String(m.name || "").trim()));
   } catch (error) {

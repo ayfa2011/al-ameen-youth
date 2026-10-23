@@ -6,7 +6,11 @@
       ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
       ".write": "auth != null && auth.token.role == 'official' && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
       "$memberKey": {
-        ".validate": "newData.hasChildren(['name']) && newData.child('name').isString() && newData.child('name').val().length <= 150 && (!newData.child('active').exists() || newData.child('active').isBoolean()) && (!newData.child('bloodGroupOverride').exists() || newData.child('bloodGroupOverride').isString()) && (!newData.child('mobile').exists() || newData.child('mobile').isString() || newData.child('mobile').isNumber())"
+        ".validate": "newData.hasChildren(['name']) && newData.child('name').isString() && newData.child('name').val().length <= 150 && (!newData.child('active').exists() || newData.child('active').isBoolean()) && (!newData.child('bloodGroupOverride').exists() || newData.child('bloodGroupOverride').isString()) && (!newData.child('mobile').exists() || newData.child('mobile').isString() || newData.child('mobile').isNumber())",
+        "bloodGroupOverride": {
+          ".write": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official') && auth.token.auth_time != null && now < (auth.token.auth_time * 1000 + 3600000)",
+          ".validate": "newData.isString() && (newData.val() == '' || newData.val() == 'A+' || newData.val() == 'A-' || newData.val() == 'B+' || newData.val() == 'B-' || newData.val() == 'O+' || newData.val() == 'O-' || newData.val() == 'AB+' || newData.val() == 'AB-')"
+        }
       }
     },
     "programs": {

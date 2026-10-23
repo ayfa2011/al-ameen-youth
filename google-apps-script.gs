@@ -108,7 +108,7 @@ function doPost(e) {
     }
 
     if (body.action === "uploadDrivePhoto") {
-      authorizeWebUser_(body.authToken, ["official"]);
+      authorizeWebUser_(body.authToken, ["member", "official"]);
     }
 
     if (body.action === "uploadDrivePhoto") {
