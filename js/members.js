@@ -118,14 +118,7 @@ function memberCardHTML(m) {
 }
 
 function memberAttendanceHistory(member) {
-  const ids = [member?.id, member?.databaseKey, member?.memberCode, member?.displayId, memberDisplayId(member)]
-    .filter(value => value !== null && value !== undefined && String(value).trim())
-    .map(String);
-  for (const id of ids) {
-    const history = attendanceProgramsByMemberId[id];
-    if (history?.length) return history;
-  }
-  return [];
+  return attendanceProgramsByMemberId[String(member?.id || "")] || [];
 }
 
 function filterMemberCards(query = "") {
@@ -145,6 +138,12 @@ async function loadMemberAttendanceCounts() {
   const { attendance: attendanceSnapshot, programs: programSnapshot } = await AttendanceRepository.readMemberSummarySources();
   const allAttendance = attendanceSnapshot.val() || {};
   const programs = programSnapshot.val() || {};
+  const memberByAttendanceId = new Map();
+  fullMembersList.forEach(member => {
+    [member.id, member.databaseKey, member.memberCode, member.displayId, memberDisplayId(member)]
+      .filter(value => value !== null && value !== undefined && String(value).trim())
+      .forEach(value => memberByAttendanceId.set(String(value), member));
+  });
 
   Object.entries(allAttendance).forEach(([programId, programAttendance]) => {
     const program = programs[programId];
@@ -154,7 +153,10 @@ async function loadMemberAttendanceCounts() {
     Object.entries(programAttendance || {}).forEach(([memberId, record]) => {
       if (String(record?.status || "").toLowerCase() !== "present") return;
       const attendeeId = String(record?.memberId || memberId);
-      const history = attendanceProgramsByMemberId[attendeeId] || (attendanceProgramsByMemberId[attendeeId] = []);
+      const member = memberByAttendanceId.get(attendeeId) || memberByAttendanceId.get(String(memberId));
+      if (!member) return;
+      const canonicalMemberId = String(member.id);
+      const history = attendanceProgramsByMemberId[canonicalMemberId] || (attendanceProgramsByMemberId[canonicalMemberId] = []);
       if (history.some(item => item.programId === String(programId))) return;
       history.push({
         programId: String(programId),
