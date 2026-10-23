@@ -259,26 +259,19 @@ async function deleteMember(memberId) {
     await waitForFirebase();
     const databaseKey = await MembersRepository.resolveMemberKey(memberId);
     // Read the current server record for early validation and audit logging.
-    // The transaction updater below relies on Firebase's own concurrency
-    // handling: RTDB re-runs the updater with the latest server data
-    // whenever a peer writes to the path, so the updater must NOT compare
-    // against an updatedAt captured before the transaction — that caused
-    // spurious aborts whenever any concurrent write (a blood-group edit, a
-    // field save, etc.) changed updatedAt between this read and the
-    // transaction round. The updater only guards on a logical condition
-    // (already deactivated) and always spreads the latest `current`,
-    // preserving any peer edits to other fields.
+    // Update only the status fields. A transaction can abort on Firebase's
+    // initial cached null for newly-created push-key records; leaf writes
+    // avoid that race and preserve every other field on the live record.
     const currentRecord = (await MembersRepository.read(`members/${databaseKey}`)).val();
     if (!currentRecord) throw new Error("Member record is no longer in the database. Refresh and try again.");
     const beforeUpdatedAt = String(currentRecord.updatedAt || "");
     if (currentRecord.active === false) throw new Error("Member is already deactivated. Refresh and try again.");
     const deactivatedAt = new Date().toISOString();
-    const result = await MembersRepository.transaction(`members/${databaseKey}`, current => {
-      if (!current) return;
-      if (current.active === false) return;
-      return { ...current, active: false, deactivatedAt, updatedAt: deactivatedAt };
+    await MembersRepository.update({
+      [`members/${databaseKey}/active`]: false,
+      [`members/${databaseKey}/deactivatedAt`]: deactivatedAt,
+      [`members/${databaseKey}/updatedAt`]: deactivatedAt
     });
-    if (!result.committed) throw new Error("Member changed before deactivation. Refresh and try again.");
     await MembersRepository.audit({ action: "member.deactivate", path: "members", recordId: databaseKey, beforeUpdatedAt, afterUpdatedAt: deactivatedAt });
     await fetchMembersFromFirebase(true);
     await renderMemberCards();
@@ -295,21 +288,18 @@ async function restoreMember(memberId) {
   try {
     const databaseKey = await MembersRepository.resolveMemberKey(memberId);
     // Read the current server record for early validation and audit logging.
-    // The transaction updater relies on Firebase's own concurrency: RTDB
-    // re-runs the updater with the latest server data on any concurrent
-    // write, so the updater must NOT compare against an updatedAt captured
-    // before the transaction started. See deleteMember() for details.
+    // Update only status fields to avoid a cached-null transaction abort and
+    // preserve any current edits to the member's other fields.
     const currentRecord = (await MembersRepository.read(`members/${databaseKey}`)).val();
     if (!currentRecord) throw new Error("Member record is no longer in the database. Refresh and try again.");
     const beforeUpdatedAt = String(currentRecord.updatedAt || "");
     if (currentRecord.active !== false) throw new Error("Member is already active. Refresh and try again.");
     const restoredAt = new Date().toISOString();
-    const result = await MembersRepository.transaction(`members/${databaseKey}`, current => {
-      if (!current) return;
-      if (current.active !== false) return;
-      return { ...current, active: true, restoredAt, updatedAt: restoredAt };
+    await MembersRepository.update({
+      [`members/${databaseKey}/active`]: true,
+      [`members/${databaseKey}/restoredAt`]: restoredAt,
+      [`members/${databaseKey}/updatedAt`]: restoredAt
     });
-    if (!result.committed) throw new Error("Member changed before restore. Refresh and try again.");
     await MembersRepository.audit({ action: "member.restore", path: "members", recordId: databaseKey, beforeUpdatedAt, afterUpdatedAt: restoredAt });
     await fetchMembersFromFirebase(true);
     await renderMemberCards();
