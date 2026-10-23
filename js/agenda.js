@@ -1,4 +1,4 @@
-const agendaState={items:[],deletedItems:[],view:"list",activeId:"",search:"",editTitle:false,editDesc:false,adding:false,statusMenuId:""};
+const agendaState={items:[],deletedItems:[],view:"list",activeId:"",search:"",editTitle:false,editDesc:false,adding:false,statusMenuId:"",expanded:{age:true,disc:true,done:true}};
 async function openAgendaManagement(){agendaState.view="list";agendaState.activeId="";agendaState.search="";agendaState.editTitle=false;agendaState.editDesc=false;agendaState.adding=false;
 if(typeof navigateAppView==="function"&&history.state?.appView!=="agenda")history.pushState({appView:"agenda"},"",location.pathname+location.search+"#agenda");
 updateAppTopBar("agenda");hideAllViews();document.getElementById("agendaView")?.classList.remove("hidden");window.scrollTo({top:0});
@@ -13,25 +13,27 @@ function agCanEdit(){return typeof isSupervisorLoggedIn==="function"?isSuperviso
 function agendaWriteFailure(error,fallback){const detail=String(error?.code||error?.message||"").toLowerCase();return detail.includes("permission_denied")||detail.includes("permission denied")?"Firebase denied this write. Please sign in again as an official.":fallback;}
 function agFilter(list){const q=String(agendaState.search||"").trim().toLowerCase();if(!q)return list;return list.filter(x=>((x.title||"")+" "+(x.description||"")).toLowerCase().includes(q));}
 function agInlineArg(value){return JSON.stringify(String(value??"")).replace(/"/g,"&quot;");}
-function agRow(it,i){const ce=agCanEdit();const st=agendaStage(it);const id=agInlineArg(it.id);const date=String(it.meetingDate||"").trim();const menuOpen=agendaState.statusMenuId===it.id;
+function agFormatDate(value){const raw=String(value||"").trim();if(!raw)return"";const date=new Date(/^\d{4}-\d{2}-\d{2}$/.test(raw)?raw+"T00:00:00":raw);return Number.isNaN(date.getTime())?raw:new Intl.DateTimeFormat("en-GB",{day:"2-digit",month:"short",year:"numeric"}).format(date);}
+function agRow(it,i){const ce=agCanEdit();const st=agendaStage(it);const id=agInlineArg(it.id);const date=agFormatDate(it.meetingDate);const menuOpen=agendaState.statusMenuId===it.id;
 const menu=menuOpen?'<div class="agStatusMenu" role="menu"><button type="button" role="menuitem" onclick="chooseAgendaStage('+id+',\'Upcoming\')">Agenda</button><button type="button" role="menuitem" onclick="chooseAgendaStage('+id+',\'Under Action\')">On Discussion</button><button type="button" role="menuitem" onclick="chooseAgendaStage('+id+',\'Completed\')">Completed</button></div>':'';
 return '<div class="agCard agCardRow'+(st==="done"?" agDone":st==="disc"?" agDisc":"")+'"><button type="button" class="agCardMain" onclick="openAgendaDetail('+id+')" aria-label="Open '+escapeHTML(it.title||"Untitled")+'"><span class="n">'+(i+1)+'.</span><span class="agCardTxt"><span class="t">'+escapeHTML(it.title||"Untitled")+'</span>'+(date?'<small class="agCardMeta"><i class="fa-regular fa-calendar"></i> '+escapeHTML(date)+'</small>':"")+'</span></button>'+(ce?'<div class="agStatusWrap"><button type="button" class="agStatus agSt-'+st+'" onclick="toggleAgendaStatusMenu('+id+')" aria-label="Change status" title="Change status"><i class="fa-solid fa-chevron-down"></i></button>'+menu+'</div>':'<i class="fa-solid fa-chevron-right agChev"></i>')+'</div>';}
 function toggleAgendaStatusMenu(id){agendaState.statusMenuId=agendaState.statusMenuId===id?"":id;renderAgendas();}
 async function chooseAgendaStage(id,status){agendaState.statusMenuId="";await updateAgendaStage(id,status);}
-function agSec(stage,pill,list,empty,canAdd,ico){const ce=agCanEdit();let h='<span class="agPill agPill-'+stage+'">'+(ico?'<i class="'+ico+'"></i>':'')+pill+' <b class="agCnt">('+list.length+')</b></span>';
-h+=list.length?list.map((x,i)=>agRow(x,i)).join(""):'<div class="agEmpty"><i class="'+(stage==="done"?"fa-regular fa-circle-check":"fa-regular fa-clipboard")+'"></i>'+(stage==="done"?'<strong>Nothing completed yet</strong>':escapeHTML(empty))+'</div>';
+function agSec(stage,title,list,empty,canAdd,ico){const ce=agCanEdit();let h='<details class="agSection" data-ag-stage="'+stage+'" '+(agendaState.expanded[stage]?'open':'')+'><summary class="agSectionHead"><i class="'+ico+'"></i><span>'+title+'</span><b class="agCnt">('+list.length+')</b><i class="fa-solid fa-chevron-down agSectionChevron"></i></summary><div class="agSectionBody">';
+h+=list.length?list.map((x,i)=>agRow(x,i)).join(""):'<div class="agEmpty">'+(stage==="done"?'Nothing completed yet':escapeHTML(empty))+'</div>';
 if(ce&&canAdd){if(agendaState.adding===stage){h+='<div class="agRow"><input id="agAdd-'+stage+'" placeholder="New title..." maxlength="120" onkeydown="if(event.key===\'Enter\')addAgendaInline(\''+stage+'\')"><button type="button" onclick="addAgendaInline(\''+stage+'\')">Add</button></div><button type="button" class="agGh" onclick="agendaState.adding=false;renderAgendas()">Cancel</button>';}
-else{h+='<button type="button" class="agAddBtn" onclick="agendaState.adding=\''+stage+'\';renderAgendas();setTimeout(()=>document.getElementById(\'agAdd-'+stage+'\')?.focus(),60)"><i class="fa-solid fa-plus"></i> Add new</button>';}}
-return h;}
+else{h+='<button type="button" class="agAddBtn" onclick="agendaState.adding=\''+stage+'\';renderAgendas();setTimeout(()=>document.getElementById(\'agAdd-'+stage+'\')?.focus(),60)"><i class="fa-solid fa-plus"></i> Add new agenda</button>';}}
+return h+'</div></details>';}
 function renderAgendas(){const v=document.getElementById("agendaView");if(!v)return;
 document.getElementById("agendaModal")?.remove();
 if(agendaState.view==="detail")return renderAgendaDetail();
 const A=agFilter(agendaState.items.filter(x=>agendaStage(x)==="age"));
 const D=agFilter(agendaState.items.filter(x=>agendaStage(x)==="disc"));
 const C=agFilter(agendaState.items.filter(x=>agendaStage(x)==="done"));
-v.innerHTML='<section class="agW"><div class="agTop"><button type="button" class="agBk" onclick="showDashboard()">&#8592;</button></div><p class="agKick">Meeting</p><h2 class="agH">Agenda &amp; Action Plan</h2><label class="agSrch"><i class="fa-solid fa-magnifying-glass"></i><input type="search" placeholder="Search Program" value="'+escapeHTML(agendaState.search)+'" oninput="agendaState.search=this.value;agKeepFocus()"></label>'
+v.innerHTML='<section class="agW"><div class="agTop"><button type="button" class="agBk" onclick="showDashboard()">&#8592;</button></div><p class="agKick">Meeting</p><h2 class="agH">Agenda &amp; Action Plan</h2><label class="agSrch"><i class="fa-solid fa-magnifying-glass"></i><input type="search" placeholder="Search Program" value="'+escapeHTML(agendaState.search)+'" oninput="agendaState.search=this.value;agKeepFocus()"></label><div class="agSections">'
 +agSec("age","Agenda",A,"No agenda items yet.",true,"fa-solid fa-list-check")+agSec("disc","On Discussion",D,"Nothing on discussion.",false,"fa-solid fa-comments")+agSec("done","Completed",C,"",false,"fa-solid fa-check-double")
-+'</section>';}
++'</div></section>';
+v.querySelectorAll(".agSection").forEach(section=>section.addEventListener("toggle",()=>{agendaState.expanded[section.dataset.agStage]=section.open;}));}
 function agKeepFocus(){const a=document.activeElement?.value??"";renderAgendas();const n=document.querySelector(".agSrch input");if(n){n.focus();try{n.setSelectionRange(n.value.length,n.value.length);}catch(e){}}void a;}
 function openAgendaDetail(id){agendaState.view="detail";agendaState.statusMenuId="";agendaState.activeId=id;agendaState.editF="";renderAgendas();window.scrollTo({top:0});}
 function backToAgendaList(){agendaState.view="list";agendaState.activeId="";agendaState.editF="";renderAgendas();}
