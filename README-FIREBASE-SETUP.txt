@@ -38,10 +38,10 @@ The supplied rules file is:
 
 Publish these rules in Firebase Console -> Realtime Database -> Rules when you
 publish the website. Members can read approved website data but cannot write.
-Officials can read and write. Rules also reject requests more than one hour
-after Firebase sign-in, even if a browser keeps an old page open. Do not restore
-a root-level auth-only read/write rule, because that would override these role
-restrictions.
+Officials can read and write. Authenticated sessions stay active on the same
+device until the user logs out or the Firebase refresh token is revoked. Do not
+restore a root-level auth-only read/write rule, because that would override
+these role restrictions.
 
 4) Google Apps Script deployment
 ---------------------------------

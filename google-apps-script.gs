@@ -23,8 +23,6 @@ const FIREBASE_DATABASE_URL =
   "https://al-ameen-website-e24d0-default-rtdb.asia-southeast1.firebasedatabase.app";
 
 const FIREBASE_WEB_API_KEY = "AIzaSyAdOIktZ41SKFIef68uFl6PbbsrwADnEqI";
-const WEB_ROLE_SESSION_MS = 60 * 60 * 1000;
-
 function authorizeWebUser_(idToken, allowedRoles) {
   if (!idToken) throw new Error("Sign-in is required.");
   const tokenParts = String(idToken).split(".");
@@ -35,9 +33,7 @@ function authorizeWebUser_(idToken, allowedRoles) {
     while (payload.length % 4) payload += "=";
     claims = JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(payload)).getDataAsString());
   } catch (_) { throw new Error("Invalid sign-in token."); }
-  if (!claims.sub || !claims.auth_time || Date.now() >= Number(claims.auth_time) * 1000 + WEB_ROLE_SESSION_MS) {
-    throw new Error("Your sign-in session expired. Please log in again.");
-  }
+  if (!claims.sub) throw new Error("Invalid sign-in token.");
 
   const verifyResponse = UrlFetchApp.fetch(
     "https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=" + encodeURIComponent(FIREBASE_WEB_API_KEY),

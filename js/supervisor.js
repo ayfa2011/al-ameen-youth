@@ -1,5 +1,5 @@
-// Role-based sign-in and one-hour session handling for the AYFA website.
-const ROLE_SESSION_MS = 60 * 60 * 1000;
+// Firebase LOCAL persistence keeps the role session on this device until the
+// user logs out or the Firebase refresh token is revoked.
 let ayfaAuthContext = { user: null, role: null, expiresAt: 0, ready: false };
 let authExpiryTimer = 0;
 let authWarningTimer = 0;
@@ -51,7 +51,7 @@ document.addEventListener("change", event => {
 
 function isRoleAuthenticated() {
   if (!ayfaAuthContext.user || !ayfaAuthContext.role) return false;
-  if (Date.now() >= ayfaAuthContext.expiresAt) {
+  if (Number.isFinite(ayfaAuthContext.expiresAt) && Date.now() >= ayfaAuthContext.expiresAt) {
     void expireRoleSession();
     return false;
   }
@@ -115,19 +115,13 @@ function toggleAuthPassword() {
 async function resolveFirebaseRole(user) {
   await window.firebaseReady;
   const token = await user.getIdTokenResult();
-  const authTime = Date.parse(token.authTime || "");
-  if (!Number.isFinite(authTime) || Date.now() >= authTime + ROLE_SESSION_MS) {
-    const error = new Error("Your session has expired. Please sign in again.");
-    error.code = "session-expired";
-    throw error;
-  }
   const role = String(token.claims?.role || "").trim().toLowerCase();
   if (role !== "member" && role !== "official") {
     const error = new Error("This account has no active website role. Contact an official.");
     error.code = "permission-denied";
     throw error;
   }
-  return { role, expiresAt: authTime + ROLE_SESSION_MS };
+  return { role, expiresAt: null };
 }
 
 async function activateRoleSession(user, resolved) {
@@ -135,15 +129,17 @@ async function activateRoleSession(user, resolved) {
   authScreenNotice = "";
   clearTimeout(authExpiryTimer);
   clearTimeout(authWarningTimer);
-  authExpiryTimer = window.setTimeout(() => { void expireRoleSession(); }, Math.max(0, resolved.expiresAt - Date.now()));
-  authWarningTimer = window.setTimeout(() => {
-    if (!ayfaAuthContext.user || Date.now() >= ayfaAuthContext.expiresAt) return;
-    const activeView = document.getElementById("appContainer")?.dataset.activeView || "";
-    if (activeView === "attendance" && typeof saveAttendanceDraft === "function") saveAttendanceDraft();
-    document.dispatchEvent(new CustomEvent("ayfa:session-ending", { detail: { expiresAt: ayfaAuthContext.expiresAt } }));
-    const draftSaved = saveSessionDraft();
-    showToast(draftSaved ? "Session ending in 5 minutes. Your draft has been saved." : "Session ending in 5 minutes. Save any unfinished changes now.", "warning");
-  }, Math.max(0, resolved.expiresAt - Date.now() - 5 * 60 * 1000));
+  if (Number.isFinite(resolved.expiresAt)) {
+    authExpiryTimer = window.setTimeout(() => { void expireRoleSession(); }, Math.max(0, resolved.expiresAt - Date.now()));
+    authWarningTimer = window.setTimeout(() => {
+      if (!ayfaAuthContext.user || Date.now() >= ayfaAuthContext.expiresAt) return;
+      const activeView = document.getElementById("appContainer")?.dataset.activeView || "";
+      if (activeView === "attendance" && typeof saveAttendanceDraft === "function") saveAttendanceDraft();
+      document.dispatchEvent(new CustomEvent("ayfa:session-ending", { detail: { expiresAt: ayfaAuthContext.expiresAt } }));
+      const draftSaved = saveSessionDraft();
+      showToast(draftSaved ? "Session ending in 5 minutes. Your draft has been saved." : "Session ending in 5 minutes. Save any unfinished changes now.", "warning");
+    }, Math.max(0, resolved.expiresAt - Date.now() - 5 * 60 * 1000));
+  }
   document.getElementById("pinScreen")?.classList.add("hidden");
   document.getElementById("appContainer")?.classList.remove("hidden");
   refreshSupervisorUI();
@@ -245,7 +241,7 @@ async function manualRoleLogout() {
 
 function updateAuthSessionTimer() {
   const active = isRoleAuthenticated();
-  if (active) window.setTimeout(updateAuthSessionTimer, Math.max(0, ayfaAuthContext.expiresAt - Date.now()));
+  if (active && Number.isFinite(ayfaAuthContext.expiresAt)) window.setTimeout(updateAuthSessionTimer, Math.max(0, ayfaAuthContext.expiresAt - Date.now()));
 }
 
 function openSupervisorLogin() {
@@ -301,7 +297,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 function checkRoleExpiryOnResume() {
-  if (ayfaAuthContext.user && Date.now() >= ayfaAuthContext.expiresAt) void expireRoleSession();
+  if (ayfaAuthContext.user && Number.isFinite(ayfaAuthContext.expiresAt) && Date.now() >= ayfaAuthContext.expiresAt) void expireRoleSession();
   else updateAuthSessionTimer();
 }
 document.addEventListener("visibilitychange", () => { if (!document.hidden) checkRoleExpiryOnResume(); });
