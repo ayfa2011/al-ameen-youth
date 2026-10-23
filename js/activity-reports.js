@@ -95,6 +95,19 @@ function displayPhotoUrl(url) {
   return value;
 }
 
+function driveGalleryPhotoUrl(photo) {
+  const fileId = String(photo?.fileId || photo?.driveFileId || "").trim();
+  if (fileId) return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w1200`;
+  return displayPhotoUrl(photo?.thumbnailUrl || photo?.imageUrl || photo?.webViewLink || photo?.url || "");
+}
+
+function driveImageFallback(image, large = false) {
+  if (!image || image.dataset.fallback === "1") return;
+  image.dataset.fallback = "1";
+  if (large) { image.replaceWith(Object.assign(document.createElement("span"), { className: "program-no-photo", textContent: "Photo could not be displayed. Open it in Google Drive." })); return; }
+  image.replaceWith(Object.assign(document.createElement("span"), { className: "drive-folder-icon", innerHTML: '<i class="fa-regular fa-images"></i>' }));
+}
+
 function programCoverFallback(img) {
   const wrap = img ? img.closest(".program-report-cover") : null;
   if (!wrap || wrap.dataset.fallback === "1") return;
@@ -377,8 +390,8 @@ async function loadDriveFolders() {
     if (datalist) datalist.innerHTML = driveGalleryState.folders.map(folder => `<option value="${escapeHTML(folder.name)}"></option>`).join("");
     list.innerHTML = driveGalleryState.folders.length ? driveGalleryState.folders.map(folder => {
       const photos = Array.isArray(folder.photos) ? folder.photos : Object.values(folder.photos || {});
-      const cover = photos[0]?.thumbnailUrl || photos[0]?.imageUrl || "";
-      return `<button type="button" class="drive-folder-card" onclick="openDriveGallery('${escapeHTML(folder.id)}')">${cover ? `<img src="${escapeHTML(cover)}" loading="lazy" alt="">` : '<span class="drive-folder-icon"><i class="fa-regular fa-images"></i></span>'}<span><strong>${escapeHTML(folder.name || "Untitled folder")}</strong><small>${photos.length} photos</small></span><i class="fa-solid fa-chevron-right"></i></button>`;
+      const cover = photos[0] ? driveGalleryPhotoUrl(photos[0]) : "";
+      return `<button type="button" class="drive-folder-card" onclick="openDriveGallery('${escapeHTML(folder.id)}')">${cover ? `<img src="${escapeHTML(cover)}" loading="lazy" alt="Folder photo preview" onerror="driveImageFallback(this)">` : '<span class="drive-folder-icon"><i class="fa-regular fa-images"></i></span>'}<span><strong>${escapeHTML(folder.name || "Untitled folder")}</strong><small>${photos.length} photos</small></span><i class="fa-solid fa-chevron-right"></i></button>`;
     }).join("") : '<p class="program-reports-empty">No uploaded folder metadata found yet.</p>';
   } catch (error) {
     console.error("Drive folders load error:", error);
@@ -393,7 +406,7 @@ function openDriveGallery(folderId) {
   const list = document.getElementById("driveFolderList");
   if (!list) return;
   driveGalleryState.activeFolder = {...folder,photos};
-  list.innerHTML = `<div class="drive-gallery-heading"><button type="button" class="program-cancel" onclick="loadDriveFolders()"><i class="fa-solid fa-arrow-left"></i> Back to folders</button><strong>${escapeHTML(folder.name)}</strong></div><div class="drive-gallery-grid">${photos.map((photo,index) => `<button type="button" onclick="openDrivePhotoPreview(${index})"><img loading="lazy" src="${escapeHTML(photo.thumbnailUrl || photo.imageUrl || photo.webViewLink || "")}" alt="${escapeHTML(photo.fileName || `Photo ${index + 1}`)}"></button>`).join("")}</div>`;
+  list.innerHTML = `<div class="drive-gallery-heading"><button type="button" class="program-cancel" onclick="loadDriveFolders()"><i class="fa-solid fa-arrow-left"></i> Back to folders</button><strong>${escapeHTML(folder.name)}</strong><small>Tap a photo to view</small></div><div class="drive-gallery-grid">${photos.map((photo,index) => `<button type="button" aria-label="View ${escapeHTML(photo.fileName || `Photo ${index + 1}`)}" onclick="openDrivePhotoPreview(${index})"><img loading="lazy" src="${escapeHTML(driveGalleryPhotoUrl(photo))}" alt="${escapeHTML(photo.fileName || `Photo ${index + 1}`)}" onerror="driveImageFallback(this)"></button>`).join("")}</div>`;
 }
 
 function openDrivePhotoPreview(index) {
@@ -403,7 +416,7 @@ function openDrivePhotoPreview(index) {
   driveGalleryState.activeIndex = index;
   const overlay = document.createElement("div");
   overlay.className = "drive-photo-preview-overlay";
-  overlay.innerHTML = `<button type="button" class="drive-preview-close" aria-label="Close" onclick="this.parentElement.remove()">×</button><button type="button" aria-label="Previous" onclick="stepDrivePhoto(-1)">‹</button><img src="${escapeHTML(photo.imageUrl || photo.webViewLink || photo.thumbnailUrl || "")}" alt="${escapeHTML(photo.fileName || "Photo")}"><button type="button" aria-label="Next" onclick="stepDrivePhoto(1)">›</button>`;
+  overlay.innerHTML = `<button type="button" class="drive-preview-close" aria-label="Close" onclick="this.parentElement.remove()">×</button><button type="button" aria-label="Previous" onclick="stepDrivePhoto(-1)">‹</button><img src="${escapeHTML(photo.imageUrl || photo.webViewLink || driveGalleryPhotoUrl(photo))}" alt="${escapeHTML(photo.fileName || "Photo")}" onerror="driveImageFallback(this,true)"><button type="button" aria-label="Next" onclick="stepDrivePhoto(1)">›</button>`;
   document.body.appendChild(overlay);
 }
 

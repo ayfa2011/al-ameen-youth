@@ -196,11 +196,13 @@ function listDrivePhotoFolders_() {
   const iterator = root.getFolders();
   while (iterator.hasNext()) {
     const folder = iterator.next();
+    try { folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (sharingError) { console.warn("Folder sharing could not be updated: " + sharingError); }
     const photoIterator = folder.getFiles();
     const photos = [];
     while (photoIterator.hasNext()) {
       const file = photoIterator.next();
       if (!String(file.getMimeType() || "").startsWith("image/")) continue;
+      try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (sharingError) { console.warn("Photo sharing could not be updated: " + sharingError); }
       photos.push({
         fileId: file.getId(),
         fileName: file.getName(),

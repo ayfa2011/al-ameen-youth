@@ -86,8 +86,10 @@ function filterAttendanceMembers(query = "") {
   if (!target) return;
   const term = String(query).trim().toLowerCase();
   const selectedIds = attendanceSelectedMemberIds;
-  const matches = fullMembersList.filter(member => !selectedIds.has(String(member.id)) && (!term || `${member.name} ${memberDisplayId(member)} ${member.id}`.toLowerCase().includes(term))).slice(0, 10);
-  target.innerHTML = matches.map(member => `<button type="button" class="attendance-result" onclick="selectAttendanceMember('${escapeHTML(member.id)}')"><span>${escapeHTML(member.name)}</span><small>${escapeHTML(memberDisplayId(member))}</small></button>`).join("") || `<div class="attendance-search-empty">${term ? "No members found." : "Type a name or member ID to search."}</div>`;
+  const matches = term ? fullMembersList.filter(member => !selectedIds.has(String(member.id)) && `${member.name} ${memberDisplayId(member)} ${member.id}`.toLowerCase().includes(term)).slice(0, 10) : [];
+  target.innerHTML = matches.length
+    ? matches.map(member => `<button type="button" class="attendance-result" onclick="selectAttendanceMember('${escapeHTML(member.id)}')"><span>${escapeHTML(member.name)}</span><small>${escapeHTML(memberDisplayId(member))}</small></button>`).join("")
+    : `<div class="attendance-search-empty">${term ? "No members found." : "Type a name or member ID to search."}</div>`;
   renderAttendanceSelected();
 }
 

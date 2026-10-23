@@ -2609,9 +2609,9 @@ body{display:flex;align-items:center;justify-content:center;background:#eef2f1}
 
 @media(max-width:700px){
   .buttons-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
-  .grid-card{padding:12px 6px;min-height:96px;border-radius:13px}
-  .card-icon{font-size:22px !important}
-  .grid-card span{font-size:11px}
+  .grid-card{padding:12px 7px;min-height:104px;border-radius:13px;gap:9px}
+  .card-icon{font-size:26px !important}
+  .grid-card span{font-size:13.5px;font-weight:700;line-height:1.25;text-wrap:balance;overflow-wrap:anywhere}
   .group-banner-image{height:125px}
 }
 
@@ -3377,6 +3377,7 @@ body{display:flex;align-items:center;justify-content:center;background:#eef2f1}
 .asset-category h3{margin:0;padding:13px 15px;background:#f5f8fb;color:#174f91;font-size:14px;font-weight:700;}
 .asset-list{list-style:none;margin:0;padding:4px 15px 8px;}
 .asset-list li{padding:10px 0;border-bottom:1px solid #edf0f3;font-size:13px;color:#444;display:flex;align-items:center;gap:9px;}
+.asset-list li,.asset-list li .asset-inline-action{font-size:17px;font-weight:700;line-height:1.35;}
 .asset-list li:last-child{border-bottom:0;}
 .asset-list li i{width:20px;color:#1b4332;text-align:center;}
 .asset-list li .asset-inline-action{flex:1;min-width:0;text-align:left}
@@ -3403,4 +3404,5 @@ body{display:flex;align-items:center;justify-content:center;background:#eef2f1}
   .asset-highlight-name{font-size:11px;}
   .asset-quantity{font-size:15px;}
   .asset-available{font-size:10px;}
+  .asset-list li,.asset-list li .asset-inline-action{font-size:17px;}
 }
