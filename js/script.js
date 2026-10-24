@@ -92,7 +92,6 @@ function hideAllViews() {
   const views = [
 
     "dashboardView",
-    "firebaseExportView",
     "activityReportsView",
     "yearSelectView",
     "bearersTableView",
@@ -164,7 +163,6 @@ window.addEventListener("popstate", event => {
     attendance: openAttendance,
     rentals: openRentalManagement,
     about: openAboutPage,
-    firebaseExport: openFirebaseExportPanel,
     poster: openPosterGenerator
   };
   (routes[view] || showDashboard)();

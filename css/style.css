@@ -2124,7 +2124,9 @@ html[data-auth-role="member"] .program-report-submit{display:none!important}
 .firebase-export-panel{margin:0 0 20px;padding:18px;border:1px solid #dce8e0;border-radius:16px;background:#fff;box-shadow:0 4px 18px rgba(23,76,55,.07)}
 .more-dashboard-panel{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:12px 0 20px}
 .more-dashboard-panel.hidden{display:none!important}
-.more-dashboard-panel .more-export-card{width:100%;min-height:112px}
+.more-export-option{grid-column:1/-1;padding:14px;border:1px solid #e4ece7;border-radius:12px;background:#fbfdfb}
+.more-export-option .firebase-export-select{display:block;width:100%;max-width:360px}
+.more-export-option .more-export-button{margin-top:12px}
 .firebase-export-close{display:inline-flex;align-items:center;gap:6px;padding:8px 11px;border:1px solid #dce8e0;border-radius:9px;background:#fff;color:#315b43;font:inherit;font-size:13px;font-weight:700}
 .firebase-export-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
 .firebase-export-heading h2{margin:0;color:#174f91;font-size:19px}.firebase-export-heading p{margin:4px 0 0;color:#65786b;font-size:13px}

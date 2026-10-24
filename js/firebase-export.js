@@ -7,7 +7,6 @@
     activityReports: "programs",
     attendance: "attendance"
   };
-  const panel = () => document.getElementById("firebaseExportPanel");
   const status = message => { const node = document.getElementById("firebaseExportStatus"); if (node) node.textContent = message; };
   const toRows = value => {
     if (value == null) return [];
@@ -34,11 +33,17 @@
       status(error?.message || "Could not export records.");
     }
   }
+  window.exportSelectedFirebaseExcel = function () {
+    if (typeof isSupervisorLoggedIn !== "function" || !isSupervisorLoggedIn()) {
+      status("Sign in as an official to export Firebase records.");
+      return;
+    }
+    exportExcel();
+  };
 
   function updateVisibility() {
     const visible = typeof isSupervisorLoggedIn === "function" && isSupervisorLoggedIn();
     if (!visible) {
-      panel()?.classList.add("hidden");
       document.getElementById("moreDashboardPanel")?.classList.add("hidden");
     }
   }
@@ -50,33 +55,12 @@
     const button = document.querySelector('[data-view-handler="toggleMoreDashboard"]');
     button?.setAttribute("aria-expanded", String(opening));
   };
-  window.openFirebaseExportPanel = function () {
-    const more = document.getElementById("moreDashboardPanel");
-    const exportView = document.getElementById("firebaseExportView");
-    if (typeof isSupervisorLoggedIn !== "function" || !isSupervisorLoggedIn()) {
-      status("Sign in as an official to export Firebase records.");
-      return;
-    }
-    if (history.state?.appView !== "firebaseExport") history.pushState({ appView: "firebaseExport" }, "", location.pathname + location.search + "#firebaseExport");
-    if (typeof hideAllViews === "function") hideAllViews();
-    document.getElementById("appContainer")?.setAttribute("data-active-view", "firebaseExport");
-    exportView?.classList.remove("hidden");
-    document.getElementById("dashboardHomeActions")?.classList.add("hidden");
-    document.getElementById("moreDashboardPanel")?.classList.add("hidden");
-    if (typeof updateAppTopBar === "function") updateAppTopBar("firebaseExport");
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-  window.closeFirebaseExportPanel = function () {
-    if (history.state?.appView === "firebaseExport") history.back();
-    else if (typeof showDashboard === "function") showDashboard();
-  };
   window.addEventListener("popstate", event => {
     if (event.state?.appView === "dashboard" && typeof isSupervisorLoggedIn === "function" && isSupervisorLoggedIn()) {
       document.getElementById("moreDashboardPanel")?.classList.remove("hidden");
     }
   });
   document.addEventListener("DOMContentLoaded", () => {
-    document.getElementById("exportFirebaseExcel")?.addEventListener("click", exportExcel);
     updateVisibility();
     setInterval(updateVisibility, 1500);
   });
