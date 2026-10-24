@@ -1,6 +1,6 @@
 {
   "rules": {
-    ".read": true,
+    ".read": false,
     ".write": "auth != null && auth.token.role == 'official'",
     "members": {
       ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official')",
@@ -93,6 +93,22 @@
     "assets": {
       ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official')",
       ".write": false
+    },
+    "houseConstructionFundProjects": {
+      ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official')",
+      ".write": "auth != null && auth.token.role == 'official'",
+      "$projectId": {
+        ".validate": "newData.hasChildren(['projectName', 'title', 'createdAt']) && newData.child('projectName').isString() && newData.child('projectName').val().length > 0 && newData.child('projectName').val().length <= 120 && newData.child('title').isString() && newData.child('createdAt').isString() && (!newData.child('closingDate').exists() || newData.child('closingDate').isString())"
+      }
+    },
+    "houseConstructionFundContributions": {
+      ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official')",
+      ".write": "auth != null && auth.token.role == 'official'",
+      "$projectId": {
+        "$contributionId": {
+          ".validate": "newData.hasChildren(['name', 'place', 'amount', 'contributorType', 'status', 'createdAt']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 120 && newData.child('place').isString() && newData.child('place').val().length <= 120 && newData.child('amount').isNumber() && newData.child('amount').val() > 0 && newData.child('amount').val() <= 1000000000 && (newData.child('contributorType').val() == 'member' || newData.child('contributorType').val() == 'supporter') && (newData.child('status').val() == 'paid' || newData.child('status').val() == 'pledged') && newData.child('createdAt').isString()"
+        }
+      }
     },
     "historicalRentals": {
       ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official')",

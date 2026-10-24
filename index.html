@@ -325,29 +325,41 @@
 
         </button>
 
-        <!-- MORE / FIREBASE EXPORT -->
-        <button type="button" class="grid-card" data-view-event="click" data-view-handler="toggleMoreDashboard">
+        <!-- MORE -->
+        <button type="button" class="grid-card" data-view-event="click" data-view-handler="openMorePage">
           <i class="fa-solid fa-ellipsis card-icon"></i>
           <span>More</span>
         </button>
 
 
       </div>
-
-      <section id="moreDashboardPanel" class="more-dashboard-panel hidden" hidden aria-label="More options">
-        <button type="button" class="grid-card more-export-card" data-view-event="click" data-view-handler="openCollectionsPage"><i class="fa-solid fa-layer-group card-icon"></i><span>Collections</span></button>
-      </section>
-
     </div>
 
-    <section id="collectionsView" class="view-section hidden" aria-labelledby="collectionsTitle">
+    <section id="moreView" class="view-section hidden" aria-labelledby="moreTitle">
+      <div class="more-page-card">
+        <header class="more-page-heading"><div><span><i class="fa-solid fa-ellipsis"></i> MENU</span><h2 id="moreTitle">More</h2><p>Choose an option.</p></div></header>
+        <div class="more-page-actions">
+          <button type="button" class="grid-card more-page-action" data-view-event="click" data-view-handler="openExcelExportPage"><i class="fa-solid fa-file-excel card-icon"></i><span>Export Excel</span></button>
+          <button type="button" class="grid-card more-page-action" data-view-event="click" data-view-handler="openCollectionsPage"><i class="fa-solid fa-layer-group card-icon"></i><span>Collection</span></button>
+        </div>
+        <button type="button" class="more-page-back" data-view-event="click" data-view-handler="showDashboard"><i class="fa-solid fa-arrow-left"></i> Back to Dashboard</button>
+      </div>
+    </section>
+
+    <section id="excelExportView" class="view-section hidden" aria-labelledby="excelExportTitle">
       <div class="collections-page-card">
-        <header class="collections-page-heading"><div><span><i class="fa-solid fa-layer-group"></i> DATA EXPORT</span><h2 id="collectionsTitle">Collections</h2><p>Choose a collection to export its records to Excel.</p></div></header>
+        <header class="collections-page-heading"><div><span><i class="fa-solid fa-file-excel"></i> DATA EXPORT</span><h2 id="excelExportTitle">Export Excel</h2><p>Choose a collection and download its report.</p></div></header>
         <label class="firebase-export-select-label" for="firebaseExportCollection">Choose collection</label>
         <select id="firebaseExportCollection" class="firebase-export-select"><option value="members">Members</option><option value="bloodDonationWorkbook">Blood Group &amp; Donation History</option><option value="activityReports">Activity Reports</option><option value="attendance">Attendance</option><option value="meetingAgendas">Agenda</option><option value="financeReports">Financial Report</option><option value="chairTableReport">Chair/Table Report</option><option value="speakerReport">Speaker Report</option></select>
         <button type="button" id="openFirebaseExport" class="firebase-export-button collections-export-button" data-view-event="click" data-view-handler="exportSelectedFirebaseExcel"><i class="fa-solid fa-file-excel"></i> Export Excel</button>
         <p id="firebaseExportStatus" class="firebase-export-status" aria-live="polite"></p>
-        <div class="collections-note"><i class="fa-solid fa-circle-info"></i><span>More collections can be added here later.</span></div>
+      </div>
+    </section>
+
+    <section id="collectionsView" class="view-section hidden" aria-labelledby="collectionsTitle">
+      <div class="collections-page-card collections-placeholder-card">
+        <header class="collections-page-heading"><div><span><i class="fa-solid fa-layer-group"></i> MORE</span><h2 id="collectionsTitle">Collections</h2><p>House construction support fund projects.</p></div></header>
+        <div id="houseFundContent" aria-live="polite"></div>
       </div>
     </section>
 
@@ -1328,6 +1340,8 @@
   <script src="js/data/agenda.repository.js"></script>
   <script src="js/data/activity-reports.repository.js?v=20261022-report-submit-recovery"></script>
   <script src="js/data/reference-data.repository.js?v=20261022-office-bearers-write"></script>
+  <script src="js/data/house-fund.repository.js"></script>
+  <script src="js/services/house-fund.service.js"></script>
 
   <script src="js/supervisor.js?v=20261023-persistent-role-login"></script>
   <script src="js/firebase-export.js"></script>
@@ -1347,6 +1361,7 @@
   <script src="js/activity-reports.js?v=20261023-drive-upload-members"></script>
   <script src="js/agenda.js?v=20261023-agenda-accordion-compact"></script>
   <script src="js/views/app-bootstrap.view.js"></script>
+  <script src="js/views/collections.view.js"></script>
 
   <!-- =========================================================
        BLOOD DONATION POSTER JAVASCRIPT

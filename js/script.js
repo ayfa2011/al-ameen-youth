@@ -92,7 +92,9 @@ function hideAllViews() {
   const views = [
 
     "dashboardView",
+    "moreView",
     "collectionsView",
+    "excelExportView",
     "activityReportsView",
     "yearSelectView",
     "bearersTableView",
@@ -164,14 +166,16 @@ window.addEventListener("popstate", event => {
     attendance: openAttendance,
     rentals: openRentalManagement,
     about: openAboutPage,
+    more: openMorePage,
     collections: openCollectionsPage,
+    excelExport: openExcelExportPage,
     poster: openPosterGenerator
   };
   (routes[view] || showDashboard)();
   updateAppTopBar(view);
 });
 
-const APP_PAGE_TITLES = { dashboard: "ಅಲ್ ಅಮೀನ್ ಯೂತ್ ಫೆಡರೇಶನ್", members: "Members", officeBearers: "Office Bearers", bearersTable: "Office Bearers", activities: "Activities", blood: "Blood Donors", agenda: "Agenda", finance: "Finance", assets: "Assets", attendance: "Attendance", rentals: "Rentals", poster: "Blood Donation Poster", about: "About", collections: "Collections" };
+const APP_PAGE_TITLES = { dashboard: "ಅಲ್ ಅಮೀನ್ ಯೂತ್ ಫೆಡರೇಶನ್", members: "Members", officeBearers: "Office Bearers", bearersTable: "Office Bearers", activities: "Activities", blood: "Blood Donors", agenda: "Agenda", finance: "Finance", assets: "Assets", attendance: "Attendance", rentals: "Rentals", poster: "Blood Donation Poster", about: "About", more: "More", collections: "Collections", excelExport: "Export Excel" };
 
 function updateAppTopBar(view = history.state?.appView || "dashboard") {
   const back = document.getElementById("appBackButton");
@@ -188,6 +192,14 @@ function openAboutPage() {
   hideAllViews();
   document.getElementById("aboutView")?.classList.remove("hidden");
   updateAppTopBar("about");
+}
+
+function openMorePage() {
+  navigateAppView("more", () => {
+    hideAllViews();
+    document.getElementById("moreView")?.classList.remove("hidden");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
 }
 
 

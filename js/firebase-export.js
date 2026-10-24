@@ -293,39 +293,19 @@
     document.getElementById("appContainer")?.setAttribute("data-active-view", "collections");
     document.getElementById("dashboardHomeActions")?.classList.add("hidden");
     document.getElementById("collectionsView")?.classList.remove("hidden");
-    document.getElementById("moreDashboardPanel")?.classList.add("hidden");
     if (typeof updateAppTopBar === "function") updateAppTopBar("collections");
+    if (typeof renderCollectionsPage === "function") void renderCollectionsPage();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  window.openExcelExportPage = function () {
+    if (history.state?.appView !== "excelExport") history.pushState({ appView: "excelExport" }, "", location.pathname + location.search + "#excelExport");
+    if (typeof hideAllViews === "function") hideAllViews();
+    document.getElementById("appContainer")?.setAttribute("data-active-view", "excelExport");
+    document.getElementById("dashboardHomeActions")?.classList.add("hidden");
+    document.getElementById("excelExportView")?.classList.remove("hidden");
+    if (typeof updateAppTopBar === "function") updateAppTopBar("excelExport");
     status("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  function updateVisibility() {
-    const visible = typeof isSupervisorLoggedIn === "function" && isSupervisorLoggedIn();
-    if (!visible) {
-      const more = document.getElementById("moreDashboardPanel");
-      if (more) { more.hidden = true; more.classList.add("hidden"); }
-    }
-  }
-  window.toggleMoreDashboard = function () {
-    const more = document.getElementById("moreDashboardPanel");
-    if (!more) return;
-    const opening = more.hidden || more.classList.contains("hidden");
-    more.hidden = !opening;
-    more.classList.toggle("hidden", !opening);
-    const button = document.querySelector('[data-view-handler="toggleMoreDashboard"]');
-    button?.setAttribute("aria-expanded", String(opening));
-  };
-  document.addEventListener("click", event => {
-    const more = document.getElementById("moreDashboardPanel");
-    const trigger = document.querySelector('[data-view-handler="toggleMoreDashboard"]');
-    if (!more || more.hidden) return;
-    if (more.contains(event.target) || trigger?.contains(event.target)) return;
-    more.hidden = true;
-    more.classList.add("hidden");
-    trigger?.setAttribute("aria-expanded", "false");
-  });
-  document.addEventListener("DOMContentLoaded", () => {
-    updateVisibility();
-    setInterval(updateVisibility, 1500);
-  });
 })();
