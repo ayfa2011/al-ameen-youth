@@ -172,14 +172,6 @@
       class="view-section"
     >
 
-      <section id="firebaseExportPanel" class="firebase-export-panel hidden" aria-labelledby="firebaseExportTitle">
-        <div class="firebase-export-heading"><div><h2 id="firebaseExportTitle">Export to Excel</h2><p>Choose the data you want to download.</p></div><button type="button" class="firebase-export-close" data-view-event="click" data-view-handler="closeFirebaseExportPanel" aria-label="Back to More"><i class="fa-solid fa-arrow-left"></i> Back</button></div>
-        <label class="firebase-export-select-label" for="firebaseExportCollection">Data</label>
-        <select id="firebaseExportCollection" class="firebase-export-select"><option value="members">Members</option><option value="bloodDonations">Blood Donations</option><option value="activityReports">Activity Reports</option><option value="attendance">Attendance</option></select>
-        <p id="firebaseExportStatus" class="firebase-export-status" aria-live="polite"></p>
-        <button type="button" id="exportFirebaseExcel" class="firebase-export-button"><i class="fa-solid fa-file-excel"></i> Download selected Excel</button>
-      </section>
-
       <div class="buttons-grid">
 
 
@@ -349,6 +341,16 @@
       </section>
 
     </div>
+
+    <section id="firebaseExportView" class="view-section hidden" aria-labelledby="firebaseExportTitle">
+      <div class="firebase-export-panel">
+        <div class="firebase-export-heading"><div><h2 id="firebaseExportTitle">Export to Excel</h2><p>Choose the data you want to download.</p></div><button type="button" class="firebase-export-close" data-view-event="click" data-view-handler="closeFirebaseExportPanel" aria-label="Back to More"><i class="fa-solid fa-arrow-left"></i> Back</button></div>
+        <label class="firebase-export-select-label" for="firebaseExportCollection">Data</label>
+        <select id="firebaseExportCollection" class="firebase-export-select"><option value="members">Members</option><option value="bloodDonations">Blood Donations</option><option value="activityReports">Activity Reports</option><option value="attendance">Attendance</option></select>
+        <p id="firebaseExportStatus" class="firebase-export-status" aria-live="polite"></p>
+        <button type="button" id="exportFirebaseExcel" class="firebase-export-button"><i class="fa-solid fa-file-excel"></i> Download selected Excel</button>
+      </div>
+    </section>
 
     <!-- =======================================================
          ACTIVITY REPORTS

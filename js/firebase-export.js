@@ -45,24 +45,32 @@
   window.toggleMoreDashboard = function () {
     const more = document.getElementById("moreDashboardPanel");
     more?.classList.toggle("hidden");
-    panel()?.classList.add("hidden");
   };
   window.openFirebaseExportPanel = function () {
     const more = document.getElementById("moreDashboardPanel");
-    const exportPanel = panel();
+    const exportView = document.getElementById("firebaseExportView");
     if (typeof isSupervisorLoggedIn !== "function" || !isSupervisorLoggedIn()) {
       status("Sign in as an official to export Firebase records.");
-      exportPanel?.classList.remove("hidden");
-      more?.classList.add("hidden");
       return;
     }
-    more?.classList.add("hidden");
-    exportPanel?.classList.remove("hidden");
+    if (history.state?.appView !== "firebaseExport") history.pushState({ appView: "firebaseExport" }, "", location.pathname + location.search + "#firebaseExport");
+    if (typeof hideAllViews === "function") hideAllViews();
+    document.getElementById("appContainer")?.setAttribute("data-active-view", "firebaseExport");
+    exportView?.classList.remove("hidden");
+    document.getElementById("dashboardHomeActions")?.classList.add("hidden");
+    document.getElementById("moreDashboardPanel")?.classList.add("hidden");
+    if (typeof updateAppTopBar === "function") updateAppTopBar("firebaseExport");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
   window.closeFirebaseExportPanel = function () {
-    panel()?.classList.add("hidden");
-    document.getElementById("moreDashboardPanel")?.classList.remove("hidden");
+    if (history.state?.appView === "firebaseExport") history.back();
+    else if (typeof showDashboard === "function") showDashboard();
   };
+  window.addEventListener("popstate", event => {
+    if (event.state?.appView === "dashboard" && typeof isSupervisorLoggedIn === "function" && isSupervisorLoggedIn()) {
+      document.getElementById("moreDashboardPanel")?.classList.remove("hidden");
+    }
+  });
   document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("exportFirebaseExcel")?.addEventListener("click", exportExcel);
     updateVisibility();
