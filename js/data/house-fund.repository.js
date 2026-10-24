@@ -21,5 +21,28 @@ window.HouseFundRepository = Object.freeze({
       recordId: contributionId
     });
   },
-  newProjectId() { return firebasePushKey("houseConstructionFundProjects"); }
+  newProjectId() { return firebasePushKey("houseConstructionFundProjects"); },
+  updateProject(projectId, project, auditEvent) {
+    const id = String(projectId || "");
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) throw new Error("Invalid project reference.");
+    return auditedFirebaseUpdate({ [`houseConstructionFundProjects/${id}`]: project }, auditEvent);
+  },
+  deleteProject(projectId, auditEvent) {
+    const id = String(projectId || "");
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) throw new Error("Invalid project reference.");
+    return auditedFirebaseUpdate({ [`houseConstructionFundProjects/${id}`]: null, [`houseConstructionFundContributions/${id}`]: null }, auditEvent);
+  },
+  newContributionId(projectId) { return firebasePushKey(`houseConstructionFundContributions/${projectId}`); },
+  updateContribution(projectId, contributionId, contribution, auditEvent) {
+    const id = String(projectId || "");
+    const recordId = String(contributionId || "");
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(id) || !/^[A-Za-z0-9_-]{1,128}$/.test(recordId)) throw new Error("Invalid contribution reference.");
+    return auditedFirebaseUpdate({ [`houseConstructionFundContributions/${id}/${recordId}`]: contribution }, { ...auditEvent, recordId });
+  },
+  deleteContribution(projectId, contributionId, auditEvent) {
+    const id = String(projectId || "");
+    const recordId = String(contributionId || "");
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(id) || !/^[A-Za-z0-9_-]{1,128}$/.test(recordId)) throw new Error("Invalid contribution reference.");
+    return auditedFirebaseUpdate({ [`houseConstructionFundContributions/${id}/${recordId}`]: null }, { ...auditEvent, recordId });
+  }
 });

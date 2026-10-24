@@ -25,6 +25,14 @@ window.HouseFundService = Object.freeze({
     if (!["paid", "pledged"].includes(status)) throw new Error("Choose a contribution status.");
     return { name, place, amount, contributorType, status, createdAt: new Date().toISOString() };
   },
+  updateProject(values, existing) {
+    const projectName = String(values?.projectName || "").trim();
+    const closingDate = String(values?.closingDate || "").trim();
+    if (!projectName) throw new Error("Project name is required.");
+    if (projectName.length > 120) throw new Error("Project name must be 120 characters or fewer.");
+    if (closingDate && !/^\d{4}-\d{2}-\d{2}$/.test(closingDate)) throw new Error("Choose a valid closing date.");
+    return { projectName, title: existing?.title || "ಮನೆ ನಿರ್ಮಾಣ ಸಹಾಯಧನ ಸಂಗ್ರಹ", closingDate, createdAt: existing?.createdAt || new Date().toISOString() };
+  },
   totals(contributions) {
     return (contributions || []).reduce((result, item) => {
       const amount = Number(item.amount) || 0;
