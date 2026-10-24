@@ -48,7 +48,81 @@
     ["Description", item => item.description ?? item.details],
     ["Google Drive Link", item => item.driveLink ?? item.googleDriveLink ?? item.photosLink]
   ];
+  const agendaExportFields = [
+    ["Date", item => item.date ?? item.agendaDate ?? item.meetingDate],
+    ["Title", item => item.title ?? item.agendaTitle],
+    ["Description", item => item.description ?? item.details],
+    ["Responsible", item => item.responsible ?? item.assignee ?? item.member],
+    ["Status", item => item.status ?? item.completionStatus]
+  ];
   const bloodGroupOf = record => record?.bloodGroup ?? record?.bloodGroupOverride ?? record?.["Blood Group"] ?? record?.BloodGroup ?? "";
+  async function exportFinanceWorkbook() {
+    const snapshot = await firebaseRead("financeReports");
+    const reportsByYear = snapshot.val() || {};
+    const years = Object.keys(reportsByYear).filter(year => /^\d{4}$/.test(year)).sort((a, b) => Number(b) - Number(a));
+    if (!years.length) throw new Error("No year-wise financial reports were found.");
+
+    const workbook = XLSX.utils.book_new();
+    years.forEach(year => {
+      const sourceRows = Array.isArray(reportsByYear[year]) ? reportsByYear[year] : Object.values(reportsByYear[year] || {});
+      const result = FinanceService.calculate(sourceRows);
+      const aoa = [
+        ["ಒಟ್ಟು ಆದಾಯ (Total Income)", result.totalAvailable ?? ""],
+        ["ಒಟ್ಟು ವೆಚ್ಚ (Total Expenses)", result.totalExpenses ?? ""],
+        ["ಉಳಿಕೆ (Balance / Savings)", result.closingBalance ?? ""],
+        [],
+        ["ಆದಾಯದ ವಿವರ (Income)"],
+        ["ವಿವರ (Particulars)", "ಮೊತ್ತ (₹)"],
+        ...result.income.map(row => [row.label, row.amount ?? ""]),
+        [],
+        ["ವೆಚ್ಚಗಳ ವಿವರ (Expenses)"],
+        ["ವಿವರ (Particulars)", "ಮೊತ್ತ (₹)"],
+        ...result.expense.map(row => [row.label, row.amount ?? ""])
+      ];
+      const worksheet = XLSX.utils.aoa_to_sheet(aoa);
+      worksheet["!cols"] = [{ wch: 42 }, { wch: 20 }];
+      XLSX.utils.book_append_sheet(workbook, worksheet, year);
+    });
+    XLSX.writeFile(workbook, filenames.financeReports);
+    status(`Downloaded financial workbook with ${years.length} year sheets.`);
+  }
+  async function exportAttendanceWorkbook() {
+    const [programsSnapshot, attendanceSnapshot, membersSnapshot] = await Promise.all([
+      firebaseRead("programs"),
+      firebaseRead("attendance"),
+      firebaseRead("members")
+    ]);
+    const programs = programsSnapshot.val() || {};
+    const attendance = attendanceSnapshot.val() || {};
+    const members = new Map(toRows(membersSnapshot.val()).map(member => [String(member.id), member]));
+    const rows = Object.entries(programs)
+      .filter(([, program]) => program && program.deleted !== true)
+      .map(([programId, program]) => {
+        const seen = new Set();
+        const names = Object.entries(attendance[programId] || {}).flatMap(([memberId, record]) => {
+          if (record?.status !== "Present") return [];
+          const uniqueId = String(record.memberId || memberId);
+          if (seen.has(uniqueId)) return [];
+          seen.add(uniqueId);
+          const name = record.memberName || members.get(uniqueId)?.name || members.get(uniqueId)?.Name || "";
+          return name ? [name] : [];
+        });
+        return { date: String(program.date || ""), title: String(program.programName || program.title || ""), names };
+      })
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map((program, index) => ({
+        "Sl No": index + 1,
+        Karyakrama: program.title,
+        "Participated Members": program.names.join(", ")
+      }));
+    if (!rows.length) throw new Error("No attendance programs were found.");
+    const worksheet = XLSX.utils.json_to_sheet(rows, { header: ["Sl No", "Karyakrama", "Participated Members"] });
+    worksheet["!cols"] = [{ wch: 10 }, { wch: 32 }, { wch: 72 }];
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance");
+    XLSX.writeFile(workbook, filenames.attendance);
+    status(`Downloaded attendance report with ${rows.length} programs.`);
+  }
   async function exportExcel() {
     const collection = document.getElementById("firebaseExportCollection")?.value || "members";
     try {
@@ -56,6 +130,14 @@
       if (!window.XLSX) throw new Error("Excel export library could not be loaded. Check your connection and try again.");
       status("Preparing Excel file…");
       await window.firebaseReady;
+      if (collection === "financeReports") {
+        await exportFinanceWorkbook();
+        return;
+      }
+      if (collection === "attendance") {
+        await exportAttendanceWorkbook();
+        return;
+      }
       if (collection === "bloodDonationWorkbook") {
         const [membersSnapshot, donationsSnapshot, groupsSnapshot] = await Promise.all([
           firebaseRead("members"),
@@ -99,11 +181,6 @@
       }
       const snapshot = await firebaseRead(paths[collection]);
       let rows = toRows(snapshot.val());
-      if (collection === "financeReports") {
-        rows = Object.entries(snapshot.val() || {}).flatMap(([year, entries]) =>
-          (Array.isArray(entries) ? entries : Object.values(entries || {})).map(entry => ({ year, ...(entry && typeof entry === "object" ? entry : { amount: entry }) }))
-        );
-      }
       if (collection === "chairTableReport" || collection === "speakerReport") {
         const category = collection === "chairTableReport" ? "chairTable" : "speaker";
         rows = rows.filter(row => row.category === category && row.deleted !== true);
@@ -114,14 +191,20 @@
         rows = rows.map(row => Object.fromEntries(memberExportFields.map(([header, getValue]) => [header, getValue(row) ?? ""])));
       } else if (collection === "activityReports") {
         rows = rows.map(item => Object.fromEntries(activityExportFields.map(([header, getValue]) => [header, getValue(item) ?? ""])));
+      } else if (collection === "meetingAgendas") {
+        rows = rows.map(item => Object.fromEntries(agendaExportFields.map(([header, getValue]) => {
+          const value = getValue(item);
+          return [header, value && typeof value === "object" ? JSON.stringify(value) : value ?? ""];
+        })));
       }
-      if (collection !== "members" && collection !== "activityReports") rows = flattenForSheet(rows);
+      if (collection !== "members" && collection !== "activityReports" && collection !== "meetingAgendas") rows = flattenForSheet(rows);
       const selectedHeaders = collection === "members"
         ? memberExportFields.map(([header]) => header)
-        : collection === "activityReports" ? activityExportFields.map(([header]) => header) : undefined;
+        : collection === "activityReports" ? activityExportFields.map(([header]) => header)
+          : collection === "meetingAgendas" ? agendaExportFields.map(([header]) => header) : undefined;
       const worksheet = XLSX.utils.json_to_sheet(rows, selectedHeaders ? { header: selectedHeaders } : undefined);
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, collection === "activityReports" ? "Activity Reports" : collection.slice(0, 31));
+      XLSX.utils.book_append_sheet(workbook, worksheet, collection === "activityReports" ? "Activity Reports" : collection === "meetingAgendas" ? "Agenda" : collection.slice(0, 31));
       XLSX.writeFile(workbook, filenames[collection] || `${collection}_Report.xlsx`);
       status(`Downloaded ${rows.length} ${rows.length === 1 ? "record" : "records"}.`);
     } catch (error) {
