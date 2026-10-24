@@ -5,7 +5,21 @@
     members: "members",
     bloodDonations: "bloodDonations",
     activityReports: "programs",
-    attendance: "attendance"
+    attendance: "attendance",
+    meetingAgendas: "meetingAgendas",
+    financeReports: "financeReports",
+    chairTableReport: "rentals",
+    speakerReport: "rentals"
+  };
+  const filenames = {
+    members: "Members_Report.xlsx",
+    bloodDonations: "Blood_Donations_Report.xlsx",
+    activityReports: "Activity_Reports.xlsx",
+    attendance: "Attendance_Report.xlsx",
+    meetingAgendas: "Agenda_Report.xlsx",
+    financeReports: "Financial_Report.xlsx",
+    chairTableReport: "Chair_Table_Report.xlsx",
+    speakerReport: "Speaker_Report.xlsx"
   };
   const status = message => { const node = document.getElementById("firebaseExportStatus"); if (node) node.textContent = message; };
   const toRows = value => {
@@ -14,6 +28,18 @@
     if (typeof value !== "object") return [{ value }];
     return Object.entries(value).map(([id, record]) => ({ id, ...(record && typeof record === "object" && !Array.isArray(record) ? record : { value: record }) }));
   };
+  const flattenForSheet = rows => rows.map(row => Object.fromEntries(Object.entries(row).map(([key, value]) => [key, value && typeof value === "object" ? JSON.stringify(value) : value ?? ""])));
+  const memberExportFields = [
+    ["Member ID", row => row.memberCode ?? row.displayId ?? row.id ?? row.databaseKey],
+    ["Name", row => row.name ?? row.Name],
+    ["Designation", row => row.designation ?? row.Designation],
+    ["Father Name", row => row.fatherName ?? row.FatherName ?? row["Father Name"]],
+    ["Location", row => row.location ?? row.Location],
+    ["Blood Group", row => row.bloodGroupOverride ?? row.bloodGroup ?? row["Blood Group"]],
+    ["Mobile", row => row.mobile ?? row.Mobile],
+    ["Monthly Contribution", row => row.contribution ?? row["Monthly Contribution Amount"] ?? row["Monthy Contribution Amount"]],
+    ["education", row => row.education ?? row.Education]
+  ];
   async function exportExcel() {
     const collection = document.getElementById("firebaseExportCollection")?.value || "members";
     try {
@@ -22,12 +48,26 @@
       status("Preparing Excel file…");
       await window.firebaseReady;
       const snapshot = await firebaseRead(paths[collection]);
-      const rows = toRows(snapshot.val());
+      let rows = toRows(snapshot.val());
+      if (collection === "financeReports") {
+        rows = Object.entries(snapshot.val() || {}).flatMap(([year, entries]) =>
+          (Array.isArray(entries) ? entries : Object.values(entries || {})).map(entry => ({ year, ...(entry && typeof entry === "object" ? entry : { amount: entry }) }))
+        );
+      }
+      if (collection === "chairTableReport" || collection === "speakerReport") {
+        const category = collection === "chairTableReport" ? "chairTable" : "speaker";
+        rows = rows.filter(row => row.category === category && row.deleted !== true);
+      }
+      if (collection === "meetingAgendas") rows = rows.filter(row => row.deleted !== true);
       if (!rows.length) throw new Error("There are no records to export.");
-      const worksheet = XLSX.utils.json_to_sheet(rows);
+      if (collection === "members") {
+        rows = rows.map(row => Object.fromEntries(memberExportFields.map(([header, getValue]) => [header, getValue(row) ?? ""])));
+      }
+      if (collection !== "members") rows = flattenForSheet(rows);
+      const worksheet = XLSX.utils.json_to_sheet(rows, collection === "members" ? { header: memberExportFields.map(([header]) => header) } : undefined);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, collection.slice(0, 31));
-      XLSX.writeFile(workbook, `${collection}-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      XLSX.writeFile(workbook, filenames[collection] || `${collection}_Report.xlsx`);
       status(`Downloaded ${rows.length} ${rows.length === 1 ? "record" : "records"}.`);
     } catch (error) {
       status(error?.message || "Could not export records.");
@@ -44,21 +84,27 @@
   function updateVisibility() {
     const visible = typeof isSupervisorLoggedIn === "function" && isSupervisorLoggedIn();
     if (!visible) {
-      document.getElementById("moreDashboardPanel")?.classList.add("hidden");
+      const more = document.getElementById("moreDashboardPanel");
+      if (more) { more.hidden = true; more.classList.add("hidden"); }
     }
   }
   window.toggleMoreDashboard = function () {
     const more = document.getElementById("moreDashboardPanel");
     if (!more) return;
-    const opening = more.classList.contains("hidden");
+    const opening = more.hidden || more.classList.contains("hidden");
+    more.hidden = !opening;
     more.classList.toggle("hidden", !opening);
     const button = document.querySelector('[data-view-handler="toggleMoreDashboard"]');
     button?.setAttribute("aria-expanded", String(opening));
   };
-  window.addEventListener("popstate", event => {
-    if (event.state?.appView === "dashboard" && typeof isSupervisorLoggedIn === "function" && isSupervisorLoggedIn()) {
-      document.getElementById("moreDashboardPanel")?.classList.remove("hidden");
-    }
+  document.addEventListener("click", event => {
+    const more = document.getElementById("moreDashboardPanel");
+    const trigger = document.querySelector('[data-view-handler="toggleMoreDashboard"]');
+    if (!more || more.hidden) return;
+    if (more.contains(event.target) || trigger?.contains(event.target)) return;
+    more.hidden = true;
+    more.classList.add("hidden");
+    trigger?.setAttribute("aria-expanded", "false");
   });
   document.addEventListener("DOMContentLoaded", () => {
     updateVisibility();
