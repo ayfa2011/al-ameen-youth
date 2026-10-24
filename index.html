@@ -173,11 +173,11 @@
     >
 
       <section id="firebaseExportPanel" class="firebase-export-panel hidden" aria-labelledby="firebaseExportTitle">
-        <div class="firebase-export-heading"><div><h2 id="firebaseExportTitle">Firebase Records</h2><p>Choose a data group, then download it as an Excel file.</p></div><button type="button" id="exportFirebaseExcel" class="firebase-export-button"><i class="fa-solid fa-file-excel"></i> Export Excel</button></div>
-        <label class="firebase-export-select-label" for="firebaseExportCollection">Collection</label>
+        <div class="firebase-export-heading"><div><h2 id="firebaseExportTitle">Export to Excel</h2><p>Choose the data you want to download.</p></div><button type="button" class="firebase-export-close" data-view-event="click" data-view-handler="closeFirebaseExportPanel" aria-label="Back to More"><i class="fa-solid fa-arrow-left"></i> Back</button></div>
+        <label class="firebase-export-select-label" for="firebaseExportCollection">Data</label>
         <select id="firebaseExportCollection" class="firebase-export-select"><option value="members">Members</option><option value="bloodDonations">Blood Donations</option><option value="activityReports">Activity Reports</option><option value="attendance">Attendance</option></select>
-        <p id="firebaseExportStatus" class="firebase-export-status" aria-live="polite">Select a collection to view its records.</p>
-        <div id="firebaseExportRecords" class="firebase-export-records"></div>
+        <p id="firebaseExportStatus" class="firebase-export-status" aria-live="polite"></p>
+        <button type="button" id="exportFirebaseExcel" class="firebase-export-button"><i class="fa-solid fa-file-excel"></i> Download selected Excel</button>
       </section>
 
       <div class="buttons-grid">

@@ -15,33 +15,6 @@
     if (typeof value !== "object") return [{ value }];
     return Object.entries(value).map(([id, record]) => ({ id, ...(record && typeof record === "object" && !Array.isArray(record) ? record : { value: record }) }));
   };
-  const display = value => {
-    if (value == null) return "—";
-    if (typeof value === "object") return JSON.stringify(value);
-    return String(value);
-  };
-  const escapeHtml = value => display(value).replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
-
-  async function loadRecords() {
-    const collection = document.getElementById("firebaseExportCollection")?.value || "members";
-    const host = document.getElementById("firebaseExportRecords");
-    if (!host) return;
-    host.replaceChildren();
-    status("Loading records…");
-    try {
-      if (typeof isSupervisorLoggedIn !== "function" || !isSupervisorLoggedIn()) throw new Error("Sign in as an official to view Firebase records.");
-      if (typeof firebaseRead !== "function") throw new Error("Firebase is not configured.");
-      const snapshot = await firebaseRead(paths[collection]);
-      const rows = toRows(snapshot.val());
-      if (!rows.length) { status("No records found in this collection."); return; }
-      const columns = [...new Set(rows.flatMap(row => Object.keys(row)))];
-      host.innerHTML = `<div class="firebase-export-table-wrap"><table class="firebase-export-table"><thead><tr>${columns.map(column => `<th scope="col">${escapeHtml(column)}</th>`).join("")}</tr></thead><tbody>${rows.map(row => `<tr>${columns.map(column => `<td data-label="${escapeHtml(column)}">${escapeHtml(row[column])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
-      status(`${rows.length} ${rows.length === 1 ? "record" : "records"}`);
-    } catch (error) {
-      status(error?.message || "Could not load records.");
-    }
-  }
-
   async function exportExcel() {
     const collection = document.getElementById("firebaseExportCollection")?.value || "members";
     try {
@@ -56,7 +29,7 @@
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, collection.slice(0, 31));
       XLSX.writeFile(workbook, `${collection}-${new Date().toISOString().slice(0, 10)}.xlsx`);
-      status(`Exported ${rows.length} ${rows.length === 1 ? "record" : "records"}.`);
+      status(`Downloaded ${rows.length} ${rows.length === 1 ? "record" : "records"}.`);
     } catch (error) {
       status(error?.message || "Could not export records.");
     }
@@ -64,7 +37,6 @@
 
   function updateVisibility() {
     const visible = typeof isSupervisorLoggedIn === "function" && isSupervisorLoggedIn();
-    panel()?.classList.toggle("hidden", !visible);
     if (!visible) {
       panel()?.classList.add("hidden");
       document.getElementById("moreDashboardPanel")?.classList.add("hidden");
@@ -84,12 +56,14 @@
       more?.classList.add("hidden");
       return;
     }
-    exportPanel?.classList.toggle("hidden");
     more?.classList.add("hidden");
-    if (!exportPanel?.classList.contains("hidden")) loadRecords();
+    exportPanel?.classList.remove("hidden");
+  };
+  window.closeFirebaseExportPanel = function () {
+    panel()?.classList.add("hidden");
+    document.getElementById("moreDashboardPanel")?.classList.remove("hidden");
   };
   document.addEventListener("DOMContentLoaded", () => {
-    document.getElementById("firebaseExportCollection")?.addEventListener("change", loadRecords);
     document.getElementById("exportFirebaseExcel")?.addEventListener("click", exportExcel);
     updateVisibility();
     setInterval(updateVisibility, 1500);
