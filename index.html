@@ -172,6 +172,14 @@
       class="view-section"
     >
 
+      <section id="firebaseExportPanel" class="firebase-export-panel hidden" aria-labelledby="firebaseExportTitle">
+        <div class="firebase-export-heading"><div><h2 id="firebaseExportTitle">Firebase Records</h2><p>Browse and export records available to your account.</p></div><button type="button" id="exportFirebaseExcel" class="firebase-export-button"><i class="fa-solid fa-file-excel"></i> Export to Excel</button></div>
+        <label class="firebase-export-select-label" for="firebaseExportCollection">Collection</label>
+        <select id="firebaseExportCollection" class="firebase-export-select"><option value="members">Members</option><option value="bloodDonations">Blood Donations</option><option value="activityReports">Activity Reports</option><option value="attendance">Attendance</option></select>
+        <p id="firebaseExportStatus" class="firebase-export-status" aria-live="polite">Select a collection to view its records.</p>
+        <div id="firebaseExportRecords" class="firebase-export-records"></div>
+      </section>
+
       <div class="buttons-grid">
 
 
@@ -1309,6 +1317,7 @@
   <script src="js/data/reference-data.repository.js?v=20261022-office-bearers-write"></script>
 
   <script src="js/supervisor.js?v=20261023-persistent-role-login"></script>
+  <script src="js/firebase-export.js"></script>
 
   <script src="js/script.js?v=20261023-script-load-recovery"></script>
 
