@@ -44,7 +44,11 @@
   }
   window.toggleMoreDashboard = function () {
     const more = document.getElementById("moreDashboardPanel");
-    more?.classList.toggle("hidden");
+    if (!more) return;
+    const opening = more.classList.contains("hidden");
+    more.classList.toggle("hidden", !opening);
+    const button = document.querySelector('[data-view-handler="toggleMoreDashboard"]');
+    button?.setAttribute("aria-expanded", String(opening));
   };
   window.openFirebaseExportPanel = function () {
     const more = document.getElementById("moreDashboardPanel");
