@@ -173,7 +173,7 @@
     >
 
       <section id="firebaseExportPanel" class="firebase-export-panel hidden" aria-labelledby="firebaseExportTitle">
-        <div class="firebase-export-heading"><div><h2 id="firebaseExportTitle">Firebase Records</h2><p>Browse and export records available to your account.</p></div><button type="button" id="exportFirebaseExcel" class="firebase-export-button"><i class="fa-solid fa-file-excel"></i> Export to Excel</button></div>
+        <div class="firebase-export-heading"><div><h2 id="firebaseExportTitle">Firebase Records</h2><p>Choose a data group, then download it as an Excel file.</p></div><button type="button" id="exportFirebaseExcel" class="firebase-export-button"><i class="fa-solid fa-file-excel"></i> Export Excel</button></div>
         <label class="firebase-export-select-label" for="firebaseExportCollection">Collection</label>
         <select id="firebaseExportCollection" class="firebase-export-select"><option value="members">Members</option><option value="bloodDonations">Blood Donations</option><option value="activityReports">Activity Reports</option><option value="attendance">Attendance</option></select>
         <p id="firebaseExportStatus" class="firebase-export-status" aria-live="polite">Select a collection to view its records.</p>
@@ -333,8 +333,20 @@
 
         </button>
 
+        <!-- MORE / FIREBASE EXPORT -->
+        <button type="button" class="grid-card" data-view-event="click" data-view-handler="toggleMoreDashboard">
+          <i class="fa-solid fa-ellipsis card-icon"></i>
+          <span>More</span>
+        </button>
+
 
       </div>
+
+      <section id="moreDashboardPanel" class="more-dashboard-panel hidden" aria-label="More options">
+        <button type="button" id="openFirebaseExport" class="grid-card more-export-card" data-view-event="click" data-view-handler="openFirebaseExportPanel">
+          <i class="fa-solid fa-file-excel card-icon"></i><span>Export Excel</span>
+        </button>
+      </section>
 
     </div>
 

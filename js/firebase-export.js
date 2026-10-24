@@ -48,6 +48,7 @@
       if (typeof isSupervisorLoggedIn !== "function" || !isSupervisorLoggedIn()) throw new Error("Sign in as an official to export Firebase records.");
       if (!window.XLSX) throw new Error("Excel export library could not be loaded. Check your connection and try again.");
       status("Preparing Excel file…");
+      await window.firebaseReady;
       const snapshot = await firebaseRead(paths[collection]);
       const rows = toRows(snapshot.val());
       if (!rows.length) throw new Error("There are no records to export.");
@@ -64,8 +65,29 @@
   function updateVisibility() {
     const visible = typeof isSupervisorLoggedIn === "function" && isSupervisorLoggedIn();
     panel()?.classList.toggle("hidden", !visible);
-    if (visible) loadRecords();
+    if (!visible) {
+      panel()?.classList.add("hidden");
+      document.getElementById("moreDashboardPanel")?.classList.add("hidden");
+    }
   }
+  window.toggleMoreDashboard = function () {
+    const more = document.getElementById("moreDashboardPanel");
+    more?.classList.toggle("hidden");
+    panel()?.classList.add("hidden");
+  };
+  window.openFirebaseExportPanel = function () {
+    const more = document.getElementById("moreDashboardPanel");
+    const exportPanel = panel();
+    if (typeof isSupervisorLoggedIn !== "function" || !isSupervisorLoggedIn()) {
+      status("Sign in as an official to export Firebase records.");
+      exportPanel?.classList.remove("hidden");
+      more?.classList.add("hidden");
+      return;
+    }
+    exportPanel?.classList.toggle("hidden");
+    more?.classList.add("hidden");
+    if (!exportPanel?.classList.contains("hidden")) loadRecords();
+  };
   document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("firebaseExportCollection")?.addEventListener("change", loadRecords);
     document.getElementById("exportFirebaseExcel")?.addEventListener("click", exportExcel);
