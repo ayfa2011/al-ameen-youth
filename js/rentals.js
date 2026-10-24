@@ -94,14 +94,15 @@ function rentalTotals(rentals) {
   return RentalsService.totals(rentals);
 }
 
-function rentalReportYearOptions() {
+function rentalReportYears() {
   const years = new Set([RENTAL_CURRENT_FINANCIAL_YEAR]);
   years.add("2026");
+  Object.keys(referenceDataState.historicalRentals || {}).forEach(year => { if (/^\d{4}$/.test(year)) years.add(year); });
   rentalState.rentals.forEach(rental => {
     const financialYear = rentalFinancialYearEndYear(rental.startDate);
     if (financialYear) years.add(financialYear);
   });
-  return Array.from(years).sort((a, b) => b.localeCompare(a)).map(year => `<option value="${year}" ${year === rentalState.reportYear ? "selected" : ""}>${year}</option>`).join("");
+  return Array.from(years).sort((a, b) => b.localeCompare(a));
 }
 
 function openRentalManagement() {
@@ -207,14 +208,14 @@ function renderRentalDashboard() {
     ? { count: historicalReport.rentalCount, revenue: historicalReport.revenue, collected: historicalReport.collected, pending: historicalReport.pendingDues }
     : { count: yearRentals.length, revenue: totals.total, collected: totals.paid, pending: totals.balance };
 
-  const useCompactSpeaker = category === "speaker";
-  target.innerHTML = `<div class="rental-department-toolbar"><button class="rental-secondary-button" type="button" onclick="setRentalCategory('')"><i class="fa-solid fa-arrow-left"></i> Categories</button><h3><i class="fa-solid ${RENTAL_CATEGORY[category].icon}"></i> ${categoryLabel} Rental Dashboard</h3>${isSupervisorLoggedIn() ? '<span class="rental-role-indicator">Officials access</span>' : ''}</div>
+  const yearChips = rentalReportYears();
+  target.innerHTML = `<div class="rental-department-toolbar"><button class="rental-secondary-button" type="button" onclick="setRentalCategory('')"><i class="fa-solid fa-arrow-left"></i> Categories</button></div>
     <label class="page-search"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><input id="rentalSearch" type="search" value="${escapeHTML(rentalState.search)}" placeholder="Search rentals" aria-label="Search rentals" oninput="filterRentalSearch(this.value)"></label>
-    <details class="page-filter-collapse"><summary>Filter by year</summary><div class="rental-year-filter"><label for="rentalReportYear">Year</label><select id="rentalReportYear" aria-label="Select year" onchange="setRentalReportYear(this.value)">${rentalReportYearOptions()}</select></div></details>
+    <nav class="rental-year-chips" aria-label="Choose report year">${yearChips.map(year => `<button type="button" class="rental-year-chip ${year === selectedYear ? "active" : ""}" aria-pressed="${year === selectedYear}" onclick="setRentalReportYear('${year}')">${year}</button>`).join("")}</nav>
     <div class="rental-summary-grid rental-simple-summary ${useCompactSpeaker ? "speaker-summary" : ""}"><div class="rental-stat-card"><span>Total Rentals</span><strong>${displayedTotals.count}</strong></div><div class="rental-stat-card collected"><span>Total Collected</span><strong>${rentalCurrencyOrDash(displayedTotals.collected)}</strong></div><div class="rental-stat-card pending"><span>Pending Dues</span><strong>${rentalCurrencyOrDash(displayedTotals.pending)}</strong></div></div>
     ${canManage ? `<button class="rental-primary-button rental-new-booking" type="button" onclick="openRentalEntry()"><i class="fa-solid fa-plus"></i> Add Rental</button>` : ""}
-    ${useCompactSpeaker ? `<div class="rental-tabs" role="tablist" aria-label="Rental records"><button type="button" role="tab" aria-selected="${rentalState.tab === "upcoming"}" class="${rentalState.tab === "upcoming" ? "active" : ""}" onclick="setRentalTab('upcoming', this)">Upcoming <span>${visibleUpcoming.length}</span></button><button type="button" role="tab" aria-selected="${rentalState.tab === "history"}" class="${rentalState.tab === "history" ? "active" : ""}" onclick="setRentalTab('history', this)">History <span>${visibleHistory.length}</span></button></div><section class="rental-panel rental-order-section speaker-tab-panel ${rentalState.tab === "upcoming" ? "" : "hidden"}" data-rental-tab-panel="upcoming">${bookingList(visibleUpcoming,"No upcoming rentals.")}</section><section class="rental-panel rental-order-section speaker-tab-panel ${rentalState.tab === "history" ? "" : "hidden"}" data-rental-tab-panel="history">${bookingList(visibleHistory,"No past rentals.")}</section>` : `<section class="rental-panel rental-order-section"><h3><i class="fa-regular fa-calendar-check"></i> Upcoming <span>${visibleUpcoming.length}</span></h3>${bookingList(visibleUpcoming,"No upcoming rentals.")}</section><section class="rental-panel rental-order-section"><h3><i class="fa-solid fa-clock-rotate-left"></i> Rental History <span>${visibleHistory.length}</span></h3>${bookingList(visibleHistory,"No past rentals.")}</section>`}
-    <div class="rental-report-action"><button class="rental-secondary-button" type="button" onclick="downloadRentalPDFReport('${category}', document.getElementById('rentalReportYear').value)"><i class="fa-solid fa-file-pdf"></i> Export PDF</button><button class="rental-secondary-button" type="button" onclick="downloadRentalReport('${category}', document.getElementById('rentalReportYear').value)"><i class="fa-solid fa-file-excel"></i> Excel</button></div>`;
+    <div class="rental-tabs" role="tablist" aria-label="Rental records"><button type="button" role="tab" aria-selected="${rentalState.tab === "upcoming"}" class="${rentalState.tab === "upcoming" ? "active" : ""}" onclick="setRentalTab('upcoming', this)">Upcoming <span>${visibleUpcoming.length}</span></button><button type="button" role="tab" aria-selected="${rentalState.tab === "history"}" class="${rentalState.tab === "history" ? "active" : ""}" onclick="setRentalTab('history', this)">History <span>${visibleHistory.length}</span></button></div><section class="rental-panel rental-order-section rental-tab-panel ${rentalState.tab === "upcoming" ? "" : "hidden"}" data-rental-tab-panel="upcoming">${bookingList(visibleUpcoming,"No upcoming rentals.")}</section><section class="rental-panel rental-order-section rental-tab-panel ${rentalState.tab === "history" ? "" : "hidden"}" data-rental-tab-panel="history">${bookingList(visibleHistory,"No past rentals.")}</section>
+    <div class="rental-report-action"><button class="rental-secondary-button" type="button" onclick="downloadRentalPDFReport('${category}', rentalState.reportYear)"><i class="fa-solid fa-file-pdf"></i> Export PDF</button><button class="rental-secondary-button" type="button" onclick="downloadRentalReport('${category}', rentalState.reportYear)"><i class="fa-solid fa-file-excel"></i> Excel</button></div>`;
 
 }
 

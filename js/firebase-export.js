@@ -287,6 +287,18 @@
     exportExcel();
   };
 
+  window.openCollectionsPage = function () {
+    if (history.state?.appView !== "collections") history.pushState({ appView: "collections" }, "", location.pathname + location.search + "#collections");
+    if (typeof hideAllViews === "function") hideAllViews();
+    document.getElementById("appContainer")?.setAttribute("data-active-view", "collections");
+    document.getElementById("dashboardHomeActions")?.classList.add("hidden");
+    document.getElementById("collectionsView")?.classList.remove("hidden");
+    document.getElementById("moreDashboardPanel")?.classList.add("hidden");
+    if (typeof updateAppTopBar === "function") updateAppTopBar("collections");
+    status("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   function updateVisibility() {
     const visible = typeof isSupervisorLoggedIn === "function" && isSupervisorLoggedIn();
     if (!visible) {
