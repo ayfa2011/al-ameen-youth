@@ -94,9 +94,9 @@ function setHouseFundFilter(filter) {
 function houseFundWhatsAppSummary() {
   const project = houseFundCurrentProject;
   const totals = HouseFundService.totals(houseFundContributions);
-  const donors = HouseFundService.sort(houseFundContributions, "top").slice(0, 10);
-  const donorLines = donors.length ? donors.map((item, index) => `${index + 1}. ${item.name} (${item.contributorType === "member" ? "Member" : "Supporter"}) - ${houseFundMoney(item.amount)} (${item.status === "paid" ? "Paid" : "Promise"})`).join("\n") : "ಇನ್ನೂ ಯಾವುದೇ ದೇಣಿಗೆ ದಾಖಲಾಗಿಲ್ಲ.";
-  return `🏠 ಅಲ್-ಅಮೀನ್ ಯುತ್ ಫೆಡರೇಷನ್ 🛠️ ${project?.projectName || "ಮನೆ ನಿರ್ಮಾಣ ಸಹಾಯಧನ ಸಂಗ್ರಹ"} ವರದಿ\n\n💰 ಒಟ್ಟು ಸಂಗ್ರಹ: ${houseFundMoney(totals.collected)}\n🤝 ಒಟ್ಟು Promise: ${houseFundMoney(totals.pledged)}\n\n📜 ದಾನಿಗಳ ಪಟ್ಟಿ (Top Donors):\n${donorLines}\n\n🌐 ಸಂಪೂರ್ಣ ಪಟ್ಟಿ ಮತ್ತು ವಿವರಗಳಿಗಾಗಿ ಭೇಟಿ ನೀಡಿ:\n${location.origin}${location.pathname}`;
+  const donors = HouseFundService.sort(houseFundContributions, "top");
+  const donorLines = donors.length ? donors.map((item, index) => `${index + 1}. ${item.name} - ${houseFundMoney(item.amount)}${item.status === "paid" ? " ✅" : ""}`).join("\n") : "ಇನ್ನೂ ಯಾವುದೇ ದೇಣಿಗೆ ದಾಖಲಾಗಿಲ್ಲ.";
+  return `*ಅಲ್-ಅಮೀನ್ ಅರಂಬೂರು*\n*${project?.projectName || "Egu ಮನೆ ನಿರ್ಮಾಣ ಸಹಾಯಧನ ಸಂಗ್ರಹ"}*\n\nಒಟ್ಟು ಸಂಗ್ರಹ: ${houseFundMoney(totals.collected)}\nಒಟ್ಟು ವಾಗ್ದಾನ: ${houseFundMoney(totals.pledged)}\n\nDonors List\n${donorLines}\n\n🌐 ಸಂಪೂರ್ಣ ಪಟ್ಟಿ ಮತ್ತು ವಿವರಗಳಿಗಾಗಿ ಭೇಟಿ ನೀಡಿ:\nhttps://ayfa2011.github.io/al-ameen-youth/`;
 }
 
 document.addEventListener("click", event => {
