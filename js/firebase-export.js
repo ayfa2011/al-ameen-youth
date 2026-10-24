@@ -287,25 +287,4 @@
     exportExcel();
   };
 
-  window.openCollectionsPage = function () {
-    if (history.state?.appView !== "collections") history.pushState({ appView: "collections" }, "", location.pathname + location.search + "#collections");
-    if (typeof hideAllViews === "function") hideAllViews();
-    document.getElementById("appContainer")?.setAttribute("data-active-view", "collections");
-    document.getElementById("dashboardHomeActions")?.classList.add("hidden");
-    document.getElementById("collectionsView")?.classList.remove("hidden");
-    if (typeof updateAppTopBar === "function") updateAppTopBar("collections");
-    if (typeof renderCollectionsPage === "function") void renderCollectionsPage();
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-  window.openExcelExportPage = function () {
-    if (history.state?.appView !== "excelExport") history.pushState({ appView: "excelExport" }, "", location.pathname + location.search + "#excelExport");
-    if (typeof hideAllViews === "function") hideAllViews();
-    document.getElementById("appContainer")?.setAttribute("data-active-view", "excelExport");
-    document.getElementById("dashboardHomeActions")?.classList.add("hidden");
-    document.getElementById("excelExportView")?.classList.remove("hidden");
-    if (typeof updateAppTopBar === "function") updateAppTopBar("excelExport");
-    status("");
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
 })();

@@ -201,6 +201,28 @@ function openMorePage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
 }
+window.openMorePage = openMorePage;
+
+function openCollectionsPage() {
+  navigateAppView("collections", () => {
+    hideAllViews();
+    document.getElementById("collectionsView")?.classList.remove("hidden");
+    if (typeof renderCollectionsPage === "function") void renderCollectionsPage();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+}
+window.openCollectionsPage = openCollectionsPage;
+
+function openExcelExportPage() {
+  navigateAppView("excelExport", () => {
+    hideAllViews();
+    document.getElementById("excelExportView")?.classList.remove("hidden");
+    const status = document.getElementById("firebaseExportStatus");
+    if (status) status.textContent = "";
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+}
+window.openExcelExportPage = openExcelExportPage;
 
 
 // ============================================================
