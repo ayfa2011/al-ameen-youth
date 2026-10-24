@@ -123,6 +123,74 @@
     XLSX.writeFile(workbook, filenames.attendance);
     status(`Downloaded attendance report with ${rows.length} programs.`);
   }
+  async function exportRentalWorkbook(reportType) {
+    const category = reportType === "chairTableReport" ? "chairTable" : "speaker";
+    const [rentalsSnapshot, historicalSnapshot] = await Promise.all([
+      firebaseRead("rentals"),
+      firebaseRead("historicalRentals")
+    ]);
+    const byYear = new Map();
+    const addRow = (year, row) => {
+      if (!year) return;
+      if (!byYear.has(year)) byYear.set(year, []);
+      byYear.get(year).push(row);
+    };
+    const startRows = toRows(rentalsSnapshot.val()).filter(row => row.category === category && row.deleted !== true);
+    const currentYears = new Set();
+    startRows.forEach(rental => {
+      const match = String(rental.startDate || "").match(/^(\d{4})-(\d{2})-\d{2}$/);
+      if (!match) return;
+      const year = String(Number(match[1]) + (Number(match[2]) >= 4 ? 1 : 0));
+      currentYears.add(year);
+      const total = rental.totalAmount ?? "";
+      const paid = rental.paidAmount ?? "";
+      const due = rental.balance ?? (total !== "" && paid !== "" ? Number(total) - Number(paid) : "");
+      const state = rental.status || (Number(due) <= 0 ? "PAID" : Number(paid) > 0 ? "PARTIAL" : "PENDING");
+      addRow(year, {
+        "customer Name": rental.customerName ?? "",
+        mobile: rental.mobile ?? "",
+        item: rental.item ?? "",
+        totalAmount: total,
+        paidAmount: paid,
+        "Due Amount": due,
+        status: state
+      });
+    });
+
+    const historicalByYear = historicalSnapshot.val() || {};
+    Object.entries(historicalByYear).forEach(([year, reports]) => {
+      if (currentYears.has(year)) return;
+      const report = reports?.[category];
+      (Array.isArray(report?.details) ? report.details : []).forEach(detail => {
+        const total = detail.amount ?? "";
+        const paid = detail.paidAmount ?? (detail.status === "Received" ? total : detail.status ? 0 : "");
+        const due = detail.dueAmount ?? (detail.status === "Pending" ? total : total !== "" && paid !== "" ? Number(total) - Number(paid) : "");
+        addRow(year, {
+          "customer Name": detail.customerName ?? detail.name ?? "",
+          mobile: detail.mobile ?? "",
+          item: detail.item ?? "",
+          totalAmount: total,
+          paidAmount: paid,
+          "Due Amount": due,
+          status: detail.status ?? ""
+        });
+      });
+    });
+
+    const years = [...byYear.keys()].sort((a, b) => Number(b) - Number(a));
+    if (!years.length) throw new Error("No rental records were found for this report.");
+    const headers = ["Sl No", "customer Name", "mobile", "item", "totalAmount", "paidAmount", "Due Amount", "status"];
+    const workbook = XLSX.utils.book_new();
+    years.forEach(year => {
+      const rows = byYear.get(year).map((record, index) => ({ "Sl No": index + 1, ...record }));
+      const worksheet = XLSX.utils.json_to_sheet(rows, { header: headers });
+      worksheet["!cols"] = [8, 26, 16, 20, 15, 15, 15, 14].map(wch => ({ wch }));
+      XLSX.utils.book_append_sheet(workbook, worksheet, year);
+    });
+    const filename = reportType === "chairTableReport" ? "Chair_Table_Report.xlsx" : "Speaker_Report.xlsx";
+    XLSX.writeFile(workbook, filename);
+    status(`Downloaded ${filename} with ${years.length} year sheets.`);
+  }
   async function exportExcel() {
     const collection = document.getElementById("firebaseExportCollection")?.value || "members";
     try {
@@ -136,6 +204,10 @@
       }
       if (collection === "attendance") {
         await exportAttendanceWorkbook();
+        return;
+      }
+      if (collection === "chairTableReport" || collection === "speakerReport") {
+        await exportRentalWorkbook(collection);
         return;
       }
       if (collection === "bloodDonationWorkbook") {
@@ -181,10 +253,6 @@
       }
       const snapshot = await firebaseRead(paths[collection]);
       let rows = toRows(snapshot.val());
-      if (collection === "chairTableReport" || collection === "speakerReport") {
-        const category = collection === "chairTableReport" ? "chairTable" : "speaker";
-        rows = rows.filter(row => row.category === category && row.deleted !== true);
-      }
       if (collection === "meetingAgendas") rows = rows.filter(row => row.deleted !== true);
       if (!rows.length) throw new Error("There are no records to export.");
       if (collection === "members") {
