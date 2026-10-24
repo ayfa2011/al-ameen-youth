@@ -5,7 +5,7 @@
     members: "members",
     bloodDonations: "bloodDonations",
     bloodDonationWorkbook: "bloodDonations",
-    activityReports: "programs",
+    activityReports: "programReports",
     attendance: "attendance",
     meetingAgendas: "meetingAgendas",
     financeReports: "financeReports",
@@ -48,6 +48,7 @@
     ["Description", item => item.description ?? item.details],
     ["Google Drive Link", item => item.driveLink ?? item.googleDriveLink ?? item.photosLink]
   ];
+  const bloodGroupOf = record => record?.bloodGroup ?? record?.bloodGroupOverride ?? record?.["Blood Group"] ?? record?.BloodGroup ?? "";
   async function exportExcel() {
     const collection = document.getElementById("firebaseExportCollection")?.value || "members";
     try {
@@ -68,7 +69,7 @@
         const bloodGroupRows = members.map(member => ({
           "Member ID": member.memberCode ?? member.displayId ?? member.id ?? "",
           "Member Name": member.name ?? member.Name ?? "",
-          "Blood Group": member.bloodGroupOverride ?? member.bloodGroup ?? member["Blood Group"] ?? groupByName.get(String(member.name ?? member.Name ?? "").replace(/\([^)]*\)/g, "").toLowerCase().replace(/[^a-z0-9]/g, "")) ?? ""
+          "Blood Group": bloodGroupOf(member) || groupByName.get(String(member.name ?? member.Name ?? "").replace(/\([^)]*\)/g, "").toLowerCase().replace(/[^a-z0-9]/g, "")) || ""
         }));
         const donationRows = [];
         const nestedDonations = donationsSnapshot.val() || {};
@@ -80,7 +81,7 @@
             donationRows.push({
               Date: item.donationDate ?? "",
               "Donor Name": item.memberName ?? member.name ?? member.Name ?? "",
-              "Blood Group": item.bloodGroup ?? member.bloodGroupOverride ?? member.bloodGroup ?? groupByName.get(String(member.name ?? member.Name ?? "").replace(/\([^)]*\)/g, "").toLowerCase().replace(/[^a-z0-9]/g, "")) ?? "",
+              "Blood Group": bloodGroupOf(item) || bloodGroupOf(member) || groupByName.get(String(member.name ?? member.Name ?? "").replace(/\([^)]*\)/g, "").toLowerCase().replace(/[^a-z0-9]/g, "")) || "",
               "Patient Name": item.patientName ?? "",
               Place: item.place ?? "",
               Hospital: item.hospital ?? "",
