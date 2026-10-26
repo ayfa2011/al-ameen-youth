@@ -48,13 +48,8 @@ function authorizeWebUser_(idToken, allowedRoles) {
   return { uid: account.localId, role: role };
 }
 
-function issueRoleCustomToken_(role, password) {
+function buildRoleToken_(role) {
   if (role !== "member" && role !== "official") throw new Error("Choose a valid login type.");
-  const properties = PropertiesService.getScriptProperties();
-  const expectedPassword = properties.getProperty(role === "member" ? "MEMBER_LOGIN_PASSWORD" : "OFFICIAL_LOGIN_PASSWORD");
-  if (!expectedPassword) throw new Error("Login passwords have not been configured in Apps Script.");
-  if (String(password || "") !== expectedPassword) throw new Error("Incorrect password. Please try again.");
-
   const email = properties.getProperty("SERVICE_ACCOUNT_EMAIL");
   const privateKey = properties.getProperty("SERVICE_ACCOUNT_PRIVATE_KEY");
   if (!email || !privateKey) throw new Error("Firebase service-account credentials are missing in Apps Script.");
@@ -72,6 +67,20 @@ function issueRoleCustomToken_(role, password) {
   const unsignedJwt = base64UrlEncode_(JSON.stringify(header)) + "." + base64UrlEncode_(JSON.stringify(claims));
   const signature = Utilities.computeRsaSha256Signature(unsignedJwt, privateKey.replace(/\\n/g, "\n"));
   return unsignedJwt + "." + base64UrlEncodeBytes_(signature);
+}
+
+function issueRoleCustomToken_(role, password) {
+  const properties = PropertiesService.getScriptProperties();
+  const expectedPassword = properties.getProperty(role === "member" ? "MEMBER_LOGIN_PASSWORD" : "OFFICIAL_LOGIN_PASSWORD");
+  if (!expectedPassword) throw new Error("Login passwords have not been configured in Apps Script.");
+  if (String(password || "") !== expectedPassword) throw new Error("Incorrect password. Please try again.");
+  return buildRoleToken_(role);
+}
+
+// Members open the website without a password. This issues a read-only
+// member-role token with no password check; officials still require theirs.
+function issueOpenMemberToken_() {
+  return buildRoleToken_("member");
 }
 
 function doGet(e) {
@@ -96,6 +105,10 @@ function doPost(e) {
 
     if (body.action === "createRoleToken") {
       return jsonOutput({ success: true, customToken: issueRoleCustomToken_(String(body.role || ""), String(body.password || "")) });
+    }
+
+    if (body.action === "createOpenMemberToken") {
+      return jsonOutput({ success: true, customToken: issueOpenMemberToken_() });
     }
 
     if (body.action === "listDrivePhotoFolders") {

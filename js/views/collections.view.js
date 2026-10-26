@@ -44,7 +44,15 @@ function renderHouseFundProjects() {
   target.innerHTML = `
     <div class="house-fund-toolbar">${canEdit ? '<button type="button" class="house-fund-primary" data-fund-action="toggle-project-form"><i class="fa-solid fa-plus"></i> New Project</button>' : ""}</div>
     ${canEdit ? `<form class="house-fund-form house-fund-project-form hidden" data-fund-form="project"><h3>ಹೊಸ ಯೋಜನೆ</h3><label>Project Name<input name="projectName" maxlength="120" placeholder="ಉದಾ: ಮನೆ ನಿರ್ಮಾಣ ಸಹಾಯಧನ ಸಂಗ್ರಹ" required></label><label>Closes on<input name="closingDate" type="date" value="2026-12-31"></label><p class="house-fund-form-error" aria-live="polite"></p><button class="house-fund-primary" type="submit">Create Project</button></form>` : ""}
-    <div class="house-fund-project-grid">${houseFundProjects.length ? houseFundProjects.map(project => `<div class="house-fund-project-card-wrap"><button type="button" class="house-fund-project-card" data-fund-action="open-project" data-project-id="${escapeHTML(project.id)}"><span class="house-fund-project-icon"><i class="fa-solid fa-house-chimney"></i></span><span class="house-fund-project-copy">${canEdit ? `<button type="button" class="house-fund-editable house-fund-project-name" data-fund-action="edit-project" data-project-id="${escapeHTML(project.id)}" title="Tap to edit project">${escapeHTML(project.projectName || project.title || "Fund Project")}</button>` : `<strong>${escapeHTML(project.projectName || project.title || "Fund Project")}</strong>`}<small>${project.closingDate ? `Closes ${escapeHTML(houseFundDate(project.closingDate))}` : "Closing date not set"}</small></span><i class="fa-solid fa-chevron-right"></i></button></div>`).join("") : '<div class="house-fund-empty"><i class="fa-solid fa-house-chimney"></i><strong>ಯಾವುದೇ project ಇನ್ನೂ ಇಲ್ಲ</strong><span>ಮೇಲಿನ “New Project” ಬಳಸಿ ಮೊದಲ ಯೋಜನೆ ಆರಂಭಿಸಿ.</span></div>'}</div>
+    <div class="house-fund-project-grid">${houseFundProjects.length ? houseFundProjects.map(project => {
+      const projectName = escapeHTML(project.projectName || project.title || "Fund Project");
+      const subtitle = project.closingDate ? `Closes ${escapeHTML(houseFundDate(project.closingDate))}` : "Closing date not set";
+      const id = escapeHTML(project.id);
+      const titleMarkup = canEdit
+        ? `<button type="button" class="house-fund-project-name" data-fund-action="edit-project" data-project-id="${id}" title="Tap to edit project name">${projectName}</button>`
+        : `<strong class="house-fund-project-title">${projectName}</strong>`;
+      return `<div class="house-fund-project-card-wrap"><div class="house-fund-project-card"><button type="button" class="house-fund-project-open" data-fund-action="open-project" data-project-id="${id}" aria-label="Open ${projectName}"></button><span class="house-fund-project-icon" aria-hidden="true"><i class="fa-solid fa-house-chimney"></i></span><span class="house-fund-project-copy"><span class="house-fund-project-name-row">${titleMarkup}</span><small>${subtitle}</small></span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></div></div>`;
+    }).join("") : '<div class="house-fund-empty"><i class="fa-solid fa-house-chimney"></i><strong>ಯಾವುದೇ project ಇನ್ನೂ ಇಲ್ಲ</strong><span>ಮೇಲಿನ “New Project” ಬಳಸಿ ಮೊದಲ ಯೋಜನೆ ಆರಂಭಿಸಿ.</span></div>'}</div>
   `;
 }
 
