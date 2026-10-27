@@ -52,12 +52,24 @@ function openAssetEditor(type = "highlight", index = -1, categoryIndex = -1) {
   document.body.append(modal);
   modal.querySelector(".asset-editor-cancel").addEventListener("click", () => modal.remove());
   modal.addEventListener("click", event => { if (event.target === modal) modal.remove(); });
-  modal.querySelector(".asset-editor-delete")?.addEventListener("click", () => { void saveAssetEditor(type, index, categoryIndex, null); });
+  modal.querySelector(".asset-editor-delete")?.addEventListener("click", () => { void deleteAssetItem(type, index, categoryIndex, item); });
   modal.querySelector("form").addEventListener("submit", event => { event.preventDefault(); void saveAssetEditor(type, index, categoryIndex, Object.fromEntries(new FormData(event.currentTarget))); });
 }
 
-async function saveAssetEditor(type, index, categoryIndex, values) {
+async function deleteAssetItem(type, index, categoryIndex, item) {
   if (!assetCanEdit()) return;
+  const name = String(item?.name || "this asset");
+  if (!await showDeleteConfirmSheet({ title: "Delete asset?", message: `${name} will be removed from the asset list.`, confirmLabel: "Delete" })) return;
+  await saveAssetEditor(type, index, categoryIndex, null, true);
+}
+
+async function saveAssetEditor(type, index, categoryIndex, values, confirmed = false) {
+  if (!assetCanEdit()) return;
+  if (values === null && !confirmed) {
+    const existing = type === "highlight" ? assetInventoryHighlights[index] : assetList(assetInventoryCategories[categoryIndex]?.items)[index];
+    await deleteAssetItem(type, index, categoryIndex, existing);
+    return;
+  }
   const modal = document.getElementById("assetEditorModal");
   const editing = index >= 0;
   const data = JSON.parse(JSON.stringify(assetInventoryRaw || {}));

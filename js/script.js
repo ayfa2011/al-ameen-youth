@@ -79,6 +79,35 @@ function showConfirmSheet({ title = "Please confirm", message = "Are you sure?",
   });
 }
 
+// Shown for every delete action in the website before anything is removed.
+function showDeleteConfirmSheet({ title = "Delete this record?", message = "This record will be removed. Do you want to continue?", confirmLabel = "Delete", cancelLabel = "Cancel" } = {}) {
+  return showConfirmSheet({ title, message, confirmLabel, cancelLabel, danger: true });
+}
+
+// Safety net: any delete control that forgets to ask first still gets a
+// confirmation popup. Captured on document so it runs before inline handlers.
+function isDeleteControl(element) {
+  if (!(element instanceof Element)) return false;
+  if (element.closest(".app-confirm-sheet")) return false;
+  if (element.closest("[data-skip-delete-confirm]")) return false;
+  const label = `${element.textContent || ""} ${element.getAttribute("aria-label") || ""} ${element.getAttribute("title") || ""} ${element.id || ""} ${element.getAttribute("name") || ""}`.toLowerCase();
+  return /\bdelete\b|\bremove\b|\btrash\b|ಅಳಿಸ/.test(label) || Boolean(element.querySelector(".fa-trash, .fa-trash-can, .fa-trash-alt"));
+}
+
+document.addEventListener("click", event => {
+  const control = event.target instanceof Element ? event.target.closest("button, a, [role='button']") : null;
+  if (!control || control.dataset.deleteConfirmed === "true" || !isDeleteControl(control)) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  const label = (control.textContent || "").trim() || "this record";
+  void showDeleteConfirmSheet({ message: `“${label}” will be deleted. Do you want to continue?` }).then(accepted => {
+    if (!accepted) return;
+    control.dataset.deleteConfirmed = "true";
+    control.click();
+    window.setTimeout(() => { delete control.dataset.deleteConfirmed; }, 0);
+  });
+}, true);
+
 
 // ============================================================
 // HIDE ALL APPLICATION VIEWS

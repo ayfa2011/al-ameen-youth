@@ -303,6 +303,7 @@ async function restoreMember(memberId) {
   if (!requireSupervisor()) return;
   const member = deactivatedMembersList.find(item => String(item.id) === String(memberId));
   if (!member) return;
+  if (!await showConfirmSheet({ title: "Restore member?", message: `${member.name} will be added back to the active member list.`, confirmLabel: "Restore" })) return;
   try {
     const databaseKey = await MembersRepository.resolveMemberKey(memberId);
     // Read the current server record for early validation and audit logging.
@@ -638,6 +639,7 @@ async function deleteBloodDonation(memberId, recordId) {
 
 async function restoreBloodDonation(memberId, recordId) {
   if (!requireSupervisor()) return;
+  if (!await showConfirmSheet({ title: "Restore donation record?", message: "This record will be moved back to the donation history.", confirmLabel: "Restore" })) return;
   try {
     await waitForFirebase();
     const safeMemberId = String(memberId || "");
@@ -665,12 +667,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   const input = document.getElementById("memberSearchInput");
   if (input) {
-    input.addEventListener("input", () => {
-      const q = input.value.trim().toLowerCase();
-      document.querySelectorAll("#membersContainer .member-card").forEach(card => {
-        card.style.display = card.textContent.toLowerCase().includes(q) ? "flex" : "none";
-      });
-    });
+    input.addEventListener("input", () => filterMemberCards(input.value));
   }
 
   const bloodSearch = document.getElementById("bloodDonorSearch");

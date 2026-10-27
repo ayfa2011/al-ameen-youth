@@ -590,6 +590,7 @@ async function deleteProgramReport(id) {
 
 async function restoreProgramReport(id) {
   if (!requireSupervisor()) return;
+  if (!await showConfirmSheet({ title: "Restore report?", message: "This report will be moved back to the activity list.", confirmLabel: "Restore" })) return;
   try {
     const resolved = await resolveProgramReportRecord(id);
     const cached = programReportState.deletedReports.find(item => String(item.id) === String(id) || String(item.legacyId || "") === String(id));

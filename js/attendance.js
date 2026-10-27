@@ -194,6 +194,7 @@ async function deleteAttendanceProgram(programId) {
 
 async function restoreAttendanceProgram(programId) {
   if (!requireSupervisor()) return;
+  if (!await showConfirmSheet({ title: "Restore attendance record?", message: "This record will be moved back to the attendance report list.", confirmLabel: "Restore" })) return;
   try {
     const restoredAt = new Date().toISOString();
     const result = await AttendanceRepository.transaction(`programs/${programId}`, current => current?.deleted === true ? { ...current, deleted: false, restoredAt, updatedAt: restoredAt } : undefined);

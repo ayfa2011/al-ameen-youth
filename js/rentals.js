@@ -329,7 +329,10 @@ async function saveRentalEntry(event, id = "") {
   const end = new Date(`${values.returnDate}T00:00:00`);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) { showToast("Return date must be on or after the rental date."); return; }
   const days = Math.max(0, Math.round((end - start) / 86400000));
-  const equipmentProvided = Array.from(event.currentTarget.querySelectorAll("[name='equipmentProvided']:checked"), input => input.value);
+  const form = event?.target instanceof HTMLFormElement ? event.target : document.querySelector("#rentalModal form.rental-form");
+  const equipmentProvided = form
+    ? Array.from(form.querySelectorAll("[name='equipmentProvided']:checked"), input => input.value)
+    : [];
   const paymentDate = values.startDate;
   const collectedBy = String(values.collectedBy || "").trim();
   let payments = existing?.payments || {};
@@ -389,6 +392,7 @@ async function restoreRental(id) {
   if (!requireSupervisor()) return;
   const rental = rentalState.deletedRentals.find(item => item.id === id);
   if (!rental || !rentalCanManage(rental.category)) return;
+  if (!await showConfirmSheet({ title: "Restore rental record?", message: `“${rental.customerName}” will be moved back to the active rentals list.`, confirmLabel: "Restore" })) return;
   try {
     const result = await RentalsRepository.transaction(`rentals/${id}`, current => current?.deleted === true ? { ...current, deleted: false, restoredAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : undefined);
     if (!result.committed) throw new Error("The rental is no longer in the trash. Refresh and try again.");
@@ -433,12 +437,20 @@ async function saveRentalPayment(event, id) {
   catch (error) { console.error(error); showToast(error.message?.includes("Another official changed") ? error.message : "Payment could not be updated. Check your connection and permissions."); }
 }
 
+// Shared by the Excel and PDF exporters so both report the same records for a
+// financial year (1 Apr – 31 Mar, named by its ending year).
+function rentalReportData(category, selectedYear) {
+  const year = String(selectedYear || new Date().getFullYear());
+  const historicalReport = importedRentalReport(category, year);
+  const rentals = historicalReport
+    ? []
+    : rentalState.rentals.filter(rental => rental.category === category && rentalBelongsToFinancialYear(rental, year));
+  return { year, historicalReport, rentals, totals: rentalTotals(rentals) };
+}
+
 function downloadRentalReport(category, selectedYear) {
   if (typeof XLSX === "undefined") { showToast("Excel report library load ಆಗಿಲ್ಲ. Internet connection ಪರಿಶೀಲಿಸಿ."); return; }
-  const year = selectedYear || String(new Date().getFullYear());
-  const historicalReport = importedRentalReport(category, String(year));
-  const rentals = historicalReport ? [] : rentalState.rentals.filter(rental => rental.category === category && rentalBelongsToFinancialYear(rental, year));
-  const totals = rentalTotals(rentals);
+  const { year, historicalReport, rentals, totals } = rentalReportData(category, selectedYear);
   const maintenance = RentalsService.maintenanceTotal(rentals);
   const title = category === "chairTable" ? "Chair & Table Rental Report" : "Speaker Rental Report";
   const summary = [[title], ["Year", year], ["Report generated", new Date().toLocaleDateString("en-IN")], [], ["Financial summary", "Amount (INR)"], ["Total rentals", historicalReport?.rentalCount ?? rentals.length], [historicalReport ? "Total revenue" : "Total rental amount", historicalReport?.revenue ?? totals.total]];
@@ -469,10 +481,7 @@ function downloadRentalReport(category, selectedYear) {
 function downloadRentalPDFReport(category, selectedYear) {
   const PDF = window.jspdf?.jsPDF;
   if (!PDF) { showToast("PDF report library is unavailable. Please try again."); return; }
-  const year = String(selectedYear || new Date().getFullYear());
-  const historicalReport = importedRentalReport(category, year);
-  const rentals = historicalReport ? [] : rentalState.rentals.filter(rental => rental.category === category && String(rental.startDate || "").startsWith(year));
-  const totals = rentalTotals(rentals);
+  const { year, historicalReport, rentals, totals } = rentalReportData(category, selectedYear);
   const pdf = new PDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = pdf.internal.pageSize.getWidth();
   const margin = 12;

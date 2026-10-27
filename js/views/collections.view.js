@@ -152,9 +152,13 @@ document.addEventListener("click", event => {
     const id = button.dataset.projectId || houseFundCurrentProject?.id;
     const project = houseFundProjects.find(item => item.id === id);
     if (!project) return;
-    if (!confirm(`Delete project "${project.projectName || "Fund Project"}" and all its contribution records? This cannot be undone.`)) return;
-    document.getElementById("houseFundProjectDialog")?.close();
     void (async () => {
+      if (!await showDeleteConfirmSheet({
+        title: "Delete project permanently?",
+        message: `Delete project "${project.projectName || "Fund Project"}" and all its contribution records? This cannot be undone.`,
+        confirmLabel: "Delete"
+      })) return;
+      document.getElementById("houseFundProjectDialog")?.close();
       try {
         await HouseFundRepository.deleteProject(id, { action: "houseFund.project.delete", path: `houseConstructionFundProjects/${id}`, recordId: id });
         showToast("Project deleted successfully.", "success");
