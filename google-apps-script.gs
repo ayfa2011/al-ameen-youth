@@ -50,6 +50,7 @@ function authorizeWebUser_(idToken, allowedRoles) {
 
 function buildRoleToken_(role) {
   if (role !== "member" && role !== "official") throw new Error("Choose a valid login type.");
+  const properties = PropertiesService.getScriptProperties();
   const email = properties.getProperty("SERVICE_ACCOUNT_EMAIL");
   const privateKey = properties.getProperty("SERVICE_ACCOUNT_PRIVATE_KEY");
   if (!email || !privateKey) throw new Error("Firebase service-account credentials are missing in Apps Script.");
