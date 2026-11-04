@@ -79,7 +79,7 @@
       }
     },
     "officeBearers": {
-      ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official')",
+      ".read": true,
       "$year": {
         ".write": "auth != null && auth.token.role == 'official'"
       }
