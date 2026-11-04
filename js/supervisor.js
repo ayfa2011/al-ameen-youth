@@ -98,7 +98,7 @@ function showAuthScreen(role = "", message = "") {
 }
 
 function selectLoginRole(role) {
-  if (role === "member") { void openMemberSessionDirect(); return; }
+  if (role === "member") { showAuthScreen("member"); return; }
   if (role === "official") { showAuthScreen("official"); return; }
 }
 
