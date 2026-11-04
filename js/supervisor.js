@@ -98,7 +98,13 @@ function showAuthScreen(role = "", message = "") {
 }
 
 function selectLoginRole(role) {
-  if (role === "member") { showAuthScreen("member"); return; }
+  if (role === "member") {
+    document.getElementById("pinScreen")?.classList.add("hidden");
+    document.getElementById("appContainer")?.classList.remove("hidden");
+    ayfaAuthContext = { user: null, role: "member", expiresAt: Infinity, ready: true };
+    refreshSupervisorUI();
+    return;
+  }
   if (role === "official") { showAuthScreen("official"); return; }
 }
 
