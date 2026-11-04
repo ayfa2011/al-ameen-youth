@@ -3602,14 +3602,14 @@ body{display:flex;align-items:center;justify-content:center;background:#eef2f1}
 .house-fund-detail-active .house-fund-donor-identity{gap:6px;line-height:1.35}
 .house-fund-detail-active .house-fund-donor-identity strong,
 .house-fund-detail-active .house-fund-donor-identity .house-fund-donor-name,
-.house-fund-detail-active .house-fund-donor-identity .house-fund-editable{height:auto;min-height:0;padding:0;border-bottom:0;background:none;color:#22352b;font-size:14px;font-weight:600;line-height:1.35;text-align:left}
+.house-fund-detail-active .house-fund-donor-identity .house-fund-editable{height:auto;min-height:0;padding:0;border-bottom:0;background:none;color:#22352b;font-size:16px;font-weight:600;line-height:1.35;text-align:left}
 .house-fund-detail-active .house-fund-donor-identity strong{max-width:64%}
-.house-fund-detail-active .house-fund-donor-identity span{color:#8a9a90;font-size:12px;line-height:1.35}
+.house-fund-detail-active .house-fund-donor-identity span{color:#8a9a90;font-size:13px;line-height:1.35}
 .house-fund-detail-active .house-fund-donor-identity span::before{margin-right:0;content:"·"}
 .house-fund-detail-active .house-fund-badges{display:inline-flex;align-items:center;gap:4px;margin:0;line-height:1.35}
 .house-fund-detail-active .house-fund-donor-tag{gap:4px;padding:0;border-radius:0;background:none;color:#8a9a90;font-size:10px;font-weight:600;letter-spacing:.02em}
 .house-fund-detail-active .house-fund-donor-tag i{width:5px;height:5px;flex-basis:5px}
-.house-fund-detail-active .house-fund-donor-amount{gap:5px;height:auto;min-height:0;background:none;color:#174c37;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}
+.house-fund-detail-active .house-fund-donor-amount{gap:5px;height:auto;min-height:0;background:none;color:#174c37;font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
 .house-fund-detail-active .house-fund-donor-amount i{font-size:11px}
 .house-fund-detail-active .house-fund-donor-amount-btn,
 .house-fund-detail-active .house-fund-donor-amount .house-fund-editable{height:auto;min-height:0;padding:0;border-bottom:0;background:none;color:inherit;font:inherit;font-variant-numeric:tabular-nums;text-align:right}
