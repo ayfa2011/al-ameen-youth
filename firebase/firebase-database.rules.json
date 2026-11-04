@@ -14,7 +14,7 @@
       }
     },
     "programs": {
-      ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official')",
+      ".read": true,
       ".write": "auth != null && auth.token.role == 'official'",
       "$programId": {
         ".validate": "newData.hasChildren(['programName', 'date']) && newData.child('programName').isString() && newData.child('programName').val().length <= 200 && newData.child('date').isString() && (!newData.child('deleted').exists() || newData.child('deleted').isBoolean())"
@@ -39,7 +39,7 @@
       }
     },
     "meetingAgendas": {
-      ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official')",
+      ".read": true,
       ".write": "auth != null && auth.token.role == 'official'",
       "$agendaId": {
         ".validate": "newData.hasChildren(['title', 'meetingDate']) && newData.child('title').isString() && newData.child('title').val().length <= 200 && newData.child('meetingDate').isString() && (!newData.child('deleted').exists() || newData.child('deleted').isBoolean()) && (!newData.child('priority').exists() || newData.child('priority').isString())"
@@ -53,7 +53,7 @@
       }
     },
     "programReports": {
-      ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official')",
+      ".read": true,
       ".write": "auth != null && auth.token.role == 'official'",
       "$reportId": {
         ".validate": "newData.hasChildren(['title', 'description', 'date']) && newData.child('title').isString() && newData.child('title').val().length <= 200 && newData.child('description').isString() && newData.child('description').val().length <= 20000 && newData.child('date').isString() && (!newData.child('deleted').exists() || newData.child('deleted').isBoolean())"

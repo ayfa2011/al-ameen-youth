@@ -104,44 +104,9 @@ function selectLoginRole(role) {
 
 // Members skip the password step: request a member-role token directly.
 async function openMemberSessionDirect() {
-  if (authLoginInProgress) return;
-  const button = document.querySelector(".auth-role-choice[data-view-args='[\"member\"]']");
   const error = document.getElementById("pinError");
-  if (error) error.textContent = "";
-  if (button) { button.disabled = true; button.dataset.originalHTML = button.innerHTML; button.innerHTML = "<i class='fa-solid fa-spinner fa-spin'></i><span><strong>Signing in…</strong><small>Please wait</small></span>"; }
-  authLoginInProgress = true;
-  try {
-    if (!window.firebaseAuth || !SCRIPT_URL) throw new Error(window.firebaseConfigError || "Login is not configured for this environment.");
-    await window.firebaseReady;
-    const response = await fetch(SCRIPT_URL, {
-      method: "POST", mode: "cors", headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "createOpenMemberToken" })
-    });
-    const result = await response.json();
-    if (!result.success || !result.customToken) {
-      const err = new Error(result.error || "Member sign-in failed. Please try again.");
-      err.code = "role-login-rejected";
-      throw err;
-    }
-    const credential = await window.firebaseAuth.signInWithCustomToken(result.customToken);
-    const resolved = await resolveFirebaseRole(credential.user);
-    if (resolved.role !== "member") {
-      const mismatch = new Error("Member sign-in is unavailable right now. Please try again later.");
-      mismatch.code = "role-mismatch";
-      throw mismatch;
-    }
-    await activateRoleSession(credential.user, resolved);
-    showToast("Signed in as member.", "success");
-  } catch (loginError) {
-    console.error("Member sign-in failed:", loginError);
-    if (loginError?.code === "role-mismatch" || loginError?.code === "permission-denied") {
-      await window.firebaseAuth?.signOut().catch(() => {});
-    }
-    if (error) error.textContent = loginError?.code === "role-login-rejected" ? loginError.message : authErrorMessage(loginError);
-  } finally {
-    authLoginInProgress = false;
-    if (button) { button.disabled = false; if (button.dataset.originalHTML) button.innerHTML = button.dataset.originalHTML; delete button.dataset.originalHTML; }
-  }
+  if (error) error.textContent = "Member login is disabled. The website is publicly viewable; official login is required for changes.";
+  return;
 }
 
 function toggleAuthPassword() {
@@ -332,7 +297,9 @@ function supervisorInjectStyles() {
 
 supervisorInjectStyles();
 document.addEventListener("DOMContentLoaded", () => {
-  showAuthScreen("", window.firebaseConfigError || "");
+  document.getElementById("pinScreen")?.classList.add("hidden");
+  document.getElementById("appContainer")?.classList.remove("hidden");
+  ayfaAuthContext.ready = true;
   if (window.firebaseAuth) window.firebaseAuth.onAuthStateChanged(user => {
     if (authLoginInProgress) return;
     void restoreRoleSession(user);

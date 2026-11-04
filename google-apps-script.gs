@@ -109,7 +109,7 @@ function doPost(e) {
     }
 
     if (body.action === "createOpenMemberToken") {
-      return jsonOutput({ success: true, customToken: issueOpenMemberToken_() });
+      throw new Error("Open member token issuance is disabled. Public viewing does not require authentication.");
     }
 
     if (body.action === "listDrivePhotoFolders") {
