@@ -3,7 +3,7 @@
     ".read": false,
     ".write": "auth != null && auth.token.role == 'official'",
     "members": {
-      ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official')",
+      ".read": true,
       ".write": "auth != null && auth.token.role == 'official'",
       "$memberKey": {
         ".validate": "newData.hasChildren(['name']) && newData.child('name').isString() && newData.child('name').val().length <= 150 && (!newData.child('active').exists() || newData.child('active').isBoolean()) && (!newData.child('bloodGroupOverride').exists() || newData.child('bloodGroupOverride').isString()) && (!newData.child('mobile').exists() || newData.child('mobile').isString() || newData.child('mobile').isNumber())",
@@ -21,7 +21,7 @@
       }
     },
     "attendance": {
-      ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official')",
+      ".read": true,
       ".write": "auth != null && auth.token.role == 'official'",
       "$programId": {
         "$memberId": {
@@ -30,7 +30,7 @@
       }
     },
     "bloodDonations": {
-      ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official')",
+      ".read": true,
       ".write": "auth != null && auth.token.role == 'official'",
       "$memberId": {
         "$recordId": {
@@ -46,7 +46,7 @@
       }
     },
     "meetingAgendasMigrationBackups": {
-      ".read": "auth != null && auth.token.role == 'official'",
+      ".read": true,
       ".write": "auth != null && auth.token.role == 'official'",
       "$backupId": {
         ".validate": "newData.hasChildren(['createdAt', 'source']) && newData.child('createdAt').isString() && newData.child('source').isString() && (!newData.child('items').exists() || newData.child('items').hasChildren())"
@@ -60,14 +60,14 @@
       }
     },
     "drivePhotoFolders": {
-      ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official')",
+      ".read": true,
       ".write": "auth != null && auth.token.role == 'official'",
       "$folderId": {
         ".validate": "newData.hasChildren(['name']) && newData.child('name').isString() && newData.child('name').val().length <= 200"
       }
     },
     "rentals": {
-      ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official')",
+      ".read": true,
       ".write": "auth != null && auth.token.role == 'official'",
       "$rentalId": {
         ".validate": "!newData.exists() || (newData.hasChildren(['category', 'customerName', 'startDate', 'returnDate', 'totalAmount']) && (newData.child('category').val() == 'chairTable' || newData.child('category').val() == 'speaker') && newData.child('customerName').isString() && newData.child('customerName').val().length <= 150 && newData.child('startDate').isString() && newData.child('returnDate').isString() && newData.child('totalAmount').isNumber() && newData.child('totalAmount').val() >= 0 && (!newData.child('paidAmount').exists() || (newData.child('paidAmount').isNumber() && newData.child('paidAmount').val() >= 0)) && (!newData.child('deleted').exists() || newData.child('deleted').isBoolean()))",
@@ -85,24 +85,24 @@
       }
     },
     "financeReports": {
-      ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official')",
+      ".read": true,
       "$year": {
         ".write": false
       }
     },
     "assets": {
-      ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official')",
+      ".read": true,
       ".write": false
     },
     "houseConstructionFundProjects": {
-      ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official')",
+      ".read": true,
       ".write": "auth != null && auth.token.role == 'official'",
       "$projectId": {
         ".validate": "newData.hasChildren(['projectName', 'title', 'createdAt']) && newData.child('projectName').isString() && newData.child('projectName').val().length > 0 && newData.child('projectName').val().length <= 120 && newData.child('title').isString() && newData.child('createdAt').isString() && (!newData.child('closingDate').exists() || newData.child('closingDate').isString())"
       }
     },
     "houseConstructionFundContributions": {
-      ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official')",
+      ".read": true,
       ".write": "auth != null && auth.token.role == 'official'",
       "$projectId": {
         "$contributionId": {
@@ -111,19 +111,19 @@
       }
     },
     "historicalRentals": {
-      ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official')",
+      ".read": true,
       "$year": {
         ".write": false
       }
     },
     "bloodGroups": {
-      ".read": "auth != null && (auth.token.role == 'member' || auth.token.role == 'official')",
+      ".read": true,
       "$memberName": {
         ".write": false
       }
     },
     "auditLog": {
-      ".read": "auth != null && auth.token.role == 'official'",
+      ".read": true,
       "$eventId": {
         ".write": "auth != null && auth.token.role == 'official' && !data.exists() && newData.exists() && newData.child('actorUid').val() == auth.uid && newData.child('actorRole').val() == auth.token.role",
         ".validate": "newData.hasChildren(['action', 'path', 'actorUid', 'actorRole', 'clientAt', 'createdAt']) && newData.child('action').isString() && newData.child('path').isString() && newData.child('actorUid').isString() && newData.child('actorRole').val() == 'official' && newData.child('clientAt').isString() && newData.child('createdAt').isNumber() && (!newData.child('recordId').exists() || newData.child('recordId').isString())"
