@@ -141,10 +141,15 @@ async function loadAttendanceReports() {
     const deletedPrograms = Object.entries(programs).filter(([, program]) => program?.deleted === true);
     tbody.innerHTML = reports.length
       ? reports.map((r, i) => `
-        <tr>
-          <td>${escapeHTML(r.slNo ?? i + 1)}</td>
-          <td><strong>${escapeHTML(r.programName)}</strong><br><small>${escapeHTML(r.date)}</small></td>
-          <td><strong>Total: ${escapeHTML(r.presentCount)} Members</strong><br>${escapeHTML(r.membersList)}${isSupervisorLoggedIn() ? `<div><button type="button" onclick="editAttendanceProgram(${attendanceInlineArg(r.programId)})">Edit</button> <button type="button" onclick="deleteAttendanceProgram(${attendanceInlineArg(r.programId)})">Delete</button></div>` : ""}</td>
+        <tr class="attendance-report-row">
+          <td colspan="3">
+            <button type="button" class="attendance-program-btn" onclick="toggleAttendanceDetails('${escapeHTML(r.programId)}')">
+              <span class="attendance-program-date">${escapeHTML(r.date)}</span>
+              <span class="attendance-program-name">${escapeHTML(r.programName)}</span>
+              <span class="attendance-program-count">${escapeHTML(r.presentCount)} present</span>
+            </button>
+            <div id="attendance-details-${escapeHTML(r.programId)}" class="attendance-details hidden">${escapeHTML(r.membersList)}${isSupervisorLoggedIn() ? `<div class="attendance-actions"><button type="button" onclick="editAttendanceProgram(${attendanceInlineArg(r.programId)})">Edit</button> <button type="button" onclick="deleteAttendanceProgram(${attendanceInlineArg(r.programId)})">Delete</button></div>` : ""}</div>
+          </td>
         </tr>`).join("")
       : `<tr><td colspan="3" class="empty-cell">ಯಾವ ವರದಿಯೂ ಸಿಗಲಿಲ್ಲ.</td></tr>`;
     if (isSupervisorLoggedIn() && deletedPrograms.length) tbody.insertAdjacentHTML("beforeend", `<tr><td colspan="3"><section class="attendance-trash"><strong>Trash</strong>${deletedPrograms.map(([id, program]) => `<div class="attendance-trash-row"><span>${escapeHTML(program.programName || "Untitled program")} · ${escapeHTML(program.date || "")}</span><button type="button" onclick="restoreAttendanceProgram(${attendanceInlineArg(id)})">Restore</button></div>`).join("")}</section></td></tr>`);
@@ -155,7 +160,10 @@ async function loadAttendanceReports() {
   }
 }
 
-function filterAttendanceReports(query) {
+function toggleAttendanceDetails(programId) {
+  const el = document.getElementById("attendance-details-" + programId);
+  if (el) el.classList.toggle("hidden");
+}
   const term = String(query || "").trim().toLowerCase();
   document.querySelectorAll("#reportsTableBody tr").forEach(row => {
     row.hidden = Boolean(term) && !row.textContent.toLowerCase().includes(term);
