@@ -28,8 +28,26 @@ window.HangoutService = (() => {
     return {
       monthLabel: String(quiz.monthLabel || "").trim(),
       title: String(quiz.title || "").trim(),
-      text: String(quiz.text || "").trim(),
-      imageUrl: safeImage(quiz.imageUrl)
+      text: String(quiz.text || "").trim().slice(0, 4000),
+      imageUrl: safeImage(quiz.imageUrl),
+      audioUrl: safeAudio(quiz.audioUrl),
+      roomId: String(quiz.roomId || ""),
+      roomName: String(quiz.roomName || ""),
+      questionId: String(quiz.questionId || ""),
+      questionNumber: Number(quiz.questionNumber) || 0,
+      type: ["mcq", "trueFalse", "short"].includes(quiz.type) ? quiz.type : "",
+      options: Object.entries(quiz.options || {}).map(([id, option]) => ({
+        id: String(option?.id || id).slice(0, 80),
+        text: String(option?.text || option || "").slice(0, 300)
+      })).filter(option => option.id && option.text).slice(0, 8),
+      points: Math.max(0, Number(quiz.points) || 0),
+      timeLimit: Math.max(0, Number(quiz.timeLimit) || 0),
+      startedAt: quiz.startedAt == null || !Number.isFinite(Number(quiz.startedAt)) ? null : Number(quiz.startedAt),
+      remainingMs: quiz.remainingMs == null ? null : Math.max(0, Number(quiz.remainingMs) || 0),
+      correctAnswer: String(quiz.correctAnswer || "").slice(0, 1000),
+      explanation: String(quiz.explanation || "").trim().slice(0, 2000),
+      answerRevealed: quiz.answerRevealed === true,
+      status: String(quiz.status || "")
     };
   }
   // Only https links or embedded data:image pictures are shown.
@@ -37,6 +55,10 @@ window.HangoutService = (() => {
     const value = String(url || "").trim();
     return /^https:\/\//i.test(value) || /^data:image\/(png|jpe?g|webp|gif);base64,/i.test(value) ? value : "";
   }
+  const safeAudio = url => {
+    const value = String(url || "").trim();
+    return /^https:\/\//i.test(value) || /^data:audio\/[a-z0-9.+-]+;base64,/i.test(value) ? value : "";
+  };
 
   const formatDuration = seconds => { const s = Math.max(0, Math.round(seconds || 0)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
   const formatTime = ts => ts ? new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
@@ -44,6 +66,6 @@ window.HangoutService = (() => {
 
   return Object.freeze({
     MAX_TEXT, MAX_VOICE_SECONDS, MAX_VOICE_CHARS, EMOJIS,
-    monthLabel, buildLeaderboard, medalFor, rankLabel, initialOf, cleanQuiz, safeImage, formatDuration, formatTime, formatDate
+    monthLabel, buildLeaderboard, medalFor, rankLabel, initialOf, cleanQuiz, safeImage, safeAudio, formatDuration, formatTime, formatDate
   });
 })();

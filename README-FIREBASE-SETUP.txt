@@ -58,7 +58,28 @@ upload only its own photo. Firebase Storage availability, quotas and pricing
 depend on the project's bucket and plan; do not upgrade or enable billing
 unless you approve any resulting charges.
 
-5) Google Apps Script deployment
+5) Quiz rooms and question media
+-------------------------------
+Quiz Admin Panel stores room/question records, private answer keys, player
+answers, and score-award markers in Realtime Database. Players can read only
+the current live question and their own submitted answer; approved quiz admins
+can manage rooms and evaluate short answers. Correct-answer score awards are
+validated against the private answer key and recorded once per player/question.
+Room score ledgers are isolated by quiz room. Approved admins can adjust a
+player's room score with a required reason; previous score, delta, new total,
+editor, and timestamp are kept in immutable adjustment history. Player-facing
+room results remain hidden until an admin publishes the completed room.
+
+Question images and audio are uploaded under
+`/quiz-media/{roomId}/{questionId}/` in Firebase Storage. Publish both updated
+Realtime Database and Storage rules before using quiz room management:
+
+  firebase deploy --only database,storage --project al-ameen-website-e24d0
+
+Only the approved quiz admin accounts can upload quiz media, and each file must
+be 10 MB or smaller. Signed-in quiz players can read the uploaded media.
+
+6) Google Apps Script deployment
 ---------------------------------
 The Apps Script checks Firebase ID tokens and role claims for protected
 endpoints, including Google role-token issuance, Agenda compatibility and

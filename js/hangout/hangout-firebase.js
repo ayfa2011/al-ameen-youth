@@ -6,6 +6,7 @@
 window.HangoutFirebase = (() => {
   const APP_NAME = "hangout";
   let app = null;
+  let timeOffset = 0;
 
   function get() {
     if (app) return app;
@@ -28,6 +29,24 @@ window.HangoutFirebase = (() => {
       const a = get();
       return a ? firebase.database(a) : null;
     },
-    serverTimestamp: () => firebase.database.ServerValue.TIMESTAMP
+    serverTimestamp: () => firebase.database.ServerValue.TIMESTAMP,
+    serverNow: async () => {
+      const database = window.HangoutFirebase.db();
+      if (!database) throw new Error("Firebase is unavailable.");
+      const snapshot = await database.ref(".info/serverTimeOffset").once("value");
+      return Date.now() + (Number(snapshot.val()) || 0);
+    },
+    watchServerTime(onChange) {
+      const database = window.HangoutFirebase.db();
+      if (!database) throw new Error("Firebase is unavailable.");
+      const ref = database.ref(".info/serverTimeOffset");
+      const listener = snapshot => {
+        timeOffset = Number(snapshot.val()) || 0;
+        onChange?.(timeOffset);
+      };
+      ref.on("value", listener, error => console.error("Firebase server time offset listener failed:", error));
+      return () => ref.off("value", listener);
+    },
+    now: () => Date.now() + timeOffset
   });
 })();

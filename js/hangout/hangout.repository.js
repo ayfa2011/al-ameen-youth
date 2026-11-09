@@ -30,7 +30,13 @@ window.HangoutRepository = (() => {
     subscribeQuiz: cb => listen(ref("quiz"), "value", snap => cb(snap.val())),
     subscribeUsers: cb => listen(ref("users"), "value", snap => cb(snap.val() || {})),
     subscribeScores: cb => listen(ref("scores"), "value", snap => cb(snap.val() || {})),
+    subscribePublicResults: cb => listen(ref("publicResults"), "value", snap => cb(snap.val() || {})),
     subscribeScoreLog: (uid, cb) => listen(ref(`scoreLog/${uid}`).limitToLast(50), "value", snap => cb(snap.val() || {})),
+    subscribeOwnAnswer: (roomId, questionId, uid, cb) =>
+      listen(ref(`answers/${roomId}/${questionId}/${uid}`), "value", snap => cb(snap.val())),
+    async readTimedOutAnswerKey(roomId, questionId) {
+      return (await ref(`answerKeys/${roomId}/${questionId}`).once("value")).val();
+    },
     subscribeChat(limit, handlers) {
       const query = ref("chat").limitToLast(limit);
       const stops = [

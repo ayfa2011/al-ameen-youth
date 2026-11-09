@@ -1,24 +1,7 @@
-// ONLINE QUIZ — admin controls (UI only). Visible only to the approved quiz
-// admin account. Writes go through HangoutAdminRepository.
+// ONLINE QUIZ — room, question and evaluation admin screens.
 window.HangoutQuizAdmin = (() => {
-  const MAX_IMAGE_CHARS = 380000; // below the 400000 limit in the database rules
-
-  // Shrinks an uploaded picture so it can be stored with the question.
-  async function compressImage(file) {
-    const url = URL.createObjectURL(file);
-    try {
-      const img = await new Promise((resolve, reject) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = reject; i.src = url; });
-      for (const [side, quality] of [[900, 0.78], [800, 0.65], [640, 0.55], [480, 0.45]]) {
-        const scale = Math.min(1, side / Math.max(img.width, img.height));
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.round(img.width * scale); canvas.height = Math.round(img.height * scale);
-        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL("image/jpeg", quality);
-        if (dataUrl.length <= MAX_IMAGE_CHARS) return dataUrl;
-      }
-      throw new Error("Picture is too large. Choose a smaller one.");
-    } finally { URL.revokeObjectURL(url); }
-  }
+  const MAX_MEDIA_BYTES = 10 * 1024 * 1024;
+  const TYPE_LABELS = { mcq: "Multiple choice", trueFalse: "True / False", short: "Short answer" };
 
   function open(source) {
     if (!HangoutAdminRepository.isQuizAdmin()) { showToast("Quiz admin access is required.", "error"); return; }
@@ -26,97 +9,658 @@ window.HangoutQuizAdmin = (() => {
     const modal = document.createElement("div");
     modal.id = "hgAdminSheet";
     modal.className = "hg-modal";
-    modal.innerHTML = `<section class="hg-sheet" role="dialog" aria-modal="true" aria-label="Quiz admin">
-      <h3>Quiz admin <button type="button" class="hg-icon-btn" data-act="close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></h3>
-      <div class="hg-tabs"><button type="button" class="is-active" data-tab="question">Question</button><button type="button" data-tab="scores">Scores</button></div>
-      <div data-tabpanel="question"></div><div data-tabpanel="scores" hidden></div>
+    modal.innerHTML = `<section class="hg-sheet hg-admin-sheet" role="dialog" aria-modal="true" aria-label="Quiz Admin Panel">
+      <h3>Quiz Admin Panel <button type="button" class="hg-icon-btn" data-act="close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></h3>
+      <div class="hg-tabs"><button type="button" class="is-active" data-tab="rooms">Quiz Rooms</button><button type="button" data-tab="control">Quiz Control</button><button type="button" data-tab="evaluation">Evaluation</button><button type="button" data-tab="scores">Scores</button></div>
+      <div data-tabpanel="rooms"></div><div data-tabpanel="control" hidden></div><div data-tabpanel="evaluation" hidden></div><div data-tabpanel="scores" hidden></div>
     </section>`;
     document.body.appendChild(modal);
-    const close = () => modal.remove();
+    const state = { roomId: "", controlRoomId: "", evaluationTab: "pending", controlTimer: 0, revealingFor: "", serverTimeOffset: 0, stopServerTime: null };
+    const close = () => {
+      clearInterval(state.controlTimer);
+      state.stopServerTime?.();
+      panels.scores._stopRoomScores?.();
+      modal.remove();
+    };
+    const panels = Object.fromEntries([...modal.querySelectorAll("[data-tabpanel]")].map(panel => [panel.dataset.tabpanel, panel]));
     modal.addEventListener("click", event => {
-      if (event.target === modal || event.target.closest('[data-act="close"]')) close();
+      if (event.target === modal || event.target.closest('[data-act="close"]')) { close(); return; }
       const tab = event.target.closest("[data-tab]");
       if (tab) {
-        modal.querySelectorAll("[data-tab]").forEach(b => b.classList.toggle("is-active", b === tab));
-        modal.querySelectorAll("[data-tabpanel]").forEach(p => { p.hidden = p.dataset.tabpanel !== tab.dataset.tab; });
+        if (tab.dataset.tab !== "scores") panels.scores._stopRoomScores?.();
+        modal.querySelectorAll("[data-tab]").forEach(button => button.classList.toggle("is-active", button === tab));
+        Object.values(panels).forEach(panel => { panel.hidden = panel.dataset.tabpanel !== tab.dataset.tab; });
+        if (tab.dataset.tab === "rooms") renderRooms(panels.rooms, state);
+        if (tab.dataset.tab === "control") renderQuizControl(panels.control, state, source);
+        if (tab.dataset.tab === "evaluation") renderEvaluations(panels.evaluation, state);
+        if (tab.dataset.tab === "scores") buildScoresTab(panels.scores, source);
       }
     });
-    buildQuestionTab(modal.querySelector('[data-tabpanel="question"]'), source);
-    buildScoresTab(modal.querySelector('[data-tabpanel="scores"]'), source);
+    renderRooms(panels.rooms, state);
   }
 
-  function buildQuestionTab(host, source) {
-    const quiz = HangoutService.cleanQuiz(source.quiz());
-    host.innerHTML = `<form class="hg-form">
-      <label>Month label<input name="monthLabel" maxlength="40" placeholder="Auto: ${escapeHTML(HangoutService.monthLabel())}" value="${escapeHTML(quiz.monthLabel)}"></label>
-      <label>Title<input name="title" maxlength="200" value="${escapeHTML(quiz.title)}"></label>
-      <label>Question / content<textarea name="text" maxlength="4000">${escapeHTML(quiz.text)}</textarea></label>
-      <label>Picture link (https)<input name="imageUrl" type="url" placeholder="https://…" value="${quiz.imageUrl.startsWith("data:") ? "" : escapeHTML(quiz.imageUrl)}"></label>
-      <label>…or upload a picture<input name="imageFile" type="file" accept="image/*"></label>
-      <img class="hg-preview" alt="" ${quiz.imageUrl ? `src="${escapeHTML(quiz.imageUrl)}"` : "hidden"}>
-      <p class="hg-hint">Leave the month label empty to show the current month automatically.</p>
-      <div class="hg-form-actions"><button type="button" class="hg-btn is-light" data-act="clear">Clear question</button><button type="submit" class="hg-btn">Publish</button></div>
-    </form>`;
-    const form = host.querySelector("form");
-    const preview = host.querySelector(".hg-preview");
-    let uploaded = quiz.imageUrl.startsWith("data:") ? quiz.imageUrl : "";
-
-    form.elements.imageFile.addEventListener("change", async () => {
-      const file = form.elements.imageFile.files[0];
-      if (!file) return;
-      try { uploaded = await compressImage(file); form.elements.imageUrl.value = ""; preview.src = uploaded; preview.hidden = false; }
-      catch (error) { showToast(error.message || "Could not read this picture.", "error"); form.elements.imageFile.value = ""; }
-    });
-
-    async function save(values) {
-      const button = form.querySelector('[type="submit"]');
-      button.disabled = true;
-      try { await HangoutAdminRepository.saveQuiz(values); showToast("Question published.", "success"); }
-      catch (error) { console.error("Hangout quiz save failed:", error); showToast("Could not publish. Check Quiz Admin access and database rules.", "error"); }
-      finally { button.disabled = false; }
-    }
-
-    form.addEventListener("submit", event => {
-      event.preventDefault();
-      const link = form.elements.imageUrl.value.trim();
-      if (link && !HangoutService.safeImage(link)) { showToast("Picture link must start with https://", "warning"); return; }
-      void save({
-        monthLabel: form.elements.monthLabel.value.trim(),
-        title: form.elements.title.value.trim(),
-        text: form.elements.text.value.trim(),
-        imageUrl: link || uploaded
+  async function renderRooms(host, state) {
+    host.innerHTML = '<div class="hg-empty">Loading quiz rooms…</div>';
+    try {
+      const rooms = await HangoutAdminRepository.listRooms();
+      if (!host.isConnected) return;
+      state.rooms = rooms;
+      if (state.roomId && rooms[state.roomId]) {
+        renderRoomManager(host, state, state.roomId);
+        return;
+      }
+      state.roomId = "";
+      host.innerHTML = `<form class="hg-form hg-room-create">
+        <h4>Create a Quiz Room</h4>
+        <label>Quiz Name<input name="name" maxlength="120" placeholder="e.g. Children's Day Special Quiz" required></label>
+        <label>Description (optional)<textarea name="description" maxlength="500"></textarea></label>
+        <label>Quiz Month<input name="month" type="month"></label>
+        <label>Quiz Status<select name="status"><option value="draft">Draft</option><option value="ready">Ready</option></select></label>
+        <div class="hg-form-actions"><button type="submit" class="hg-btn">Create Room</button></div>
+      </form>
+      <h4 class="hg-section-title">Quiz Rooms</h4>
+      ${Object.entries(rooms).length ? `<div class="hg-room-list">${Object.entries(rooms).sort((a, b) => String(b[1]?.createdAt || "").localeCompare(String(a[1]?.createdAt || ""))).map(([id, room]) => {
+        const questions = Object.values(room?.questions || {}).filter(question => !question?.deleted).length;
+        return `<article class="hg-room-card"><div><strong>${escapeHTML(room.name || "Quiz Room")}</strong><small>${escapeHTML(room.month || "No month")} · ${questions} question${questions === 1 ? "" : "s"}</small></div><span class="hg-status is-${escapeHTML(room.status || "draft")}">${escapeHTML(room.status || "Draft")}</span><button type="button" class="hg-btn is-light" data-manage-room="${escapeHTML(id)}">Manage</button></article>`;
+      }).join("")}</div>` : '<div class="hg-empty">No quiz rooms yet. Create your first room above.</div>'}`;
+      host.querySelector("form").addEventListener("submit", async event => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const button = form.querySelector('[type="submit"]');
+        button.disabled = true;
+        try {
+          const roomId = await HangoutAdminRepository.createRoom({
+            name: form.elements.name.value.trim(),
+            description: form.elements.description.value.trim(),
+            month: form.elements.month.value,
+            status: form.elements.status.value
+          });
+          showToast("Quiz room created.", "success");
+          state.roomId = roomId;
+          await renderRooms(host, state);
+        } catch (error) {
+          console.error("Quiz room creation failed:", error);
+          showToast(error.message || "Could not create the quiz room.", "error");
+        } finally { button.disabled = false; }
       });
-    });
-    host.querySelector('[data-act="clear"]').addEventListener("click", async () => {
-      if (!await showConfirmSheet({ title: "Clear the question?", message: "Players will see an empty question area.", confirmLabel: "Clear", danger: true })) return;
-      form.reset(); uploaded = ""; preview.hidden = true;
-      void save({ monthLabel: form.elements.monthLabel.value.trim(), title: "", text: "", imageUrl: "" });
-    });
+      host.querySelectorAll("[data-manage-room]").forEach(button => button.addEventListener("click", () => {
+        state.roomId = button.dataset.manageRoom;
+        renderRoomManager(host, state, state.roomId);
+      }));
+    } catch (error) {
+      console.error("Quiz rooms could not be loaded:", error);
+      host.innerHTML = '<div class="hg-empty">Could not load quiz rooms. Check Quiz Admin access and database rules.</div>';
+    }
   }
 
-  function buildScoresTab(host, source) {
-    const rows = HangoutService.buildLeaderboard(source.users(), source.scores());
-    if (!rows.length) { host.innerHTML = '<div class="hg-empty">No players yet. Players appear here after they sign in with Google.</div>'; return; }
-    host.innerHTML = `<form class="hg-form">
-      <label>Player<select name="uid">${rows.map(row => `<option value="${escapeHTML(row.uid)}">${escapeHTML(HangoutService.rankLabel(row.rank))} · ${escapeHTML(row.name)} — ${row.points} pts</option>`).join("")}</select></label>
-      <label>Points to add (use a minus sign to subtract)<input name="points" type="number" step="1" min="-100000" max="100000" required></label>
-      <label>Note (optional)<input name="note" maxlength="200" placeholder="e.g. Round 3 correct answer"></label>
-      <div class="hg-form-actions"><button type="submit" class="hg-btn">Apply points</button></div>
-    </form>`;
-    const form = host.querySelector("form");
-    form.addEventListener("submit", async event => {
+  function renderRoomManager(host, state, roomId) {
+    const room = state.rooms[roomId];
+    if (!room) { state.roomId = ""; renderRooms(host, state); return; }
+    const questions = Object.entries(room.questions || {}).filter(([, question]) => !question?.deleted).sort((a, b) => Number(a[1]?.questionNumber) - Number(b[1]?.questionNumber));
+    host.innerHTML = `<button type="button" class="hg-back-btn" data-act="back-rooms"><i class="fa-solid fa-arrow-left"></i> All rooms</button>
+      <div class="hg-room-heading"><div><h4>${escapeHTML(room.name || "Quiz Room")}</h4><p>${escapeHTML(room.description || room.month || "No description")}</p></div>
+      <label class="hg-form hg-room-status-wrap">Room status<select class="hg-room-status">${room.status === "live" ? '<option value="live" selected disabled>Live</option>' : ""}<option value="draft" ${room.status === "draft" ? "selected" : ""} ${room.status === "live" ? "disabled" : ""}>Draft</option><option value="ready" ${room.status === "ready" ? "selected" : ""} ${room.status === "live" ? "disabled" : ""}>Ready</option><option value="completed" ${room.status === "completed" ? "selected" : ""}>Completed</option></select></label></div>
+      <form class="hg-form hg-question-create">
+        <h4>New Question</h4>
+        <label>Enter Question<textarea name="text" maxlength="4000"></textarea></label>
+        <label>Question Type<select name="type"><option value="mcq">Multiple Choice</option><option value="trueFalse">True / False</option><option value="short">Short Answer</option></select></label>
+        <div data-options></div>
+        <label>Time Limit<select name="timePreset"><option value="30">30 seconds</option><option value="60" selected>1 minute</option><option value="custom">Custom</option></select></label>
+        <label data-custom-time hidden>Custom time (seconds)<input name="customTime" type="number" min="1" max="3600" step="1" value="90"></label>
+        <label>Points for a correct answer<input name="points" type="number" min="1" max="10000" step="1" value="1" required></label>
+        <p class="hg-hint">Wrong answer and no answer both receive 0 points.</p>
+        <label>Explanation (optional)<textarea name="explanation" maxlength="2000"></textarea></label>
+        <label>Question Image (optional)<input name="image" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></label>
+        <label>Audio (optional)<input name="audio" type="file" accept="audio/*"></label>
+        <p class="hg-hint">Image and audio uploads must be under 10 MB. Text, image and audio may be used together. Questions are saved as drafts until published.</p>
+        <div class="hg-form-actions"><button type="submit" class="hg-btn">Save as Draft</button></div>
+      </form>
+      <h4 class="hg-section-title">Questions (${questions.length})</h4>
+      ${questions.length ? `<div class="hg-question-list">${questions.map(([id, question]) => `<article class="hg-question-card">
+        <div><strong>Question #${Number(question.questionNumber) || "—"} · ${escapeHTML(TYPE_LABELS[question.type] || question.type || "Question")}</strong><p>${escapeHTML(question.text || "Media question")}</p><small>${Number(question.points) || 0} points · ${Number(question.timeLimit) || 60} sec${question.imageUrl ? " · Image" : ""}${question.audioUrl ? " · Audio" : ""}</small></div>
+        <div class="hg-question-actions"><button type="button" class="hg-btn is-light" data-edit-question="${escapeHTML(id)}">Edit</button><button type="button" class="hg-btn is-danger" data-delete-question="${escapeHTML(id)}">Delete</button><button type="button" class="hg-btn" data-publish-question="${escapeHTML(id)}">Publish Question</button></div>
+      </article>`).join("")}</div>` : '<div class="hg-empty">No questions in this room yet.</div>'}`;
+
+    host.querySelector('[data-act="back-rooms"]').addEventListener("click", () => { state.roomId = ""; renderRooms(host, state); });
+    const questionForm = host.querySelector(".hg-question-create");
+    const optionsHost = questionForm.querySelector("[data-options]");
+    let optionCount = 4;
+    let editingId = "";
+    let editingQuestion = null;
+    const renderOptions = () => {
+      const type = questionForm.elements.type.value;
+      if (type === "short") {
+        optionsHost.innerHTML = '<p class="hg-hint">Player responses will appear in Manual Evaluation.</p><label>Reference answer (optional)<textarea name="correctAnswer" maxlength="1000"></textarea></label>';
+        return;
+      }
+      if (type === "trueFalse") {
+        optionsHost.innerHTML = `<fieldset class="hg-option-fieldset"><legend>Select correct answer</legend>${["true", "false"].map(value => `<label class="hg-option-row"><input type="radio" name="correctAnswer" value="${value}" ${value === (editingQuestion?.correctAnswer || "true") ? "checked" : ""}><span>${value === "true" ? "True" : "False"}</span></label>`).join("")}</fieldset>`;
+        return;
+      }
+      const savedOptions = Object.entries(editingQuestion?.options || {});
+      optionsHost.innerHTML = `<fieldset class="hg-option-fieldset"><legend>Options (select the correct answer)</legend><div class="hg-option-list">${Array.from({ length: optionCount }, (_, index) => `<label class="hg-option-row"><input type="radio" name="correctAnswer" value="option${index + 1}" ${`option${index + 1}` === (editingQuestion?.correctAnswer || "option1") ? "checked" : ""}><span>Option ${String.fromCharCode(65 + index)}</span><input type="text" name="option${index + 1}" maxlength="300" required placeholder="Enter option ${String.fromCharCode(65 + index)}" value="${escapeHTML(savedOptions[index]?.[1] || "")}"></label>`).join("")}</div><button type="button" class="hg-btn is-light" data-act="add-option" ${optionCount >= 8 ? "disabled" : ""}>Add option</button></fieldset>`;
+    };
+    questionForm.elements.type.addEventListener("change", renderOptions);
+    questionForm.elements.timePreset.addEventListener("change", () => {
+      questionForm.querySelector("[data-custom-time]").hidden = questionForm.elements.timePreset.value !== "custom";
+    });
+    optionsHost.addEventListener("click", event => {
+      if (!event.target.closest('[data-act="add-option"]') || optionCount >= 8) return;
+      optionCount += 1;
+      renderOptions();
+    });
+    renderOptions();
+    const resetEditor = () => {
+      editingId = "";
+      editingQuestion = null;
+      optionCount = 4;
+      questionForm.reset();
+      questionForm.elements.points.value = "1";
+      questionForm.elements.timePreset.value = "60";
+      questionForm.querySelector("[data-custom-time]").hidden = true;
+      renderOptions();
+      questionForm.querySelector('[type="submit"]').textContent = "Save as Draft";
+      questionForm.querySelector("[data-cancel-edit]")?.remove();
+      questionForm.querySelector("[data-editing-media]")?.remove();
+    };
+    const fillEditor = questionId => {
+      editingId = questionId;
+      editingQuestion = room.questions[questionId];
+      questionForm.elements.text.value = editingQuestion.text || "";
+      questionForm.elements.type.value = editingQuestion.type;
+      questionForm.elements.points.value = String(editingQuestion.points || 1);
+      questionForm.elements.explanation.value = editingQuestion.explanation || "";
+      const time = Number(editingQuestion.timeLimit) || 60;
+      questionForm.elements.timePreset.value = [30, 60].includes(time) ? String(time) : "custom";
+      questionForm.elements.customTime.value = String(time);
+      questionForm.querySelector("[data-custom-time]").hidden = questionForm.elements.timePreset.value !== "custom";
+      const savedOptions = Object.entries(editingQuestion.options || {});
+      optionCount = Math.max(2, savedOptions.length);
+      renderOptions();
+      if (editingQuestion.type === "short") {
+        questionForm.elements.correctAnswer.value = editingQuestion.correctAnswer || "";
+      } else if (editingQuestion.type === "mcq") {
+        savedOptions.forEach(([id, text], index) => {
+          const input = questionForm.elements[`option${index + 1}`];
+          if (input) input.value = text;
+          const radio = questionForm.querySelector(`[name="correctAnswer"][value="${CSS.escape(id)}"]`);
+          if (radio) radio.checked = true;
+        });
+      } else {
+        const radio = questionForm.querySelector(`[name="correctAnswer"][value="${CSS.escape(editingQuestion.correctAnswer || "true")}"]`);
+        if (radio) radio.checked = true;
+      }
+      questionForm.querySelector('[type="submit"]').textContent = "Save Changes";
+      if (!questionForm.querySelector("[data-cancel-edit]")) {
+        const cancel = document.createElement("button");
+        cancel.type = "button";
+        cancel.className = "hg-btn is-light";
+        cancel.dataset.cancelEdit = "";
+        cancel.textContent = "Cancel";
+        cancel.addEventListener("click", resetEditor);
+        questionForm.querySelector(".hg-form-actions").prepend(cancel);
+      }
+      const media = document.createElement("p");
+      media.className = "hg-hint";
+      media.dataset.editingMedia = "";
+      media.textContent = [editingQuestion.imageUrl && "Current image attached", editingQuestion.audioUrl && "Current audio attached"].filter(Boolean).join(" · ") || "No media attached";
+      questionForm.querySelector(".hg-form-actions").before(media);
+    };
+    questionForm.addEventListener("submit", async event => {
       event.preventDefault();
-      const delta = Number(form.elements.points.value);
-      if (!Number.isInteger(delta) || delta === 0 || Math.abs(delta) > 100000) { showToast("Enter a whole number of points.", "warning"); return; }
-      const button = form.querySelector('[type="submit"]');
+      const button = questionForm.querySelector('[type="submit"]');
       button.disabled = true;
       try {
-        const total = await HangoutAdminRepository.awardPoints(form.elements.uid.value, delta, form.elements.note.value.trim());
-        showToast(`Saved. New total: ${total} points.`, "success");
-        form.elements.points.value = ""; form.elements.note.value = "";
-      } catch (error) { console.error("Hangout score save failed:", error); showToast("Could not save points. Check Quiz Admin access and database rules.", "error"); }
-      finally { button.disabled = false; }
+        const type = questionForm.elements.type.value;
+        const points = Number(questionForm.elements.points.value);
+        if (!Number.isInteger(points) || points < 1 || points > 10000) throw new Error("Points must be a whole number between 1 and 10,000.");
+        const timeLimit = questionForm.elements.timePreset.value === "custom" ? Number(questionForm.elements.customTime.value) : Number(questionForm.elements.timePreset.value);
+        if (!Number.isInteger(timeLimit) || timeLimit < 1 || timeLimit > 3600) throw new Error("Time limit must be a whole number between 1 and 3,600 seconds.");
+        const correctAnswer = type === "short" ? questionForm.elements.correctAnswer.value.trim() : questionForm.querySelector('[name="correctAnswer"]:checked')?.value;
+        if (type !== "short" && !correctAnswer) throw new Error("Select the correct answer.");
+        const options = {};
+        if (type === "trueFalse") { options.true = "True"; options.false = "False"; }
+        if (type === "mcq") {
+          for (let index = 0; index < optionCount; index += 1) {
+            const value = questionForm.elements[`option${index + 1}`]?.value.trim();
+            if (!value) throw new Error("Fill in every answer option.");
+            options[`option${index + 1}`] = value;
+          }
+        }
+        const image = questionForm.elements.image.files[0];
+        const audio = questionForm.elements.audio.files[0];
+        if (!questionForm.elements.text.value.trim() && !image && !audio) {
+          throw new Error("Enter a question or attach an image/audio prompt.");
+        }
+        [image, audio].filter(Boolean).forEach(file => {
+          if (file.size > MAX_MEDIA_BYTES) throw new Error("Image and audio files must be under 10 MB.");
+        });
+        const questionId = editingId || HangoutAdminRepository.newQuestionId(roomId);
+        const imageUrl = image ? await HangoutAdminRepository.uploadQuestionMedia(roomId, questionId, image, "image") : editingQuestion?.imageUrl || "";
+        const audioUrl = audio ? await HangoutAdminRepository.uploadQuestionMedia(roomId, questionId, audio, "audio") : editingQuestion?.audioUrl || "";
+        const question = {
+          text: questionForm.elements.text.value.trim(),
+          type, points, timeLimit, options, correctAnswer, explanation: questionForm.elements.explanation.value.trim(), imageUrl, audioUrl
+        };
+        if (editingId) {
+          await HangoutAdminRepository.updateQuestion(roomId, questionId, question);
+          showToast("Question updated as a draft.", "success");
+        } else {
+          const questionNumber = await HangoutAdminRepository.addQuestion(roomId, questionId, question);
+          showToast(`Question #${questionNumber} saved as a draft.`, "success");
+        }
+        await renderRooms(host, state);
+      } catch (error) {
+        console.error("Quiz question could not be saved:", error);
+        showToast(error.message || "Could not save this question.", "error");
+      } finally { button.disabled = false; }
     });
+    host.querySelectorAll("[data-edit-question]").forEach(button => button.addEventListener("click", () => fillEditor(button.dataset.editQuestion)));
+    host.querySelectorAll("[data-delete-question]").forEach(button => button.addEventListener("click", async () => {
+      if (!await showConfirmSheet({ title: "Delete this question?", message: "The question will be removed from publishing. Existing answers and evaluation history will be retained.", confirmLabel: "Delete", danger: true })) return;
+      button.disabled = true;
+      try {
+        await HangoutAdminRepository.deleteQuestion(roomId, button.dataset.deleteQuestion);
+        showToast("Question deleted.", "success");
+        await renderRooms(host, state);
+      } catch (error) {
+        console.error("Quiz question could not be deleted:", error);
+        showToast(error.message || "Could not delete the question.", "error");
+        button.disabled = false;
+      }
+    }));
+    host.querySelectorAll("[data-publish-question]").forEach(button => button.addEventListener("click", async () => {
+      button.disabled = true;
+      try {
+        const active = await HangoutAdminRepository.getCurrentQuiz();
+        if (active && active.roomId !== roomId && ["live", "paused"].includes(active.status)
+          && !await showConfirmSheet({
+            title: "Switch the live quiz?",
+            message: "Publishing this question will replace the question currently shown to every player.",
+            confirmLabel: "Switch Quiz",
+            danger: true
+          })) return;
+        await HangoutAdminRepository.publishQuestion(roomId, button.dataset.publishQuestion);
+        showToast("Question is live for players.", "success");
+        await renderRooms(host, state);
+      } catch (error) {
+        console.error("Quiz question could not go live:", error);
+        showToast(error.message || "Could not publish this question.", "error");
+      } finally { button.disabled = false; }
+    }));
+    const statusControl = host.querySelector(".hg-room-status");
+    if (statusControl) statusControl.addEventListener("change", async () => {
+      try {
+        await HangoutAdminRepository.setRoomStatus(roomId, statusControl.value);
+        await renderRooms(host, state);
+      } catch (error) {
+        console.error("Quiz room status could not be updated:", error);
+        showToast(error.message || "Could not update room status.", "error");
+      }
+    });
+  }
+
+  async function renderQuizControl(host, state, source) {
+    clearInterval(state.controlTimer);
+    state.controlTimer = 0;
+    if (!state.stopServerTime) {
+      state.stopServerTime = HangoutFirebase.watchServerTime(offset => { state.serverTimeOffset = offset; });
+    }
+    host.innerHTML = '<div class="hg-empty">Loading Quiz Control…</div>';
+    try {
+      const rooms = await HangoutAdminRepository.listRooms();
+      const activeQuiz = await HangoutAdminRepository.getCurrentQuiz();
+      if (!host.isConnected) return;
+      state.controlQuiz = activeQuiz;
+      if (!state.controlRoomId || !rooms[state.controlRoomId]) {
+        state.controlRoomId = activeQuiz?.roomId && rooms[activeQuiz.roomId]
+          ? activeQuiz.roomId : Object.keys(rooms)[0] || "";
+      }
+      if (!state.controlRoomId) {
+        host.innerHTML = '<div class="hg-empty">Create a quiz room before opening Quiz Control.</div>';
+        return;
+      }
+      const { room, participants } = await HangoutAdminRepository.getControlRoomData(state.controlRoomId);
+      if (!host.isConnected) return;
+      const questions = Object.entries(room.questions || {}).filter(([, question]) => !question?.deleted)
+        .sort((a, b) => Number(a[1]?.questionNumber) - Number(b[1]?.questionNumber));
+      const active = activeQuiz?.roomId === state.controlRoomId ? activeQuiz : null;
+      const currentIndex = active ? questions.findIndex(([id]) => id === active.questionId) : -1;
+      const controlStatus = active?.status || room.status || "draft";
+      const countdown = active ? remainingTime(active, state.serverTimeOffset) : null;
+      const statusText = { live: "Live", paused: "Paused", revealed: "Question complete", completed: "Completed", ready: "Ready", draft: "Draft" }[controlStatus] || controlStatus;
+      host.innerHTML = `<div class="hg-control-head"><div><h4>Quiz Control</h4><p>Room state and publishing controls</p></div><label>Select Quiz Room<select name="controlRoom">${Object.entries(rooms).map(([id, item]) => `<option value="${escapeHTML(id)}" ${id === state.controlRoomId ? "selected" : ""}>${escapeHTML(item.name || "Quiz Room")}</option>`).join("")}</select></label></div>
+      <section class="hg-control-dashboard">
+        <div class="hg-control-title"><div><small>SELECTED QUIZ</small><h3>${escapeHTML(room.name || "Quiz Room")}</h3></div><span class="hg-status is-${escapeHTML(controlStatus)}">${escapeHTML(statusText)}</span></div>
+        <div class="hg-control-stats"><div><strong># ${String(questions.length).padStart(2, "0")}</strong><small>Questions</small></div><div><strong># ${String(participants).padStart(2, "0")}</strong><small>Participants</small></div><div><strong>${active ? `# ${String(active.questionNumber || 0).padStart(2, "0")}` : "—"}</strong><small>Current question</small></div></div>
+        <div class="hg-control-current">${active ? `<strong>${escapeHTML(active.text || "Media question")}</strong><span>${active.status === "paused" ? "Timer paused" : active.status === "live" ? "Question in progress" : "Answer revealed"}</span>` : '<span>No question is currently active.</span>'}
+          <strong class="hg-control-countdown" data-control-countdown>${active && countdown !== null ? formatCountdown(countdown) : ""}</strong></div>
+        <div class="hg-control-actions">
+          <button type="button" class="hg-btn" data-control="start" ${!questions.length || (active && ["live", "paused"].includes(active.status)) ? "disabled" : ""}>Start Quiz</button>
+          <button type="button" class="hg-btn is-light" data-control="pause" ${!active || active.status !== "live" ? "disabled" : ""}>Pause Quiz</button>
+          <button type="button" class="hg-btn is-light" data-control="resume" ${!active || active.status !== "paused" ? "disabled" : ""}>Resume Quiz</button>
+          <button type="button" class="hg-btn is-light" data-control="previous" ${currentIndex <= 0 ? "disabled" : ""}>Previous Question</button>
+          <button type="button" class="hg-btn is-light" data-control="next" ${currentIndex < 0 || currentIndex >= questions.length - 1 ? "disabled" : ""}>Next Question</button>
+          <button type="button" class="hg-btn is-danger" data-control="end" ${!active || active.status === "completed" ? "disabled" : ""}>End Quiz</button>
+        </div>
+      </section>
+      <h4 class="hg-section-title">Question Sequence</h4>
+      ${questions.length ? `<ol class="hg-control-question-list">${questions.map(([id, question]) => `<li class="${active?.questionId === id ? "is-current" : ""}"><span>#${String(question.questionNumber || 0).padStart(2, "0")}</span><div><strong>${escapeHTML(question.text || "Media question")}</strong><small>${escapeHTML(TYPE_LABELS[question.type] || question.type || "Question")} · ${Number(question.timeLimit) || 60} sec · ${Number(question.points) || 0} pts</small></div></li>`).join("")}</ol>` : '<div class="hg-empty">This room has no saved questions yet.</div>'}`;
+      host.querySelector('[name="controlRoom"]').addEventListener("change", event => {
+        state.controlRoomId = event.target.value;
+        renderQuizControl(host, state, source);
+      });
+
+      const publishAt = async index => {
+        const [questionId] = questions[index] || [];
+        if (!questionId) throw new Error("No question is available at that position.");
+        const otherLiveQuiz = activeQuiz && activeQuiz.roomId !== state.controlRoomId && ["live", "paused"].includes(activeQuiz.status);
+        if (otherLiveQuiz && !await showConfirmSheet({
+          title: "Switch the live quiz?",
+          message: "Starting this room will replace the question currently shown to every player.",
+          confirmLabel: "Switch Quiz",
+          danger: true
+        })) return;
+        await HangoutAdminRepository.publishQuestion(state.controlRoomId, questionId);
+        showToast(index === 0 && !active ? "Quiz started." : `Question #${questions[index][1].questionNumber} published.`, "success");
+        await renderQuizControl(host, state, source);
+      };
+      host.querySelectorAll("[data-control]").forEach(button => button.addEventListener("click", async () => {
+        button.disabled = true;
+        try {
+          switch (button.dataset.control) {
+            case "start":
+              await publishAt(0);
+              break;
+            case "previous":
+              await publishAt(currentIndex - 1);
+              break;
+            case "next":
+              await publishAt(currentIndex + 1);
+              break;
+            case "pause":
+              await HangoutAdminRepository.pauseQuiz(state.controlRoomId);
+              showToast("Quiz paused.", "success");
+              await renderQuizControl(host, state, source);
+              break;
+            case "resume":
+              await HangoutAdminRepository.resumeQuiz(state.controlRoomId);
+              showToast("Quiz resumed.", "success");
+              await renderQuizControl(host, state, source);
+              break;
+            case "end":
+              if (!await showConfirmSheet({ title: "End this quiz?", message: "The active question's correct answer and explanation will be revealed.", confirmLabel: "End Quiz", danger: true })) break;
+              await HangoutAdminRepository.endQuiz(state.controlRoomId);
+              state.revealingFor = "";
+              showToast("Quiz ended and the answer was revealed.", "success");
+              await renderQuizControl(host, state, source);
+              break;
+          }
+        } catch (error) {
+          console.error("Quiz control action failed:", error);
+          showToast(error.message || "Could not update the quiz state.", "error");
+        } finally {
+          if (button.isConnected) button.disabled = false;
+        }
+      }));
+
+      const renderedKey = quizControlKey(activeQuiz);
+      state.controlTimer = setInterval(async () => {
+        const latest = source.quiz() || state.controlQuiz;
+        if (quizControlKey(latest) !== renderedKey) {
+          await renderQuizControl(host, state, source);
+          return;
+        }
+        if (active && active.status === "live" && latest?.roomId === state.controlRoomId) {
+          const left = remainingTime(latest, state.serverTimeOffset);
+          const timer = host.querySelector("[data-control-countdown]");
+          if (timer) timer.textContent = formatCountdown(left);
+          const revealKey = `${latest.roomId}/${latest.questionId}`;
+          if (left <= 0 && state.revealingFor !== revealKey) {
+            state.revealingFor = revealKey;
+            try {
+              await HangoutAdminRepository.revealQuestion(latest.roomId, latest.questionId);
+              await renderQuizControl(host, state, source);
+            } catch (error) {
+              console.error("Timed quiz answer reveal failed:", error);
+              showToast(error.message || "Time ended, but the answer could not be revealed.", "error");
+              state.revealingFor = "";
+            }
+          }
+        }
+      }, 500);
+    } catch (error) {
+      console.error("Quiz control dashboard could not be loaded:", error);
+      host.innerHTML = '<div class="hg-empty">Could not load Quiz Control. Check Quiz Admin access and database rules.</div>';
+    }
+  }
+
+  function remainingTime(quiz, serverTimeOffset = 0) {
+    if (quiz?.status === "paused") return Math.max(0, Number(quiz.remainingMs) || 0);
+    if (["revealed", "completed"].includes(quiz?.status)) return 0;
+    const duration = quiz?.remainingMs == null ? Number(quiz?.timeLimit) * 1000 : Number(quiz.remainingMs);
+    const startedAt = Number(quiz?.startedAt);
+    if (!Number.isFinite(duration) || !Number.isFinite(startedAt)) return 0;
+    return Math.max(0, duration - (Date.now() + serverTimeOffset - startedAt));
+  }
+
+  const formatCountdown = milliseconds => {
+    const seconds = Math.ceil(Math.max(0, milliseconds) / 1000);
+    return `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+  };
+  const quizControlKey = quiz => JSON.stringify([quiz?.roomId, quiz?.questionId, quiz?.status, quiz?.startedAt, quiz?.remainingMs]);
+
+  async function renderEvaluations(host, state) {
+    host.innerHTML = '<div class="hg-empty">Loading answers…</div>';
+    try {
+      const rows = (await HangoutAdminRepository.listEvaluations()).filter(row => row.questionType === "short");
+      if (!host.isConnected) return;
+      const pending = rows.filter(row => !row.evaluation);
+      const history = rows.filter(row => row.evaluation);
+      const items = state.evaluationTab === "pending" ? pending : history;
+      host.innerHTML = `<div class="hg-evaluation-head"><h4>Manual Evaluation</h4><div class="hg-tabs hg-subtabs"><button type="button" data-eval-tab="pending" class="${state.evaluationTab === "pending" ? "is-active" : ""}">Pending Evaluation (${pending.length})</button><button type="button" data-eval-tab="history" class="${state.evaluationTab === "history" ? "is-active" : ""}">History (${history.length})</button></div></div>
+      ${items.length ? `<div class="hg-evaluation-list">${items.map(row => `<article class="hg-evaluation-card">
+        <small>${escapeHTML(row.roomName)} · Question #${Number(row.questionNumber) || "—"} · ${escapeHTML(row.playerName || "Player")}</small>
+        <strong>${escapeHTML(row.questionText)}</strong><p>Answer: ${escapeHTML(row.answer || "")}</p>
+        ${row.evaluation ? `<div class="hg-evaluation-result ${row.evaluation.result === "correct" ? "is-correct" : "is-wrong"}">${row.evaluation.result === "correct" ? "Correct" : "Wrong"} · ${Number(row.evaluation.points) || 0} points · ${escapeHTML(new Date(row.evaluation.evaluatedAt).toLocaleString())}</div>${row.evaluation.result === "correct" && !row.evaluation.pointsAwarded ? `<button type="button" class="hg-btn is-light" data-retry-evaluation="${escapeHTML(row.answerId)}">Retry points</button>` : ""}` : `<div class="hg-form-actions"><button type="button" class="hg-btn" data-evaluate="correct" data-answer-id="${escapeHTML(row.answerId)}">Correct · ${Number(row.questionPoints) || 0} pts</button><button type="button" class="hg-btn is-danger" data-evaluate="wrong" data-answer-id="${escapeHTML(row.answerId)}">Wrong · 0 pts</button></div>`}
+      </article>`).join("")}</div>` : `<div class="hg-empty">${state.evaluationTab === "pending" ? "No pending short answers." : "No evaluated answers yet."}</div>`}`;
+      host.querySelectorAll("[data-eval-tab]").forEach(button => button.addEventListener("click", () => {
+        state.evaluationTab = button.dataset.evalTab;
+        renderEvaluations(host, state);
+      }));
+      host.querySelectorAll("[data-evaluate], [data-retry-evaluation]").forEach(button => button.addEventListener("click", async () => {
+        const row = rows.find(item => item.answerId === (button.dataset.answerId || button.dataset.retryEvaluation));
+        if (!row) return;
+        const result = button.dataset.evaluate || row.evaluation?.result;
+        button.disabled = true;
+        try {
+          await HangoutAdminRepository.evaluateAnswer(row, result);
+          showToast(result === "correct" ? "Correct answer saved and points awarded." : "Wrong answer saved.", "success");
+          renderEvaluations(host, state);
+        } catch (error) {
+          console.error("Short answer evaluation failed:", error);
+          showToast(error.message || "Could not evaluate this answer.", "error");
+          button.disabled = false;
+        }
+      }));
+    } catch (error) {
+      console.error("Quiz answers could not be loaded:", error);
+      host.innerHTML = '<div class="hg-empty">Could not load evaluations. Check Quiz Admin access and database rules.</div>';
+    }
+  }
+
+  async function buildScoresTab(host, source, selectedRoomId = "") {
+    host._stopRoomScores?.();
+    host.innerHTML = '<div class="hg-empty">Loading room scores…</div>';
+    try {
+      const rooms = await HangoutAdminRepository.listRooms();
+      if (!host.isConnected) return;
+      const roomIds = Object.keys(rooms);
+      if (!roomIds.length) {
+        host.innerHTML = '<div class="hg-empty">Create a quiz room before managing its scoreboard.</div>';
+        return;
+      }
+      const roomId = roomIds.includes(selectedRoomId) ? selectedRoomId : roomIds[0];
+      host.innerHTML = `<div class="hg-score-admin-head"><h4>Scoreboard Management</h4>
+        <label>Select Quiz Room<select data-score-room>${roomIds.map(id => `<option value="${escapeHTML(id)}" ${id === roomId ? "selected" : ""}>${escapeHTML(rooms[id]?.name || "Quiz Room")}</option>`).join("")}</select></label>
+        <button type="button" class="hg-btn is-light" data-score-refresh>Refresh</button></div>
+        <div data-score-room-content></div>`;
+      const roomSelect = host.querySelector("[data-score-room]");
+      const renderRoom = id => renderRoomScores(host.querySelector("[data-score-room-content]"), source, id, rooms[id]);
+      roomSelect.addEventListener("change", () => renderRoom(roomSelect.value));
+      host.querySelector("[data-score-refresh]").addEventListener("click", () => renderRoom(roomSelect.value));
+      await renderRoom(roomId);
+    } catch (error) {
+      console.error("Room scoreboard could not be loaded:", error);
+      host.innerHTML = '<div class="hg-empty">Could not load room scores. Check Quiz Admin access and database rules.</div>';
+    }
+  }
+
+  async function renderRoomScores(host, source, roomId, room) {
+    host._stopRoomScores?.();
+    host._stopRoomScores = null;
+    host.innerHTML = '<div class="hg-empty">Loading players and score history…</div>';
+    try {
+      const { scores, publicResult } = await HangoutAdminRepository.getRoomScoreData(roomId);
+      if (!host.isConnected) return;
+      const users = source.users() || {};
+      const rows = Object.entries(users).map(([uid, user]) => ({
+        uid,
+        name: user?.name || "Player",
+        photo: user?.photo || "",
+        points: Number(scores[uid]?.points) || 0
+      })).sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
+      rows.forEach((row, index) => {
+        row.rank = index > 0 && row.points === rows[index - 1].points ? rows[index - 1].rank : index + 1;
+      });
+      if (!rows.length) {
+        host.innerHTML = '<div class="hg-empty">No players yet. Players appear here after they sign in with Google.</div>';
+        return;
+      }
+      host.innerHTML = `<div class="hg-result-publish">
+        <div><strong>Quiz results</strong><small>${publicResult?.published ? "Published to players" : "Not published"}</small></div>
+        <button type="button" class="hg-btn ${publicResult?.published ? "is-danger" : ""}" data-publish-results="${publicResult?.published ? "false" : "true"}">${publicResult?.published ? "Unpublish Results" : "Publish Results"}</button>
+      </div>
+      <div class="hg-room-score-layout">
+        <section class="hg-room-score-board"><h4>${escapeHTML(room?.name || "Quiz Room")} · Ranking</h4>
+          <div class="hg-room-score-list">${rows.map(row => `<article class="hg-room-score-row"><span>${escapeHTML(HangoutService.rankLabel(row.rank))}</span><strong>${escapeHTML(row.name)}</strong><b>${row.points} pts</b></article>`).join("")}</div>
+        </section>
+        <section class="hg-room-score-editor"><h4>Inspect / Adjust Player Score</h4>
+          <form class="hg-form" data-score-adjust>
+            <label>Player<select name="uid">${rows.map(row => `<option value="${escapeHTML(row.uid)}">${escapeHTML(HangoutService.rankLabel(row.rank))} · ${escapeHTML(row.name)} — ${row.points} pts</option>`).join("")}</select></label>
+            <div class="hg-score-totals" data-score-preview></div>
+            <label>Adjustment Type<select name="mode"><option value="adjust">Add / subtract points</option><option value="set">Set exact total</option></select></label>
+            <label data-points-label>Points to add or subtract<input name="points" type="number" step="1" min="-100000" max="100000" required></label>
+            <label>Reason (required)<textarea name="reason" maxlength="200" required></textarea></label>
+            <div class="hg-form-actions"><button type="submit" class="hg-btn">Save Score Adjustment</button></div>
+          </form>
+          <h4>Score History</h4><div data-score-history></div>
+        </section>
+      </div>`;
+      const form = host.querySelector("[data-score-adjust]");
+      const getSelectedRow = () => rows.find(row => row.uid === form.elements.uid.value) || rows[0];
+      const renderPreview = () => {
+        const row = getSelectedRow();
+        const enteredPoints = Number(form.elements.points.value) || 0;
+        const delta = form.elements.mode.value === "set" ? enteredPoints - row.points : enteredPoints;
+        const newTotal = Math.max(0, row.points + delta);
+        const projectedRows = rows.map(item => ({ ...item, projected: item.uid === row.uid ? newTotal : item.points }))
+          .sort((a, b) => b.projected - a.projected || a.name.localeCompare(b.name));
+        projectedRows.forEach((item, index) => {
+          item.rank = index > 0 && item.projected === projectedRows[index - 1].projected
+            ? projectedRows[index - 1].rank
+            : index + 1;
+        });
+        const projectedIndex = projectedRows.findIndex(item => item.uid === row.uid);
+        const projectedRank = projectedRows[projectedIndex].rank;
+        host.querySelector("[data-score-preview]").innerHTML = `<span>Player: <strong>${escapeHTML(row.name)}</strong></span><span>Previous score: <strong>${row.points}</strong></span><span>Adjusted points: <strong>${delta > 0 ? "+" : ""}${delta}</strong></span><span>New total: <strong>${newTotal}</strong> · Projected rank ${escapeHTML(HangoutService.rankLabel(projectedRank))}</span>`;
+        const playerScore = scores[row.uid] || {};
+        const history = [
+          ...Object.entries(playerScore.adjustments || {}).map(([, item]) => ({
+            at: item.editedAt,
+            actor: item.editedBy || "Quiz admin",
+            note: item.reason || "Score adjustment",
+            details: `${Number(item.previousScore) || 0} → ${Number(item.newTotal) || 0} (${Number(item.adjustedPoints) > 0 ? "+" : ""}${Number(item.adjustedPoints) || 0})`
+          })),
+          ...Object.entries(playerScore.awards || {}).map(([questionId, item]) => ({
+            at: item.at,
+            actor: item.kind === "manual" ? "Manual evaluation" : "Quiz answer",
+            note: `Question #${Number(room?.questions?.[questionId]?.questionNumber) || "—"}`,
+            details: `${Number(item.points) > 0 ? "+" : ""}${Number(item.points) || 0} points`
+          }))
+        ].sort((a, b) => String(b.at || "").localeCompare(String(a.at || "")));
+        host.querySelector("[data-score-history]").innerHTML = history.length
+          ? `<ul class="hg-score-history">${history.map(item => `<li><div><strong>${escapeHTML(item.actor)}</strong><small>${escapeHTML(new Date(item.at).toLocaleString())} · ${escapeHTML(item.note)}</small><small>${escapeHTML(item.details)}</small></div></li>`).join("")}</ul>`
+          : '<div class="hg-empty">No score history for this player in this room.</div>';
+      };
+      form.elements.uid.addEventListener("change", renderPreview);
+      form.elements.points.addEventListener("input", renderPreview);
+      form.elements.mode.addEventListener("change", () => {
+        const exact = form.elements.mode.value === "set";
+        form.elements.points.min = exact ? "0" : "-100000";
+        form.elements.points.value = "";
+        host.querySelector("[data-points-label]").firstChild.textContent = exact ? "Set new total score" : "Points to add or subtract";
+        renderPreview();
+      });
+      form.addEventListener("focusout", event => {
+        const nextFocused = event.relatedTarget;
+        if (nextFocused && form.contains(nextFocused)) return;
+        if (nextFocused) window.setTimeout(() => renderRoomScores(host, source, roomId, room), 0);
+      });
+      renderPreview();
+      let firstScoreSnapshot = true;
+      host._stopRoomScores = HangoutAdminRepository.subscribeRoomScores(roomId, () => {
+        if (firstScoreSnapshot) {
+          firstScoreSnapshot = false;
+          return;
+        }
+        if (host.isConnected && !form.contains(document.activeElement)) renderRoomScores(host, source, roomId, room);
+      }, error => {
+        console.error("Room score updates could not be received:", error);
+        showToast("Room score updates were interrupted. Use Refresh to reload.", "error");
+      });
+      host.querySelector("[data-publish-results]").addEventListener("click", async event => {
+        const button = event.currentTarget;
+        button.disabled = true;
+        try {
+          await HangoutAdminRepository.setRoomResultsPublished(roomId, button.dataset.publishResults === "true");
+          showToast(button.dataset.publishResults === "true" ? "Room results published." : "Room results unpublished.", "success");
+          await renderRoomScores(host, source, roomId, room);
+        } catch (error) {
+          console.error("Quiz results publishing failed:", error);
+          showToast(error.message || "Could not update result visibility.", "error");
+          button.disabled = false;
+        }
+      });
+      form.addEventListener("submit", async event => {
+        event.preventDefault();
+        const row = getSelectedRow();
+        const enteredPoints = Number(form.elements.points.value);
+        const delta = form.elements.mode.value === "set" ? enteredPoints - row.points : enteredPoints;
+        if (!Number.isInteger(delta) || delta === 0 || Math.abs(delta) > 100000) {
+          showToast("Enter a non-zero whole number of points.", "warning");
+          return;
+        }
+        if (row.points + delta < 0) {
+          showToast("The adjustment cannot make a player's score negative.", "warning");
+          return;
+        }
+        const button = form.querySelector('[type="submit"]');
+        button.disabled = true;
+        try {
+          await HangoutAdminRepository.adjustRoomScore(roomId, row.uid, delta, form.elements.reason.value);
+          showToast(`Updated ${row.name}'s room score.`, "success");
+          await renderRoomScores(host, source, roomId, room);
+        } catch (error) {
+          console.error("Room score adjustment failed:", error);
+          showToast(error.message || "Could not save the score adjustment.", "error");
+          button.disabled = false;
+        }
+      });
+    } catch (error) {
+      console.error("Player room score data could not be loaded:", error);
+      host.innerHTML = '<div class="hg-empty">Could not load this room’s scoreboard. Check Quiz Admin access and database rules.</div>';
+    }
   }
 
   return Object.freeze({ open });

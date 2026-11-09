@@ -6,9 +6,13 @@
 // Data comes from HangoutRepository, rules from HangoutService, Google login
 // from HangoutAuth. Chat is in quiz-chat.view.js, admin in quiz-admin.view.js.
 (() => {
-  let container = null, ctx = null, stops = [], stopAuth = null, chat = null;
+  let container = null, ctx = null, stops = [], stopAuth = null, answerStop = null, chat = null;
+  let questionTimer = 0, revealTimeout = 0;
+  let stopServerTime = null;
+  let answerQuestionKey = "";
   let lastQuizKey = null, scoreTimer = 0, panel = "quiz", exitFn = () => {};
-  const data = { users: {}, scores: {}, quiz: null, log: {} };
+  let selectedResultId = "";
+  const data = { users: {}, scores: {}, publicResults: {}, quiz: null, log: {}, answer: null, reveal: null, revealError: false, timeExpired: false };
 
   const $ = selector => container?.querySelector(selector);
 
@@ -28,10 +32,18 @@
   function teardown() {
     stops.forEach(stop => { try { stop(); } catch (error) { /* already stopped */ } });
     stops = [];
+    if (answerStop) { answerStop(); answerStop = null; }
+    if (stopServerTime) { stopServerTime(); stopServerTime = null; }
+    clearInterval(questionTimer);
+    questionTimer = 0;
+    clearTimeout(revealTimeout);
+    revealTimeout = 0;
+    answerQuestionKey = "";
     clearTimeout(scoreTimer);
     if (chat) { chat.unmount(); chat = null; }
     ctx = null; lastQuizKey = null;
-    data.users = {}; data.scores = {}; data.quiz = null; data.log = {};
+    data.users = {}; data.scores = {}; data.publicResults = {}; data.quiz = null; data.log = {}; data.answer = null;
+    data.reveal = null; data.revealError = false; data.timeExpired = false;
     panel = "quiz";
   }
 
@@ -73,6 +85,7 @@
 
   // ---------- quiz screen ----------
   function buildQuiz() {
+    stopServerTime = HangoutFirebase.watchServerTime();
     container.innerHTML = `
       <div class="hg-quiz">
         <header class="hg-qheader">
@@ -117,9 +130,10 @@
       showToast("Could not save your profile. Check your connection.", "error");
     });
     stops.push(
-      HangoutRepository.subscribeQuiz(quiz => { data.quiz = quiz; renderQuestion(quiz); }),
+      HangoutRepository.subscribeQuiz(quiz => { data.quiz = quiz; watchOwnAnswer(quiz); renderQuestion(quiz); }),
       HangoutRepository.subscribeUsers(users => { data.users = users; chat?.refreshAvatars(); scheduleScoreRender(); }),
       HangoutRepository.subscribeScores(scores => { data.scores = scores; scheduleScoreRender(); }),
+      HangoutRepository.subscribePublicResults(results => { data.publicResults = results; scheduleScoreRender(); }),
       HangoutRepository.subscribeScoreLog(ctx.user.uid, log => { data.log = log; if (panel === "profile") renderProfile(); })
     );
   }
@@ -140,22 +154,154 @@
   }
 
   // ---------- question area (never touched when switching tabs) ----------
+  function watchOwnAnswer(raw) {
+    const quiz = HangoutService.cleanQuiz(raw);
+    const key = ["live", "paused", "revealed", "completed"].includes(quiz.status) && quiz.roomId && quiz.questionId
+      ? `${quiz.roomId}/${quiz.questionId}/${ctx.user.uid}/${quiz.status}/${quiz.startedAt}/${quiz.remainingMs}` : "";
+    if (key === answerQuestionKey) return;
+    if (answerStop) { answerStop(); answerStop = null; }
+    clearInterval(questionTimer);
+    questionTimer = 0;
+    clearTimeout(revealTimeout);
+    revealTimeout = 0;
+    answerQuestionKey = key;
+    data.answer = null;
+    data.reveal = null;
+    data.revealError = false;
+    data.timeExpired = false;
+    lastQuizKey = null;
+    if (key) {
+      answerStop = HangoutRepository.subscribeOwnAnswer(quiz.roomId, quiz.questionId, ctx.user.uid, answer => {
+        data.answer = answer;
+        renderQuestion(data.quiz);
+      });
+    }
+    if (["live", "paused"].includes(quiz.status) && quiz.timeLimit) startQuestionTimer(quiz);
+  }
+
+  function startQuestionTimer(initialQuiz) {
+    const update = () => {
+      const quiz = HangoutService.cleanQuiz(data.quiz || initialQuiz);
+      if (!["live", "paused"].includes(quiz.status) || !quiz.timeLimit) { clearInterval(questionTimer); return; }
+      const left = quiz.status === "paused"
+        ? Number(quiz.remainingMs) || 0
+        : (quiz.remainingMs == null ? quiz.timeLimit * 1000 : quiz.remainingMs) - (HangoutFirebase.now() - Number(quiz.startedAt || 0));
+      const countdown = $("#hgQuestion [data-player-countdown]");
+      if (countdown) countdown.textContent = formatPlayerCountdown(left);
+      if (quiz.status === "live" && left <= 0 && !data.timeExpired) {
+        data.timeExpired = true;
+        lastQuizKey = null;
+        renderQuestion(data.quiz);
+        clearInterval(questionTimer);
+        revealTimeout = window.setTimeout(() => revealTimedOutAnswer(quiz), 1000);
+      }
+    };
+    update();
+    questionTimer = setInterval(update, 250);
+  }
+
   function renderQuestion(raw) {
     const quiz = HangoutService.cleanQuiz(raw);
-    const key = JSON.stringify(quiz);
+    const key = JSON.stringify([quiz, data.answer, data.reveal, data.timeExpired, data.revealError]);
     const month = $("#hgMonth");
-    if (month) month.textContent = quiz.monthLabel || HangoutService.monthLabel();
+    if (month) month.textContent = quiz.roomName || quiz.monthLabel || HangoutService.monthLabel();
     if (key === lastQuizKey) return;
     lastQuizKey = key;
     const area = $("#hgQuestion");
     if (!area) return;
-    if (!quiz.title && !quiz.text && !quiz.imageUrl) {
+    const hasLegacyQuestion = quiz.title || quiz.text || quiz.imageUrl;
+    if ((!quiz.status || quiz.status === "completed") && !hasLegacyQuestion) {
       area.innerHTML = '<div class="hg-question-empty"><i class="fa-solid fa-hourglass-half"></i><span>No question yet.<br>Please wait for the admin.</span></div>';
       return;
     }
-    area.innerHTML = `${quiz.title ? `<h3>${escapeHTML(quiz.title)}</h3>` : ""}${quiz.text ? `<p>${escapeHTML(quiz.text)}</p>` : ""}${quiz.imageUrl ? `<img src="${escapeHTML(quiz.imageUrl)}" alt="Quiz picture" referrerpolicy="no-referrer">` : ""}`;
+    if (quiz.status === "completed" && !hasLegacyQuestion) {
+      area.innerHTML = '<div class="hg-question-empty"><i class="fa-solid fa-circle-check"></i><span>This quiz is completed.</span></div>';
+      return;
+    }
+    const roomQuestion = quiz.questionId && ["live", "paused", "revealed", "completed"].includes(quiz.status);
+    const liveQuestion = quiz.status === "live" && quiz.questionId;
+    const submitted = roomQuestion && data.answer;
+    const evaluation = submitted?.evaluation;
+    const reveal = quiz.answerRevealed ? { correctAnswer: quiz.correctAnswer, explanation: quiz.explanation } : data.reveal;
+    let response = "";
+    if (submitted) {
+      response = `<div class="hg-answer-status">${evaluation
+        ? `${evaluation.result === "correct" ? "Correct" : "Wrong"} · ${Number(evaluation.points) || 0} points`
+        : quiz.type === "short" ? "Answer received. An admin will evaluate it." : "Answer submitted."}</div>`;
+    } else if (quiz.status === "paused") {
+      response = '<div class="hg-answer-status">Quiz paused. The timer is paused too.</div>';
+    } else if (liveQuestion && data.timeExpired) {
+      response = `<div class="hg-answer-status">Time is up.${data.revealError ? ' <button type="button" class="hg-link-btn" data-act="retry-reveal">Retry answer reveal</button>' : " Revealing the correct answer…"}</div>`;
+    } else if (liveQuestion && quiz.type) {
+      const options = quiz.options.map(option => `<label class="hg-answer-option"><input type="radio" name="hgAnswer" value="${escapeHTML(option.id)}" required><span>${escapeHTML(option.text)}</span></label>`).join("");
+      response = `<form class="hg-player-answer" data-answer-form>
+        ${quiz.type === "short"
+          ? '<label class="hg-player-answer-label">Your answer<textarea name="answer" maxlength="1000" required></textarea></label>'
+          : `<fieldset><legend>${quiz.type === "trueFalse" ? "Choose True or False" : "Choose an answer"}</legend>${options}</fieldset>`}
+        <button type="submit" class="hg-btn">Submit answer</button>
+      </form>`;
+    }
+    if (reveal) {
+      const correctText = quiz.options.find(option => option.id === reveal.correctAnswer)?.text
+        || (reveal.correctAnswer === "true" ? "True" : reveal.correctAnswer === "false" ? "False" : reveal.correctAnswer);
+      response += `<div class="hg-answer-reveal"><strong>Correct answer:</strong> ${escapeHTML(correctText || "Manual evaluation")} ${quiz.points ? `<span>+${quiz.points} points</span>` : ""}${reveal.explanation ? `<p><strong>Explanation:</strong> ${escapeHTML(reveal.explanation)}</p>` : ""}</div>`;
+    }
+    const showTimer = ["live", "paused"].includes(quiz.status) && quiz.timeLimit;
+    area.innerHTML = `${roomQuestion ? `<small class="hg-live-label">${escapeHTML(quiz.roomName)} · Question #${quiz.questionNumber} · ${quiz.points} points</small>` : ""}${showTimer ? `<div class="hg-player-timer ${quiz.status === "paused" ? "is-paused" : ""}">Time <strong data-player-countdown>${formatPlayerCountdown(quiz.status === "paused" ? quiz.remainingMs || 0 : remainingQuestionTime(quiz))}</strong></div>` : ""}${quiz.title ? `<h3>${escapeHTML(quiz.title)}</h3>` : ""}${quiz.text ? `<p>${escapeHTML(quiz.text)}</p>` : ""}${quiz.imageUrl ? `<img src="${escapeHTML(quiz.imageUrl)}" alt="Quiz question image" referrerpolicy="no-referrer">` : ""}${quiz.audioUrl ? `<audio controls preload="metadata" src="${escapeHTML(quiz.audioUrl)}">Your browser does not support audio.</audio>` : ""}${response}`;
+    const form = area.querySelector("[data-answer-form]");
+    if (form) form.addEventListener("submit", async event => {
+      event.preventDefault();
+      const value = quiz.type === "short" ? form.elements.answer.value.trim() : form.querySelector('[name="hgAnswer"]:checked')?.value;
+      if (!value) { showToast("Choose or enter an answer first.", "warning"); return; }
+      const button = form.querySelector('[type="submit"]');
+      button.disabled = true;
+      try {
+        const answer = await HangoutAdminRepository.submitAnswer(quiz, ctx.user, value);
+        data.answer = answer;
+        renderQuestion(quiz);
+        if (quiz.type === "short") showToast("Answer submitted for manual evaluation.", "success");
+        else if (answer.autoPointsAwarded) showToast(`Correct answer! ${quiz.points} points added.`, "success");
+        else showToast("Answer submitted.", "success");
+      } catch (error) {
+        console.error("Quiz answer submission failed:", error);
+        showToast(error.message || "Could not submit your answer.", "error");
+        button.disabled = false;
+      }
+    });
+    area.querySelector('[data-act="retry-reveal"]')?.addEventListener("click", () => {
+      data.timeExpired = false;
+      data.revealError = false;
+      lastQuizKey = null;
+      startQuestionTimer(quiz);
+    });
     area.scrollTop = 0;
   }
+
+  async function revealTimedOutAnswer(quiz) {
+    const currentQuiz = HangoutService.cleanQuiz(data.quiz);
+    if (currentQuiz.roomId !== quiz.roomId || currentQuiz.questionId !== quiz.questionId) return;
+    try {
+      const answerKey = await HangoutRepository.readTimedOutAnswerKey(quiz.roomId, quiz.questionId);
+      if (!answerKey) throw new Error("The answer key is not available.");
+      data.reveal = answerKey;
+      data.revealError = false;
+      renderQuestion(data.quiz);
+    } catch (error) {
+      console.error("Timed quiz answer could not be revealed:", error);
+      data.revealError = true;
+      renderQuestion(data.quiz);
+    }
+  }
+
+  function remainingQuestionTime(quiz) {
+    const duration = quiz.remainingMs == null ? quiz.timeLimit * 1000 : quiz.remainingMs;
+    return Math.max(0, duration - (HangoutFirebase.now() - Number(quiz.startedAt || 0)));
+  }
+
+  const formatPlayerCountdown = milliseconds => {
+    const seconds = Math.ceil(Math.max(0, milliseconds) / 1000);
+    return `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+  };
 
   // ---------- scoreboard ----------
   function scheduleScoreRender() {
@@ -166,22 +312,40 @@
   function renderScore() {
     const host = $('[data-panel="score"]');
     if (!host || !ctx) return;
-    const rows = HangoutService.buildLeaderboard(data.users, data.scores);
-    const me = rows.find(row => row.uid === ctx.user.uid);
-    const list = rows.map(row => {
-      const medal = HangoutService.medalFor(row.rank);
-      const own = row.uid === ctx.user.uid;
-      return `<li class="hg-row ${row.rank <= 3 ? `rank-${row.rank}` : ""} ${own ? "is-you" : ""}">
-        <span class="hg-rank ${medal ? "is-medal" : ""}">${medal || escapeHTML(HangoutService.rankLabel(row.rank))}</span>
-        ${HangoutUI.avatar(row.photo, row.name, row.uid)}
-        <span class="hg-name">${escapeHTML(row.name)}${own ? '<span class="hg-you-tag">You</span>' : ""}</span>
-        <span class="hg-pts">${row.points}</span></li>`;
-    }).join("");
-    host.innerHTML = `<div class="hg-score">
-      <div class="hg-score-head"><small>RANKING</small><h3>Live Scoreboard</h3></div>
-      ${me ? `<div class="hg-yourpos">Your Position: ${escapeHTML(HangoutService.rankLabel(me.rank))}</div>` : ""}
-      ${rows.length ? `<ol class="hg-score-list">${list}</ol>` : '<div class="hg-empty">No players yet.</div>'}
-    </div>`;
+    const publishedResults = Object.entries(data.publicResults || {})
+      .filter(([, result]) => result?.published && result.rows && typeof result.rows === "object")
+      .sort((a, b) => String(b[1].updatedAt || "").localeCompare(String(a[1].updatedAt || "")));
+    if (publishedResults.length) {
+      if (!publishedResults.some(([roomId]) => roomId === selectedResultId)) selectedResultId = publishedResults[0][0];
+      const [roomId, result] = publishedResults.find(([id]) => id === selectedResultId);
+      const rows = (Array.isArray(result.rows) ? result.rows : Object.values(result.rows))
+        .sort((a, b) => Number(a.rank) - Number(b.rank));
+      const me = rows.find(row => row.uid === ctx.user.uid);
+      const list = rows.map(row => {
+        const rank = Number(row.rank) || 0;
+        const medal = HangoutService.medalFor(rank);
+        const own = row.uid === ctx.user.uid;
+        const profile = data.users[row.uid] || {};
+        return `<li class="hg-row ${rank <= 3 ? `rank-${rank}` : ""} ${own ? "is-you" : ""}">
+          <span class="hg-rank ${medal ? "is-medal" : ""}">${medal || escapeHTML(HangoutService.rankLabel(rank))}</span>
+          ${HangoutUI.avatar(profile.photo, row.name, row.uid)}
+          <span class="hg-name">${escapeHTML(row.name)}${own ? '<span class="hg-you-tag">You</span>' : ""}</span>
+          <span class="hg-pts">${Number(row.points) || 0}</span></li>`;
+      }).join("");
+      host.innerHTML = `<div class="hg-score">
+        <div class="hg-score-head"><small>PUBLISHED RESULTS</small><h3>${escapeHTML(result.roomName || "Quiz Results")}</h3>
+          <label class="hg-results-select-label">Published Quiz Results<select data-published-result>${publishedResults.map(([id, item]) => `<option value="${escapeHTML(id)}" ${id === roomId ? "selected" : ""}>${escapeHTML(item.roomName || "Quiz Room")}</option>`).join("")}</select></label>
+        </div>
+        ${me ? `<div class="hg-yourpos">Your Position: ${escapeHTML(HangoutService.rankLabel(me.rank))} · ${Number(me.points) || 0} pts</div>` : ""}
+        ${list.length ? `<ol class="hg-score-list">${list}</ol>` : '<div class="hg-empty">No results have been recorded for this quiz.</div>'}
+      </div>`;
+      host.querySelector("[data-published-result]").addEventListener("change", event => {
+        selectedResultId = event.currentTarget.value;
+        renderScore();
+      });
+      return;
+    }
+    host.innerHTML = '<div class="hg-score"><div class="hg-score-head"><small>RANKING</small><h3>Quiz Results</h3></div><div class="hg-empty">Results have not been published yet.</div></div>';
   }
 
   // ---------- profile ----------

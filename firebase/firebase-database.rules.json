@@ -125,15 +125,15 @@
     "auditLog": {
       ".read": true,
       "$eventId": {
-        ".write": "auth != null && !data.exists() && newData.exists() && newData.child('actorUid').val() == auth.uid && ((auth.token.role == 'official' && newData.child('actorRole').val() == 'official') || (auth.token.email == 'kebir.limra@gmail.com' && auth.token.googleAuth == true && newData.child('actorRole').val() == 'quizAdmin' && newData.child('path').val().beginsWith('hangout/')))",
+        ".write": "auth != null && !data.exists() && newData.exists() && newData.child('actorUid').val() == auth.uid && ((auth.token.role == 'official' && newData.child('actorRole').val() == 'official') || ((auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true && newData.child('actorRole').val() == 'quizAdmin' && newData.child('path').val().beginsWith('hangout/')))",
         ".validate": "newData.hasChildren(['action', 'path', 'actorUid', 'actorRole', 'clientAt', 'createdAt']) && newData.child('action').isString() && newData.child('path').isString() && newData.child('actorUid').isString() && (newData.child('actorRole').val() == 'official' || newData.child('actorRole').val() == 'quizAdmin') && newData.child('clientAt').isString() && newData.child('createdAt').isNumber() && (!newData.child('recordId').exists() || newData.child('recordId').isString())"
       }
     },
     "hangout": {
       "quiz": {
         ".read": "auth != null",
-        ".write": "auth != null && auth.token.email == 'kebir.limra@gmail.com' && auth.token.googleAuth == true",
-        ".validate": "newData.hasChildren(['updatedAt'])",
+        ".write": "auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true",
+        ".validate": "!newData.exists() || (newData.hasChildren(['updatedAt']) && (!newData.child('status').exists() || newData.child('status').val() == 'live' || newData.child('status').val() == 'paused' || newData.child('status').val() == 'revealed' || newData.child('status').val() == 'completed'))",
         "monthLabel": {
           ".validate": "newData.isString() && newData.val().length <= 40"
         },
@@ -146,11 +146,124 @@
         "imageUrl": {
           ".validate": "newData.isString() && newData.val().length <= 400000"
         },
+        "audioUrl": {
+          ".validate": "newData.isString() && newData.val().length <= 2000 && (newData.val() == '' || newData.val().beginsWith('https://'))"
+        },
+        "roomId": {
+          ".validate": "newData.isString() && newData.val().length <= 100"
+        },
+        "roomName": {
+          ".validate": "newData.isString() && newData.val().length <= 120"
+        },
+        "questionId": {
+          ".validate": "newData.isString() && newData.val().length <= 100"
+        },
+        "questionNumber": {
+          ".validate": "newData.isNumber() && newData.val() >= 1"
+        },
+        "type": {
+          ".validate": "newData.isString() && (newData.val() == 'mcq' || newData.val() == 'trueFalse' || newData.val() == 'short')"
+        },
+        "options": {
+          ".validate": "newData.numChildren() <= 8",
+          "$optionId": {
+            ".validate": "newData.hasChildren(['id', 'text']) && newData.child('id').isString() && newData.child('text').isString() && newData.child('text').val().length <= 300"
+          }
+        },
+        "points": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000"
+        },
+        "timeLimit": {
+          ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 3600"
+        },
+        "startedAt": {
+          ".validate": "newData.isNumber()"
+        },
+        "remainingMs": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3600000"
+        },
+        "answerRevealed": {
+          ".validate": "newData.isBoolean()"
+        },
+        "correctAnswer": {
+          ".validate": "newData.isString() && newData.val().length <= 1000"
+        },
+        "explanation": {
+          ".validate": "newData.isString() && newData.val().length <= 2000"
+        },
+        "status": {
+          ".validate": "newData.isString() && (newData.val() == 'live' || newData.val() == 'paused' || newData.val() == 'revealed' || newData.val() == 'completed')"
+        },
         "updatedAt": {
           ".validate": "newData.isString()"
         },
         "$other": {
           ".validate": false
+        }
+      },
+      "rooms": {
+        ".read": "auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true",
+        ".write": "auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true",
+        "$roomId": {
+          ".validate": "newData.hasChildren(['name', 'month', 'status', 'createdAt', 'updatedAt']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 120 && newData.child('description').isString() && newData.child('description').val().length <= 500 && newData.child('month').isString() && newData.child('month').val().length <= 7 && (newData.child('status').val() == 'draft' || newData.child('status').val() == 'ready' || newData.child('status').val() == 'live' || newData.child('status').val() == 'completed') && newData.child('createdAt').isString() && newData.child('updatedAt').isString()",
+          "questionCounter": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "questions": {
+            "$questionId": {
+              ".validate": "newData.hasChildren(['questionNumber', 'text', 'type', 'points', 'timeLimit', 'explanation', 'correctAnswer', 'imageUrl', 'audioUrl', 'createdAt', 'updatedAt']) && newData.child('questionNumber').isNumber() && newData.child('questionNumber').val() >= 1 && newData.child('text').isString() && newData.child('text').val().length <= 4000 && (newData.child('text').val().length > 0 || newData.child('imageUrl').val().length > 0 || newData.child('audioUrl').val().length > 0) && (newData.child('type').val() == 'mcq' || newData.child('type').val() == 'trueFalse' || newData.child('type').val() == 'short') && newData.child('points').isNumber() && newData.child('points').val() >= 1 && newData.child('points').val() <= 10000 && newData.child('timeLimit').isNumber() && newData.child('timeLimit').val() >= 1 && newData.child('timeLimit').val() <= 3600 && newData.child('explanation').isString() && newData.child('explanation').val().length <= 2000 && newData.child('correctAnswer').isString() && newData.child('correctAnswer').val().length <= 1000 && newData.child('imageUrl').isString() && newData.child('imageUrl').val().length <= 2000 && newData.child('audioUrl').isString() && newData.child('audioUrl').val().length <= 2000 && newData.child('createdAt').isString() && newData.child('updatedAt').isString() && ((newData.child('type').val() == 'short' && newData.child('options').numChildren() == 0) || (newData.child('type').val() == 'trueFalse' && newData.child('options').hasChildren(['true', 'false']) && newData.child('options').numChildren() == 2 && (newData.child('correctAnswer').val() == 'true' || newData.child('correctAnswer').val() == 'false')) || (newData.child('type').val() == 'mcq' && newData.child('options').numChildren() >= 2 && newData.child('options').numChildren() <= 8 && newData.child('options').child(newData.child('correctAnswer').val()).exists()))",
+              "options": {
+                "$optionId": {
+                  ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 300"
+                }
+              },
+              "deleted": {
+                ".validate": "newData.isBoolean()"
+              },
+              "$other": {
+                ".validate": false
+              }
+            }
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      },
+      "answerKeys": {
+        ".read": "auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true",
+        ".write": "auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true",
+        "$roomId": {
+          "$questionId": {
+            ".read": "auth != null && (((auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true) || (root.child('hangout/quiz/status').val() == 'live' && root.child('hangout/quiz/roomId').val() == $roomId && root.child('hangout/quiz/questionId').val() == $questionId && now >= root.child('hangout/quiz/startedAt').val() + (root.child('hangout/quiz/remainingMs').val() == null ? root.child('hangout/quiz/timeLimit').val() * 1000 : root.child('hangout/quiz/remainingMs').val())))",
+            ".validate": "newData.hasChildren(['correctAnswer', 'updatedAt']) && newData.child('correctAnswer').isString() && newData.child('correctAnswer').val().length <= 1000 && newData.child('updatedAt').isString()"
+          }
+        }
+      },
+      "answers": {
+        ".read": "auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true",
+        "$roomId": {
+          "$questionId": {
+            "$uid": {
+              ".read": "auth != null && auth.uid == $uid",
+              ".write": "auth != null && auth.uid == $uid && !data.exists() && root.child('hangout/quiz/status').val() == 'live' && root.child('hangout/quiz/roomId').val() == $roomId && root.child('hangout/quiz/questionId').val() == $questionId && newData.child('questionPoints').val() == root.child('hangout/quiz/points').val() && now < root.child('hangout/quiz/startedAt').val() + (root.child('hangout/quiz/remainingMs').val() == null ? root.child('hangout/quiz/timeLimit').val() * 1000 : root.child('hangout/quiz/remainingMs').val())",
+              ".validate": "newData.hasChildren(['uid', 'playerName', 'answer', 'questionPoints', 'submittedAt']) && newData.child('uid').val() == $uid && newData.child('playerName').isString() && newData.child('playerName').val().length <= 80 && newData.child('answer').isString() && newData.child('answer').val().length >= 1 && newData.child('answer').val().length <= 1000 && newData.child('questionPoints').isNumber() && newData.child('questionPoints').val() >= 0 && newData.child('submittedAt').isString()",
+              "evaluation": {
+                ".write": "auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true && !data.exists()",
+                ".validate": "newData.hasChildren(['result', 'points', 'evaluatedAt', 'evaluatorUid', 'pointsAwarded']) && (newData.child('result').val() == 'correct' || newData.child('result').val() == 'wrong') && newData.child('points').isNumber() && newData.child('points').val() >= 0 && newData.child('evaluatedAt').isString() && newData.child('evaluatorUid').isString() && newData.child('pointsAwarded').isBoolean()",
+                "pointsAwarded": {
+                  ".write": "auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true && data.val() == false && newData.val() == true",
+                  ".validate": "newData.isBoolean()"
+                },
+                "$other": {
+                  ".validate": false
+                }
+              },
+              "$other": {
+                ".validate": false
+              }
+            }
+          }
         }
       },
       "users": {
@@ -175,13 +288,73 @@
       "scores": {
         ".read": "auth != null",
         "$uid": {
-          ".write": "auth != null && auth.token.email == 'kebir.limra@gmail.com' && auth.token.googleAuth == true",
+          ".write": "(auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true) || (auth != null && auth.uid == $uid && newData.hasChildren(['points', 'autoAwards', 'lastAward']) && newData.child('lastAward').hasChildren(['roomId', 'questionId', 'points']) && newData.child('lastAward').child('roomId').isString() && newData.child('lastAward').child('questionId').isString() && newData.child('lastAward').child('points').isNumber() && newData.child('autoAwards').hasChild(newData.child('lastAward').child('roomId').val() + '_' + newData.child('lastAward').child('questionId').val()) && !data.child('autoAwards').child(newData.child('lastAward').child('roomId').val() + '_' + newData.child('lastAward').child('questionId').val()).exists() && root.child('hangout/answers').child(newData.child('lastAward').child('roomId').val()).child(newData.child('lastAward').child('questionId').val()).child($uid).child('answer').val() == root.child('hangout/answerKeys').child(newData.child('lastAward').child('roomId').val()).child(newData.child('lastAward').child('questionId').val()).child('correctAnswer').val() && newData.child('lastAward').child('points').val() == root.child('hangout/answers').child(newData.child('lastAward').child('roomId').val()).child(newData.child('lastAward').child('questionId').val()).child($uid).child('questionPoints').val() && newData.child('autoAwards').child(newData.child('lastAward').child('roomId').val() + '_' + newData.child('lastAward').child('questionId').val()).child('roomId').val() == newData.child('lastAward').child('roomId').val() && newData.child('autoAwards').child(newData.child('lastAward').child('roomId').val() + '_' + newData.child('lastAward').child('questionId').val()).child('questionId').val() == newData.child('lastAward').child('questionId').val() && newData.child('autoAwards').child(newData.child('lastAward').child('roomId').val() + '_' + newData.child('lastAward').child('questionId').val()).child('points').val() == newData.child('lastAward').child('points').val() && newData.child('points').val() == (data.child('points').val() == null ? 0 : data.child('points').val()) + newData.child('lastAward').child('points').val())",
           ".validate": "newData.hasChildren(['points']) && newData.child('points').isNumber()",
           "points": {
             ".validate": "newData.isNumber()"
           },
           "updatedAt": {
             ".validate": "newData.isString()"
+          },
+          "autoAwards": {
+            "$awardId": {
+              ".validate": "newData.hasChildren(['roomId', 'questionId', 'points']) && newData.child('roomId').isString() && newData.child('questionId').isString() && newData.child('points').isNumber() && ((data.exists() && newData.child('roomId').val() == data.child('roomId').val() && newData.child('questionId').val() == data.child('questionId').val() && newData.child('points').val() == data.child('points').val()) || (!data.exists() && $awardId == newData.child('roomId').val() + '_' + newData.child('questionId').val() && root.child('hangout/rooms').child(newData.child('roomId').val()).child('questions').child(newData.child('questionId').val()).child('type').val() != 'short' && root.child('hangout/answers').child(newData.child('roomId').val()).child(newData.child('questionId').val()).child($uid).child('answer').val() == root.child('hangout/answerKeys').child(newData.child('roomId').val()).child(newData.child('questionId').val()).child('correctAnswer').val() && newData.child('points').val() == root.child('hangout/answers').child(newData.child('roomId').val()).child(newData.child('questionId').val()).child($uid).child('questionPoints').val()))"
+            }
+          },
+          "lastAward": {
+            ".validate": "newData.hasChildren(['roomId', 'questionId', 'points']) && ((data.exists() && newData.child('roomId').val() == data.child('roomId').val() && newData.child('questionId').val() == data.child('questionId').val() && newData.child('points').val() == data.child('points').val()) || ((auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') || (newData.child('roomId').isString() && newData.child('questionId').isString() && root.child('hangout/answers').child(newData.child('roomId').val()).child(newData.child('questionId').val()).child($uid).child('answer').val() == root.child('hangout/answerKeys').child(newData.child('roomId').val()).child(newData.child('questionId').val()).child('correctAnswer').val() && newData.child('points').val() == root.child('hangout/answers').child(newData.child('roomId').val()).child(newData.child('questionId').val()).child($uid).child('questionPoints').val())))"
+          },
+          "manualAwards": {
+            "$answerId": {
+              ".validate": "newData.isBoolean() && newData.val() == true && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com' || (data.exists() && data.val() == newData.val()))"
+            }
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      },
+      "roomScores": {
+        "$roomId": {
+          ".read": "auth != null && ((auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true)",
+          "$uid": {
+            ".read": "auth != null && (auth.uid == $uid || ((auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true))",
+            ".write": "(auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true) || (auth != null && auth.uid == $uid && newData.child('lastAward').hasChildren(['questionId', 'points']) && newData.child('lastAward').child('questionId').isString() && newData.child('lastAward').child('points').isNumber() && !data.child('awards').child(newData.child('lastAward').child('questionId').val()).exists() && newData.child('awards').child(newData.child('lastAward').child('questionId').val()).child('points').val() == newData.child('lastAward').child('points').val() && root.child('hangout/rooms').child($roomId).child('questions').child(newData.child('lastAward').child('questionId').val()).child('type').val() != 'short' && root.child('hangout/answers').child($roomId).child(newData.child('lastAward').child('questionId').val()).child($uid).child('answer').val() == root.child('hangout/answerKeys').child($roomId).child(newData.child('lastAward').child('questionId').val()).child('correctAnswer').val() && root.child('hangout/answers').child($roomId).child(newData.child('lastAward').child('questionId').val()).child($uid).child('questionPoints').val() == newData.child('lastAward').child('points').val() && newData.child('points').val() == (data.child('points').val() == null ? 0 : data.child('points').val()) + newData.child('lastAward').child('points').val())",
+            ".validate": "newData.hasChildren(['points']) && newData.child('points').isNumber() && newData.child('points').val() >= 0",
+            "points": {
+              ".validate": "newData.isNumber() && newData.val() >= 0"
+            },
+            "updatedAt": {
+              ".validate": "newData.isString()"
+            },
+            "awards": {
+              "$questionId": {
+                ".validate": "newData.hasChildren(['points', 'kind', 'at']) && newData.child('points').isNumber() && newData.child('kind').isString() && newData.child('at').isString()"
+              }
+            },
+            "adjustments": {
+              "$adjustmentId": {
+                ".validate": "(!data.exists() || (newData.child('previousScore').val() == data.child('previousScore').val() && newData.child('adjustedPoints').val() == data.child('adjustedPoints').val() && newData.child('newTotal').val() == data.child('newTotal').val() && newData.child('reason').val() == data.child('reason').val() && newData.child('editedBy').val() == data.child('editedBy').val() && newData.child('editedAt').val() == data.child('editedAt').val())) && newData.hasChildren(['previousScore', 'adjustedPoints', 'newTotal', 'reason', 'editedBy', 'editedAt']) && newData.child('previousScore').isNumber() && newData.child('adjustedPoints').isNumber() && newData.child('adjustedPoints').val() != 0 && newData.child('newTotal').isNumber() && newData.child('newTotal').val() >= 0 && newData.child('reason').isString() && newData.child('reason').val().length > 0 && newData.child('reason').val().length <= 200 && newData.child('editedBy').isString() && newData.child('editedBy').val().length <= 120 && newData.child('editedAt').isString()"
+              }
+            },
+            "lastAward": {
+              ".validate": "newData.hasChildren(['questionId', 'points']) && newData.child('questionId').isString() && newData.child('points').isNumber()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        }
+      },
+      "publicResults": {
+        ".read": "auth != null",
+        ".write": "auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true",
+        "$roomId": {
+          ".validate": "newData.hasChildren(['roomId', 'roomName', 'published', 'updatedAt']) && newData.child('roomId').val() == $roomId && newData.child('roomName').isString() && newData.child('roomName').val().length <= 120 && newData.child('published').isBoolean() && newData.child('updatedAt').isString() && (!newData.child('published').val() || newData.child('rows').exists())",
+          "rows": {
+            "$uid": {
+              ".validate": "newData.hasChildren(['uid', 'name', 'points', 'rank']) && newData.child('uid').val() == $uid && newData.child('name').isString() && newData.child('name').val().length <= 80 && newData.child('points').isNumber() && newData.child('points').val() >= 0 && newData.child('rank').isNumber() && newData.child('rank').val() >= 1"
+            }
           },
           "$other": {
             ".validate": false
@@ -190,9 +363,10 @@
       },
       "scoreLog": {
         "$uid": {
-          ".read": "auth != null && (auth.uid == $uid || auth.token.role == 'official')",
-          ".write": "auth != null && auth.token.email == 'kebir.limra@gmail.com' && auth.token.googleAuth == true",
+          ".read": "auth != null && (auth.uid == $uid || auth.token.role == 'official' || ((auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true))",
+          ".write": "auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true",
           "$logId": {
+            ".write": "(auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true) || (auth != null && auth.uid == $uid && root.child('hangout/scores').child($uid).child('autoAwards').child($logId).exists() && newData.child('points').val() == root.child('hangout/scores').child($uid).child('autoAwards').child($logId).child('points').val())",
             ".validate": "newData.hasChildren(['points', 'at']) && newData.child('points').isNumber() && newData.child('at').isString() && (!newData.child('note').exists() || (newData.child('note').isString() && newData.child('note').val().length <= 200))"
           }
         }
@@ -221,7 +395,7 @@
             ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 120"
           },
           "deleted": {
-            ".write": "auth != null && auth.token.email == 'kebir.limra@gmail.com' && auth.token.googleAuth == true && data.parent().exists()",
+            ".write": "auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true && data.parent().exists()",
             ".validate": "newData.isBoolean()"
           },
           "$other": {
