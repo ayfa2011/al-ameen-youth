@@ -55,13 +55,16 @@ window.HangoutQuizAdmin = (() => {
         <label>Quiz Name<input name="name" maxlength="120" placeholder="e.g. Children's Day Special Quiz" required></label>
         <label>Description (optional)<textarea name="description" maxlength="500"></textarea></label>
         <label>Quiz Month<input name="month" type="month"></label>
+        <label>Quiz Start Date (optional)<input name="startDate" type="date"></label>
+        <label>Quiz Start Time (optional)<input name="startTime" type="time"></label>
         <label>Quiz Status<select name="status"><option value="draft">Draft</option><option value="ready">Ready</option></select></label>
         <div class="hg-form-actions"><button type="submit" class="hg-btn">Create Room</button></div>
       </form>
       <h4 class="hg-section-title">Quiz Rooms</h4>
       ${Object.entries(rooms).length ? `<div class="hg-room-list">${Object.entries(rooms).sort((a, b) => String(b[1]?.createdAt || "").localeCompare(String(a[1]?.createdAt || ""))).map(([id, room]) => {
         const questions = Object.values(room?.questions || {}).filter(question => !question?.deleted).length;
-        return `<article class="hg-room-card"><div><strong>${escapeHTML(room.name || "Quiz Room")}</strong><small>${escapeHTML(room.month || "No month")} · ${questions} question${questions === 1 ? "" : "s"}</small></div><span class="hg-status is-${escapeHTML(room.status || "draft")}">${escapeHTML(room.status || "Draft")}</span><button type="button" class="hg-btn is-light" data-manage-room="${escapeHTML(id)}">Manage</button></article>`;
+        const scheduled = room.scheduledStartAt ? new Date(Number(room.scheduledStartAt)).toLocaleString([], { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+        return `<article class="hg-room-card"><div><strong>${escapeHTML(room.name || "Quiz Room")}</strong><small>${escapeHTML(room.month || "No month")} · ${questions} question${questions === 1 ? "" : "s"}${scheduled ? ` · Starts ${escapeHTML(scheduled)}` : ""}</small></div><span class="hg-status is-${escapeHTML(room.status || "draft")}">${escapeHTML(room.status || "Draft")}</span><button type="button" class="hg-btn is-light" data-manage-room="${escapeHTML(id)}">Manage</button></article>`;
       }).join("")}</div>` : '<div class="hg-empty">No quiz rooms yet. Create your first room above.</div>'}`;
       host.querySelector("form").addEventListener("submit", async event => {
         event.preventDefault();
@@ -73,6 +76,8 @@ window.HangoutQuizAdmin = (() => {
             name: form.elements.name.value.trim(),
             description: form.elements.description.value.trim(),
             month: form.elements.month.value,
+            startDate: form.elements.startDate.value,
+            startTime: form.elements.startTime.value,
             status: form.elements.status.value
           });
           showToast("Quiz room created.", "success");

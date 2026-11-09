@@ -130,6 +130,29 @@
       }
     },
     "hangout": {
+      "nextQuiz": {
+        ".read": "auth != null",
+        ".write": "auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true",
+        ".validate": "!newData.exists() || (newData.hasChildren(['roomId', 'roomName', 'startDate', 'startTime', 'startsAt']) && newData.child('roomId').isString() && newData.child('roomId').val().length <= 100 && newData.child('roomName').isString() && newData.child('roomName').val().length <= 120 && newData.child('startDate').isString() && newData.child('startDate').val().length == 10 && newData.child('startTime').isString() && newData.child('startTime').val().length == 5 && newData.child('startsAt').isNumber() && newData.child('startsAt').val() > 0)",
+        "roomId": {
+          ".validate": "newData.isString() && newData.val().length <= 100"
+        },
+        "roomName": {
+          ".validate": "newData.isString() && newData.val().length <= 120"
+        },
+        "startDate": {
+          ".validate": "newData.isString() && newData.val().length == 10"
+        },
+        "startTime": {
+          ".validate": "newData.isString() && newData.val().length == 5"
+        },
+        "startsAt": {
+          ".validate": "newData.isNumber() && newData.val() > 0"
+        },
+        "$other": {
+          ".validate": false
+        }
+      },
       "quiz": {
         ".read": "auth != null",
         ".write": "auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true",
@@ -231,7 +254,7 @@
         ".read": "auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true",
         ".write": "auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true",
         "$roomId": {
-          ".validate": "newData.hasChildren(['name', 'month', 'status', 'createdAt', 'updatedAt']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 120 && newData.child('description').isString() && newData.child('description').val().length <= 500 && newData.child('month').isString() && newData.child('month').val().length <= 7 && (newData.child('status').val() == 'draft' || newData.child('status').val() == 'ready' || newData.child('status').val() == 'live' || newData.child('status').val() == 'completed') && newData.child('createdAt').isString() && newData.child('updatedAt').isString()",
+          ".validate": "newData.hasChildren(['name', 'month', 'status', 'createdAt', 'updatedAt']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 120 && newData.child('description').isString() && newData.child('description').val().length <= 500 && newData.child('month').isString() && newData.child('month').val().length <= 7 && (newData.child('status').val() == 'draft' || newData.child('status').val() == 'ready' || newData.child('status').val() == 'live' || newData.child('status').val() == 'completed') && newData.child('createdAt').isString() && newData.child('updatedAt').isString() && (!newData.child('startDate').exists() || (newData.child('startDate').isString() && newData.child('startDate').val().length <= 10)) && (!newData.child('startTime').exists() || (newData.child('startTime').isString() && newData.child('startTime').val().length <= 5)) && (!newData.child('scheduledStartAt').exists() || (newData.child('scheduledStartAt').isNumber() && newData.child('scheduledStartAt').val() >= 0)) && (!newData.child('scheduleStartedAt').exists() || (newData.child('scheduleStartedAt').isString() && newData.child('scheduleStartedAt').val().length <= 40))",
           "name": {
             ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 120"
           },
@@ -249,6 +272,18 @@
           },
           "updatedAt": {
             ".validate": "newData.isString()"
+          },
+          "startDate": {
+            ".validate": "newData.isString() && newData.val().length <= 10"
+          },
+          "startTime": {
+            ".validate": "newData.isString() && newData.val().length <= 5"
+          },
+          "scheduledStartAt": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "scheduleStartedAt": {
+            ".validate": "newData.isString() && newData.val().length <= 40"
           },
           "questionCounter": {
             ".validate": "newData.isNumber() && newData.val() >= 0"

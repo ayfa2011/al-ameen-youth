@@ -31,6 +31,7 @@ window.HangoutRepository = (() => {
 
     // ---- live data ----
     subscribeQuiz: cb => listen(ref("quiz"), "value", snap => cb(snap.val())),
+    subscribeNextQuiz: cb => listen(ref("nextQuiz"), "value", snap => cb(snap.val())),
     subscribeUsers: cb => listen(ref("users"), "value", snap => cb(snap.val() || {})),
     subscribeScores: cb => listen(ref("scores"), "value", snap => cb(snap.val() || {})),
     subscribePublicResults: cb => listen(ref("publicResults"), "value", snap => cb(snap.val() || {})),

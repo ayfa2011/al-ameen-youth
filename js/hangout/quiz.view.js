@@ -7,14 +7,14 @@
 // from HangoutAuth. Chat is in quiz-chat.view.js, admin in quiz-admin.view.js.
 (() => {
   let container = null, ctx = null, stops = [], stopAuth = null, answerStop = null, chat = null;
-  let questionTimer = 0, revealTimeout = 0;
+  let questionTimer = 0, revealTimeout = 0, scheduleTimer = 0;
   let stopServerTime = null;
   let observedQuestionKey = null, latestQuestionPublishedAt = "", alertAudioContext = null, alertUnlockContainer = null;
   let answerQuestionKey = "";
   let lastQuizKey = null, scoreTimer = 0, panel = "quiz", exitFn = () => {};
   let selectedResultId = "";
   let selectedHistoryRoomId = "";
-  const data = { users: {}, scores: {}, publicResults: {}, quizHistory: {}, quizHistoryLoaded: false, quizHistoryError: null, quiz: null, log: {}, answer: null, reveal: null, revealError: false, timeExpired: false };
+  const data = { users: {}, scores: {}, publicResults: {}, quizHistory: {}, quizHistoryLoaded: false, quizHistoryError: null, quiz: null, nextQuiz: null, log: {}, answer: null, reveal: null, revealError: false, timeExpired: false };
 
   const $ = selector => container?.querySelector(selector);
 
@@ -40,14 +40,16 @@
     if (answerStop) { answerStop(); answerStop = null; }
     if (stopServerTime) { stopServerTime(); stopServerTime = null; }
     clearInterval(questionTimer);
+    clearInterval(scheduleTimer);
     questionTimer = 0;
+    scheduleTimer = 0;
     clearTimeout(revealTimeout);
     revealTimeout = 0;
     answerQuestionKey = "";
     clearTimeout(scoreTimer);
     if (chat) { chat.unmount(); chat = null; }
     ctx = null; lastQuizKey = null; observedQuestionKey = null; latestQuestionPublishedAt = "";
-    data.users = {}; data.scores = {}; data.publicResults = {}; data.quizHistory = {}; data.quizHistoryLoaded = false; data.quizHistoryError = null; data.quiz = null; data.log = {}; data.answer = null;
+    data.users = {}; data.scores = {}; data.publicResults = {}; data.quizHistory = {}; data.quizHistoryLoaded = false; data.quizHistoryError = null; data.quiz = null; data.nextQuiz = null; data.log = {}; data.answer = null;
     data.reveal = null; data.revealError = false; data.timeExpired = false;
     selectedHistoryRoomId = "";
     panel = "quiz";
@@ -163,6 +165,11 @@
         watchOwnAnswer(quiz);
         renderQuestion(quiz);
       }),
+      HangoutRepository.subscribeNextQuiz(nextQuiz => {
+        data.nextQuiz = nextQuiz;
+        lastQuizKey = null;
+        renderQuestion(data.quiz);
+      }),
       HangoutRepository.subscribeUsers(users => { data.users = users; chat?.refreshAvatars(); scheduleScoreRender(); }),
       HangoutRepository.subscribeScores(scores => { data.scores = scores; scheduleScoreRender(); }),
       HangoutRepository.subscribePublicResults(results => { data.publicResults = results; scheduleScoreRender(); }),
@@ -178,6 +185,9 @@
       }),
       HangoutRepository.subscribeScoreLog(ctx.user.uid, log => { data.log = log; if (panel === "profile") renderProfile(); })
     );
+    scheduleTimer = window.setInterval(() => {
+      if (!["live", "paused", "revealed"].includes(HangoutService.cleanQuiz(data.quiz).status)) renderQuestion(data.quiz);
+    }, 1000);
   }
 
   function prepareAlertAudioUnlock() {
@@ -310,20 +320,26 @@
 
   function renderQuestion(raw) {
     const quiz = HangoutService.cleanQuiz(raw);
-    const key = JSON.stringify([quiz, data.answer, data.reveal, data.timeExpired, data.revealError]);
+    const nextStartsAt = Number(data.nextQuiz?.startsAt) || 0;
+    const nextCountdown = nextStartsAt ? Math.max(0, Math.ceil((nextStartsAt - HangoutFirebase.now()) / 1000)) : null;
+    const key = JSON.stringify([quiz, data.answer, data.reveal, data.timeExpired, data.revealError, data.nextQuiz, nextCountdown]);
     const month = $("#hgMonth");
     if (month) month.textContent = quiz.monthLabel ? formatHistoryMonth(quiz.monthLabel) : HangoutService.monthLabel();
     if (key === lastQuizKey) return;
     lastQuizKey = key;
     const area = $("#hgQuestion");
     if (!area) return;
-    const hasLegacyQuestion = quiz.title || quiz.text || quiz.imageUrl;
-    if ((!quiz.status || quiz.status === "completed") && !hasLegacyQuestion) {
-      area.innerHTML = '<div class="hg-question-empty"><i class="fa-solid fa-hourglass-half"></i><span>No question yet.<br>Please wait for the admin.</span></div>';
+    if (quiz.status === "completed") {
+      area.innerHTML = renderNextQuizState(true, nextStartsAt, nextCountdown);
       return;
     }
-    if (quiz.status === "completed" && !hasLegacyQuestion) {
-      area.innerHTML = '<div class="hg-question-empty"><i class="fa-solid fa-circle-check"></i><span>This quiz is completed.</span></div>';
+    if (!quiz.questionId && data.nextQuiz) {
+      area.innerHTML = renderNextQuizState(false, nextStartsAt, nextCountdown);
+      return;
+    }
+    const hasLegacyQuestion = quiz.title || quiz.text || quiz.imageUrl;
+    if (!quiz.status && !hasLegacyQuestion) {
+      area.innerHTML = '<div class="hg-question-empty"><i class="fa-solid fa-hourglass-half"></i><span>No question yet.<br>Please wait for the admin.</span></div>';
       return;
     }
     const roomQuestion = quiz.questionId && ["live", "paused", "revealed", "completed"].includes(quiz.status);
@@ -416,6 +432,20 @@
     const seconds = Math.ceil(Math.max(0, milliseconds) / 1000);
     return `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
   };
+
+  function renderNextQuizState(ended, startsAt, remainingSeconds) {
+    const schedule = data.nextQuiz;
+    const startIsDue = remainingSeconds === 0;
+    const countdown = remainingSeconds == null ? "" : `${String(Math.floor(remainingSeconds / 3600)).padStart(2, "0")}:${String(Math.floor((remainingSeconds % 3600) / 60)).padStart(2, "0")}:${String(remainingSeconds % 60).padStart(2, "0")}`;
+    const startsLabel = startsAt
+      ? `${new Intl.DateTimeFormat([], { month: "long", day: "numeric" }).format(new Date(startsAt))} · ${new Intl.DateTimeFormat([], { hour: "2-digit", minute: "2-digit", hour12: true }).format(new Date(startsAt))}`
+      : "";
+    return `<div class="hg-question-next ${ended ? "is-ended" : ""}">
+      ${ended ? "<h2>Quiz Ended!</h2>" : ""}
+      ${ended || startIsDue ? "<p>Next Quiz will start soon. Please wait...</p>" : ""}
+      ${schedule ? `<strong class="hg-next-title">${escapeHTML(schedule.roomName || "Next Quiz")}</strong><span>Next Quiz Starts In</span><strong class="hg-next-countdown">${countdown}</strong><span class="hg-next-date">${escapeHTML(startsLabel)}</span>` : `<span>${ended ? "The next quiz date and time will be announced soon." : "No quiz is scheduled yet. Please wait."}</span>`}
+    </div>`;
+  }
 
   // ---------- personal quiz history ----------
   function renderMore() {
@@ -536,37 +566,31 @@
     const publishedResults = Object.entries(data.publicResults || {})
       .filter(([, result]) => result?.published && result.rows && typeof result.rows === "object")
       .sort((a, b) => String(b[1].updatedAt || "").localeCompare(String(a[1].updatedAt || "")));
-    if (publishedResults.length) {
-      if (!publishedResults.some(([roomId]) => roomId === selectedResultId)) selectedResultId = publishedResults[0][0];
-      const [roomId, result] = publishedResults.find(([id]) => id === selectedResultId);
-      const rows = (Array.isArray(result.rows) ? result.rows : Object.values(result.rows))
-        .sort((a, b) => Number(a.rank) - Number(b.rank));
-      const me = rows.find(row => row.uid === ctx.user.uid);
-      const list = rows.map(row => {
-        const rank = Number(row.rank) || 0;
-        const medal = HangoutService.medalFor(rank);
-        const own = row.uid === ctx.user.uid;
-        const profile = data.users[row.uid] || {};
-        return `<li class="hg-row ${rank <= 3 ? `rank-${rank}` : ""} ${own ? "is-you" : ""}">
-          <span class="hg-rank ${medal ? "is-medal" : ""}">${medal || escapeHTML(HangoutService.rankLabel(rank))}</span>
-          ${HangoutUI.avatar(profile.photo, row.name, row.uid)}
-          <span class="hg-name">${escapeHTML(row.name)}${own ? '<span class="hg-you-tag">You</span>' : ""}</span>
-          <span class="hg-pts">${Number(row.points) || 0}</span></li>`;
-      }).join("");
-      host.innerHTML = `<div class="hg-score">
-        <div class="hg-score-head"><small>PUBLISHED RESULTS</small><h3>${escapeHTML(result.roomName || "Quiz Results")}</h3>
-          <label class="hg-results-select-label">Published Quiz Results<select data-published-result>${publishedResults.map(([id, item]) => `<option value="${escapeHTML(id)}" ${id === roomId ? "selected" : ""}>${escapeHTML(item.roomName || "Quiz Room")}</option>`).join("")}</select></label>
-        </div>
-        ${me ? `<div class="hg-yourpos">Your Position: ${escapeHTML(HangoutService.rankLabel(me.rank))} · ${Number(me.points) || 0} pts</div>` : ""}
-        ${list.length ? `<ol class="hg-score-list">${list}</ol>` : '<div class="hg-empty">No results have been recorded for this quiz.</div>'}
-      </div>`;
-      host.querySelector("[data-published-result]").addEventListener("change", event => {
-        selectedResultId = event.currentTarget.value;
-        renderScore();
-      });
+    if (!publishedResults.length) {
+      host.innerHTML = '<div class="hg-score"><div class="hg-score-head"><small>RANKING</small><h3>All Quiz Scores</h3></div><div class="hg-empty">Quiz results have not been published yet.</div></div>';
       return;
     }
-    host.innerHTML = '<div class="hg-score"><div class="hg-score-head"><small>RANKING</small><h3>Quiz Results</h3></div><div class="hg-empty">Results have not been published yet.</div></div>';
+
+    const rows = HangoutService.buildCumulativeLeaderboard(data.publicResults);
+    const me = rows.find(row => row.uid === ctx.user.uid);
+    const list = rows.map(row => {
+      const rank = Number(row.rank) || 0;
+      const medal = HangoutService.medalFor(rank);
+      const own = row.uid === ctx.user.uid;
+      const profile = data.users[row.uid] || {};
+      return `<li class="hg-row ${rank <= 3 ? `rank-${rank}` : ""} ${own ? "is-you" : ""}">
+        <span class="hg-rank ${medal ? "is-medal" : ""}">${medal || escapeHTML(HangoutService.rankLabel(rank))}</span>
+        ${HangoutUI.avatar(profile.photo, row.name, row.uid)}
+        <span class="hg-name">${escapeHTML(row.name)}${own ? '<span class="hg-you-tag">You</span>' : ""}</span>
+        <span class="hg-pts">${row.points}</span></li>`;
+    }).join("");
+    host.innerHTML = `<div class="hg-score">
+      <div class="hg-score-head"><small>ALL PUBLISHED QUIZZES</small><h3>Total Quiz Scores</h3>
+        <p>${publishedResults.length} quiz${publishedResults.length === 1 ? "" : "zes"} included</p>
+      </div>
+      ${me ? `<div class="hg-yourpos">Your Position: ${escapeHTML(HangoutService.rankLabel(me.rank))} · ${me.points} pts</div>` : ""}
+      ${list ? `<ol class="hg-score-list">${list}</ol>` : '<div class="hg-empty">No participants have been recorded in published quizzes.</div>'}
+    </div>`;
   }
 
   // ---------- profile ----------

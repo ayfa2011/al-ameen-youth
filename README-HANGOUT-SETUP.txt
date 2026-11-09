@@ -49,6 +49,11 @@ HOW IT WORKS
   (Chat / Score Board / More / Profile). Chat keeps its messages when you switch.
 - The live question header displays the room name once, with the question number
   and points highlighted on the same compact, responsive line.
+- Quiz Rooms can include a local start date and time. The next scheduled quiz
+  and server-time-based countdown are shared in the player question area; ending
+  a quiz clears its last question and shows the ended state instead. Reaching
+  the scheduled time only displays the waiting message; an admin must manually
+  start the quiz by publishing its first question.
 - Quiz Admin Panel (gear icon) provides independent rooms, question drafts,
   editable questions, MCQ / True-False / Short Answer, time limits, points,
   explanations, and image/audio uploads. Questions remain private until
@@ -76,8 +81,10 @@ HOW IT WORKS
   rooms; deploy the latest database rules for player history reads and writes.
 - Admins can publish or unpublish each room's results. Published snapshots are
   shown on the player Score Board; unpublished room results are not exposed
-  there. Results can be published after the room is completed; adjustments and
-  manual evaluations refresh an already published result.
+  there. The player Score Board sums scores across all published quizzes and
+  includes players who submitted answers but earned zero points. Results can be
+  published after the room is completed; adjustments and manual evaluations
+  refresh an already published result.
 - Chat messages have a "Hide" soft-delete action.
 - Chat bubbles use compact content-sized spacing, with each sender's time on
   the same line as their name. A gentle five-second sound plays once when a

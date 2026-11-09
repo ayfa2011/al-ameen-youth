@@ -18,6 +18,26 @@ window.HangoutService = (() => {
     return rows;
   }
 
+  function buildCumulativeLeaderboard(publicResults) {
+    const totals = new Map();
+    Object.values(publicResults || {}).forEach(result => {
+      if (!result?.published || !result.rows) return;
+      const resultRows = Array.isArray(result.rows) ? result.rows : Object.values(result.rows);
+      resultRows.forEach(row => {
+        if (!row?.uid) return;
+        const current = totals.get(row.uid) || { uid: row.uid, name: row.name || "Player", points: 0 };
+        current.name = row.name || current.name;
+        current.points += Number(row.points) || 0;
+        totals.set(row.uid, current);
+      });
+    });
+    const rows = [...totals.values()].sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
+    rows.forEach((row, index) => {
+      row.rank = index > 0 && row.points === rows[index - 1].points ? rows[index - 1].rank : index + 1;
+    });
+    return rows;
+  }
+
   const MEDALS = { 1: "🥇", 2: "🥈", 3: "🥉" };
   const medalFor = rank => MEDALS[rank] || "";
   const rankLabel = rank => `#${String(rank).padStart(2, "0")}`;
@@ -67,6 +87,6 @@ window.HangoutService = (() => {
 
   return Object.freeze({
     MAX_TEXT, MAX_VOICE_SECONDS, MAX_VOICE_CHARS, EMOJIS,
-    monthLabel, buildLeaderboard, medalFor, rankLabel, initialOf, cleanQuiz, safeImage, safeAudio, formatDuration, formatTime, formatDate
+    monthLabel, buildLeaderboard, buildCumulativeLeaderboard, medalFor, rankLabel, initialOf, cleanQuiz, safeImage, safeAudio, formatDuration, formatTime, formatDate
   });
 })();

@@ -4,6 +4,7 @@ window.HangoutAdminRepository = (() => {
   const MAX_MEDIA_BYTES = 200 * 1024;
   const MEDIA_TYPES = /^(image\/(jpeg|png|webp|gif)|audio\/(mpeg|mp4|ogg|wav|webm|aac|x-m4a))$/i;
   const historyBackfills = new Set();
+  const publishedResultBackfills = new Set();
 
   function isQuizAdmin() {
     const user = window.firebaseAuth?.currentUser;
@@ -51,13 +52,36 @@ window.HangoutAdminRepository = (() => {
   const roomRef = async roomId => (await database()).ref(`hangout/rooms/${roomId}`);
   const now = () => new Date().toISOString();
 
+  function getScheduledStartAt(room) {
+    const date = String(room.startDate || "").trim();
+    const time = String(room.startTime || "").trim();
+    if (!date && !time) return 0;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time)) {
+      throw new Error("Provide both a valid quiz start date and time.");
+    }
+    const [year, month, day] = date.split("-").map(Number);
+    const [hour, minute] = time.split(":").map(Number);
+    const start = new Date(`${date}T${time}`);
+    const startsAt = start.getTime();
+    if (!Number.isFinite(startsAt) || start.getFullYear() !== year || start.getMonth() !== month - 1
+      || start.getDate() !== day || start.getHours() !== hour || start.getMinutes() !== minute) {
+      throw new Error("The quiz start date and time are invalid.");
+    }
+    return startsAt;
+  }
+
   return Object.freeze({
     isQuizAdmin,
 
     async listRooms() {
       requireQuizAdmin();
-      const snap = await (await database()).ref("hangout/rooms").once("value");
-      const rooms = snap.val() || {};
+      const db = await database();
+      const [roomsSnap, resultsSnap] = await Promise.all([
+        db.ref("hangout/rooms").once("value"),
+        db.ref("hangout/publicResults").once("value")
+      ]);
+      const rooms = roomsSnap.val() || {};
+      const publishedResults = resultsSnap.val() || {};
       const roomsNeedingBackfill = Object.keys(rooms)
         .filter(roomId => !historyBackfills.has(roomId));
       roomsNeedingBackfill.forEach(roomId => historyBackfills.add(roomId));
@@ -69,6 +93,25 @@ window.HangoutAdminRepository = (() => {
             showToast("Existing quiz history could not be synced. Check database rules and retry.", "error");
           });
       }
+      const publishedRoomsNeedingBackfill = Object.entries(publishedResults)
+        .filter(([roomId, result]) => result?.published && rooms[roomId]?.status === "completed"
+          && !publishedResultBackfills.has(roomId));
+      publishedRoomsNeedingBackfill.forEach(([roomId]) => publishedResultBackfills.add(roomId));
+      if (publishedRoomsNeedingBackfill.length) {
+        Promise.all(publishedRoomsNeedingBackfill.map(async ([roomId, result]) => {
+          const answers = (await db.ref(`hangout/answers/${roomId}`).once("value")).val() || {};
+          const existingIds = new Set(Array.isArray(result.rows)
+            ? result.rows.map(row => row?.uid).filter(Boolean)
+            : Object.keys(result.rows || {}));
+          const missingParticipant = Object.values(answers)
+            .some(players => Object.keys(players || {}).some(uid => !existingIds.has(uid)));
+          if (missingParticipant) await this.setRoomResultsPublished(roomId, true);
+        })).catch(error => {
+          publishedRoomsNeedingBackfill.forEach(([roomId]) => publishedResultBackfills.delete(roomId));
+          console.error("Previously published quiz participants could not be added to the scoreboard:", error);
+          showToast("Some published scoreboards could not be refreshed. Check database rules and retry.", "error");
+        });
+      }
       return rooms;
     },
 
@@ -77,16 +120,63 @@ window.HangoutAdminRepository = (() => {
       const db = await database();
       const ref = db.ref("hangout/rooms").push();
       const timestamp = now();
-      await ref.set({ ...room, questionCounter: 0, createdAt: timestamp, updatedAt: timestamp });
+      const scheduledStartAt = getScheduledStartAt(room);
+      await ref.set({
+        ...room,
+        startDate: room.startDate || "",
+        startTime: room.startTime || "",
+        scheduledStartAt,
+        scheduleStartedAt: "",
+        questionCounter: 0,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      });
+      await this.syncNextQuizSchedule();
       await appendQuizAudit("hangout.quiz.room.create", `hangout/rooms/${ref.key}`, ref.key, timestamp);
       return ref.key;
     },
 
     async updateRoom(roomId, fields) {
       requireQuizAdmin();
+      const nextFields = { ...fields };
+      if ("startDate" in fields || "startTime" in fields) {
+        const existing = (await (await roomRef(roomId)).once("value")).val() || {};
+        const schedule = { ...existing, ...fields };
+        nextFields.startDate = schedule.startDate || "";
+        nextFields.startTime = schedule.startTime || "";
+        nextFields.scheduledStartAt = getScheduledStartAt(schedule);
+        nextFields.scheduleStartedAt = "";
+      }
       const timestamp = now();
-      await (await roomRef(roomId)).update({ ...fields, updatedAt: timestamp });
+      await (await roomRef(roomId)).update({ ...nextFields, updatedAt: timestamp });
+      await this.syncNextQuizSchedule();
       await appendQuizAudit("hangout.quiz.room.update", `hangout/rooms/${roomId}`, roomId, timestamp);
+    },
+
+    async syncNextQuizSchedule() {
+      requireQuizAdmin();
+      const db = await database();
+      const rooms = (await db.ref("hangout/rooms").once("value")).val() || {};
+      const next = Object.entries(rooms)
+        .filter(([, room]) => room?.status === "ready"
+          && Number(room.scheduledStartAt) > 0
+          && !room.scheduleStartedAt
+          && Object.values(room.questions || {}).some(question => question && !question.deleted))
+        .sort((a, b) => Number(a[1].scheduledStartAt) - Number(b[1].scheduledStartAt))[0];
+      if (!next) {
+        await db.ref("hangout/nextQuiz").set(null);
+        return null;
+      }
+      const [roomId, room] = next;
+      const schedule = {
+        roomId,
+        roomName: String(room.name || "Quiz Room"),
+        startDate: String(room.startDate || ""),
+        startTime: String(room.startTime || ""),
+        startsAt: Number(room.scheduledStartAt)
+      };
+      await db.ref("hangout/nextQuiz").set(schedule);
+      return schedule;
     },
 
     newQuestionId(roomId) {
@@ -123,6 +213,7 @@ window.HangoutAdminRepository = (() => {
       const timestamp = now();
       await ref.child(`questions/${questionId}`).set({ ...question, questionNumber, createdAt: timestamp, updatedAt: timestamp });
       await ref.update({ updatedAt: timestamp });
+      await this.syncNextQuizSchedule();
       await appendQuizAudit("hangout.quiz.question.create", `hangout/rooms/${roomId}/questions/${questionId}`, questionId, timestamp);
       return questionNumber;
     },
@@ -136,6 +227,7 @@ window.HangoutAdminRepository = (() => {
       }
       const timestamp = now();
       await db.ref(`hangout/rooms/${roomId}/questions/${questionId}`).update({ ...question, updatedAt: timestamp });
+      await this.syncNextQuizSchedule();
       await appendQuizAudit("hangout.quiz.question.update", `hangout/rooms/${roomId}/questions/${questionId}`, questionId, timestamp);
     },
 
@@ -148,6 +240,7 @@ window.HangoutAdminRepository = (() => {
       }
       const timestamp = now();
       await db.ref(`hangout/rooms/${roomId}/questions/${questionId}`).update({ deleted: true, updatedAt: timestamp });
+      await this.syncNextQuizSchedule();
       await appendQuizAudit("hangout.quiz.question.delete", `hangout/rooms/${roomId}/questions/${questionId}`, questionId, timestamp);
     },
 
@@ -216,7 +309,11 @@ window.HangoutAdminRepository = (() => {
         [`hangout/rooms/${roomId}/status`]: "live",
         [`hangout/rooms/${roomId}/updatedAt`]: timestamp
       };
+      if (Number(room.scheduledStartAt) > 0) {
+        updates[`hangout/rooms/${roomId}/scheduleStartedAt`] = timestamp;
+      }
       await db.ref().update(updates);
+      await this.syncNextQuizSchedule();
       await appendQuizAudit("hangout.quiz.question.publish", `hangout/rooms/${roomId}/questions/${questionId}`, questionId, timestamp);
     },
 
@@ -237,6 +334,7 @@ window.HangoutAdminRepository = (() => {
       };
       await db.ref().update(updates);
       if (status === "completed") await this.refreshPlayerQuizHistory(roomId);
+      await this.syncNextQuizSchedule();
       await appendQuizAudit("hangout.quiz.room.status", `hangout/rooms/${roomId}`, roomId, timestamp);
     },
 
@@ -377,10 +475,11 @@ window.HangoutAdminRepository = (() => {
     async setRoomResultsPublished(roomId, published) {
       requireQuizAdmin();
       const db = await database();
-      const [roomSnap, scoresSnap, usersSnap] = await Promise.all([
+      const [roomSnap, scoresSnap, usersSnap, answersSnap] = await Promise.all([
         db.ref(`hangout/rooms/${roomId}`).once("value"),
         db.ref(`hangout/roomScores/${roomId}`).once("value"),
-        db.ref("hangout/users").once("value")
+        db.ref("hangout/users").once("value"),
+        db.ref(`hangout/answers/${roomId}`).once("value")
       ]);
       const room = roomSnap.val();
       if (!room) throw new Error("The quiz room no longer exists.");
@@ -390,10 +489,15 @@ window.HangoutAdminRepository = (() => {
       const publicResult = published ? (() => {
         const scores = scoresSnap.val() || {};
         const users = usersSnap.val() || {};
-        const rows = Object.entries(scores).map(([uid, score]) => ({
+        const answers = answersSnap.val() || {};
+        const participants = new Set([
+          ...Object.keys(scores),
+          ...Object.values(answers).flatMap(questionAnswers => Object.keys(questionAnswers || {}))
+        ]);
+        const rows = [...participants].map(uid => ({
           uid,
           name: String(users[uid]?.name || "Player").slice(0, 80),
-          points: Number(score?.points) || 0
+          points: Number(scores[uid]?.points) || 0
         })).sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
         rows.forEach((row, index) => {
           row.rank = index > 0 && row.points === rows[index - 1].points ? rows[index - 1].rank : index + 1;
@@ -620,24 +724,24 @@ window.HangoutAdminRepository = (() => {
       const quiz = (await db.ref("hangout/quiz").once("value")).val();
       const timestamp = now();
       const updates = { [`hangout/rooms/${roomId}/status`]: "completed", [`hangout/rooms/${roomId}/updatedAt`]: timestamp };
-      if (quiz?.roomId === roomId && quiz.questionId) {
-        await this.revealQuestion(roomId, quiz.questionId);
-        const latestQuiz = (await db.ref("hangout/quiz").once("value")).val() || quiz;
-        const question = (await db.ref(`hangout/rooms/${roomId}/questions/${quiz.questionId}`).once("value")).val();
-        if (question) {
-          updates["hangout/quiz"] = {
-            ...latestQuiz,
-            status: "completed",
-            remainingMs: 0,
-            answerRevealed: true,
-            correctAnswer: question.correctAnswer || "",
-            explanation: question.explanation || "",
-            updatedAt: timestamp
-          };
-        }
+      if (quiz?.roomId === roomId) {
+        if (quiz.questionId) await this.revealQuestion(roomId, quiz.questionId);
+        updates["hangout/quiz"] = {
+          roomId,
+          roomName: String(quiz.roomName || ""),
+          monthLabel: String(quiz.monthLabel || ""),
+          title: "Quiz Ended!",
+          text: "",
+          imageUrl: "",
+          audioUrl: "",
+          questionId: "",
+          status: "completed",
+          updatedAt: timestamp
+        };
       }
       await db.ref().update(updates);
       await this.refreshPlayerQuizHistory(roomId);
+      await this.syncNextQuizSchedule();
       await appendQuizAudit("hangout.quiz.end", "hangout/quiz", roomId, timestamp);
     },
 
