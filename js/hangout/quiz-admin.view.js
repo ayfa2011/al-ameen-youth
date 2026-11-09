@@ -24,7 +24,7 @@ window.HangoutQuizAdmin = (() => {
     };
     const panels = Object.fromEntries([...modal.querySelectorAll("[data-tabpanel]")].map(panel => [panel.dataset.tabpanel, panel]));
     modal.addEventListener("click", event => {
-      if (event.target === modal || event.target.closest('[data-act="close"]')) { close(); return; }
+      if (event.target.closest('[data-act="close"]')) { close(); return; }
       const tab = event.target.closest("[data-tab]");
       if (tab) {
         if (tab.dataset.tab !== "scores") panels.scores._stopRoomScores?.();

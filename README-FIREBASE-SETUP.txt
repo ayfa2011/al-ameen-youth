@@ -45,11 +45,20 @@ restore a root-level auth-only read/write rule, because that would override
 these role restrictions.
 
 4) Profile photo storage
------------------------
+------------------------
 Profile photos are converted to JPEG, compressed to at most 512 KB, and saved
-to Firebase Storage at `/profile-photos/{userId}/avatar.jpg`. Enable Firebase
-Storage and publish `firebase/storage.rules` (also configured in firebase.json)
-with:
+to Firebase Storage at `/profile-photos/{userId}/avatar.jpg`. Before deploying
+Storage rules, create the project's default bucket in Firebase Console under
+Build -> Storage -> Get started, and select its location. Confirm the bucket
+name shown there matches `storageBucket` in `js/firebase-config.js`; newly
+created default buckets use `<project-id>.firebasestorage.app`. The configured
+production bucket currently returns 404 ("The specified bucket does not
+exist"), so uploads cannot work until a bucket exists and the config matches.
+
+Firebase currently requires the Blaze pay-as-you-go plan for Cloud Storage.
+Review the plan and potential charges before enabling it; do not upgrade or
+enable billing without approval. Once the bucket exists, publish
+`firebase/storage.rules` (also configured in firebase.json) with:
 
   firebase deploy --only storage --project al-ameen-website-e24d0
 

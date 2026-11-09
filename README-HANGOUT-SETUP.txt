@@ -34,7 +34,13 @@ ONE-TIME SETUP (do these BEFORE opening Hangout)
    and firebase/storage.rules into Firebase Storage -> Rules.
    The Hangout rules accept the already verified Google Member session. A
    website upload alone does NOT publish rules (see DATA-SAFETY.md).
-4) Upload the website files to GitHub / hosting as usual.
+4) Before using quiz image/audio uploads, create the default bucket in Firebase
+   Console -> Build -> Storage -> Get started, then verify its name matches
+   `storageBucket` in `js/firebase-config.js`. The configured production bucket
+   currently returns 404 because it does not exist. Cloud Storage requires the
+   Blaze pay-as-you-go plan; review and approve any billing implications before
+   enabling it.
+5) Upload the website files to GitHub / hosting as usual.
 
 HOW IT WORKS
 ------------
