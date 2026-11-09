@@ -14,7 +14,7 @@
   let lastQuizKey = null, scoreTimer = 0, panel = "quiz", exitFn = () => {};
   let selectedResultId = "";
   let selectedHistoryRoomId = "";
-  const data = { users: {}, scores: {}, publicResults: {}, quizHistory: {}, quiz: null, log: {}, answer: null, reveal: null, revealError: false, timeExpired: false };
+  const data = { users: {}, scores: {}, publicResults: {}, quizHistory: {}, quizHistoryLoaded: false, quizHistoryError: null, quiz: null, log: {}, answer: null, reveal: null, revealError: false, timeExpired: false };
 
   const $ = selector => container?.querySelector(selector);
 
@@ -47,7 +47,7 @@
     clearTimeout(scoreTimer);
     if (chat) { chat.unmount(); chat = null; }
     ctx = null; lastQuizKey = null; observedQuestionKey = null; latestQuestionPublishedAt = "";
-    data.users = {}; data.scores = {}; data.publicResults = {}; data.quizHistory = {}; data.quiz = null; data.log = {}; data.answer = null;
+    data.users = {}; data.scores = {}; data.publicResults = {}; data.quizHistory = {}; data.quizHistoryLoaded = false; data.quizHistoryError = null; data.quiz = null; data.log = {}; data.answer = null;
     data.reveal = null; data.revealError = false; data.timeExpired = false;
     selectedHistoryRoomId = "";
     panel = "quiz";
@@ -168,6 +168,12 @@
       HangoutRepository.subscribePublicResults(results => { data.publicResults = results; scheduleScoreRender(); }),
       HangoutRepository.subscribeOwnQuizHistory(ctx.user.uid, history => {
         data.quizHistory = history;
+        data.quizHistoryLoaded = true;
+        data.quizHistoryError = null;
+        if (panel === "more") renderMore();
+      }, error => {
+        data.quizHistoryError = error;
+        data.quizHistoryLoaded = true;
         if (panel === "more") renderMore();
       }),
       HangoutRepository.subscribeScoreLog(ctx.user.uid, log => { data.log = log; if (panel === "profile") renderProfile(); })
@@ -306,7 +312,7 @@
     const quiz = HangoutService.cleanQuiz(raw);
     const key = JSON.stringify([quiz, data.answer, data.reveal, data.timeExpired, data.revealError]);
     const month = $("#hgMonth");
-    if (month) month.textContent = quiz.roomName || quiz.monthLabel || HangoutService.monthLabel();
+    if (month) month.textContent = quiz.monthLabel ? formatHistoryMonth(quiz.monthLabel) : HangoutService.monthLabel();
     if (key === lastQuizKey) return;
     lastQuizKey = key;
     const area = $("#hgQuestion");
@@ -322,6 +328,11 @@
     }
     const roomQuestion = quiz.questionId && ["live", "paused", "revealed", "completed"].includes(quiz.status);
     const liveQuestion = quiz.status === "live" && quiz.questionId;
+    const roomTitle = quiz.roomName || quiz.title || "Online Quiz";
+    const questionHeader = roomQuestion
+      ? `<div class="hg-question-header"><strong class="hg-question-room" title="${escapeHTML(roomTitle)}">${escapeHTML(roomTitle)}</strong><div class="hg-question-badges"><span>Question #${quiz.questionNumber}</span><span>${quiz.points} Points</span></div></div>`
+      : "";
+    const questionTitle = quiz.title && (!roomQuestion || quiz.title !== roomTitle) ? `<h3>${escapeHTML(quiz.title)}</h3>` : "";
     const submitted = roomQuestion && data.answer;
     const evaluation = submitted?.evaluation;
     const reveal = quiz.answerRevealed ? { correctAnswer: quiz.correctAnswer, explanation: quiz.explanation } : data.reveal;
@@ -349,7 +360,7 @@
       response += `<div class="hg-answer-reveal"><strong>Correct answer:</strong> ${escapeHTML(correctText || "Manual evaluation")} ${quiz.points ? `<span>+${quiz.points} points</span>` : ""}${reveal.explanation ? `<p><strong>Explanation:</strong> ${escapeHTML(reveal.explanation)}</p>` : ""}</div>`;
     }
     const showTimer = ["live", "paused"].includes(quiz.status) && quiz.timeLimit;
-    area.innerHTML = `${roomQuestion ? `<small class="hg-live-label">${escapeHTML(quiz.roomName)} · Question #${quiz.questionNumber} · ${quiz.points} points</small>` : ""}${showTimer ? `<div class="hg-player-timer ${quiz.status === "paused" ? "is-paused" : ""}">Time <strong data-player-countdown>${formatPlayerCountdown(quiz.status === "paused" ? quiz.remainingMs || 0 : remainingQuestionTime(quiz))}</strong></div>` : ""}${quiz.title ? `<h3>${escapeHTML(quiz.title)}</h3>` : ""}${quiz.text ? `<p>${escapeHTML(quiz.text)}</p>` : ""}${quiz.imageUrl ? `<img src="${escapeHTML(quiz.imageUrl)}" alt="Quiz question image" referrerpolicy="no-referrer">` : ""}${quiz.audioUrl ? `<audio controls preload="metadata" src="${escapeHTML(quiz.audioUrl)}">Your browser does not support audio.</audio>` : ""}${response}`;
+    area.innerHTML = `${questionHeader}${showTimer ? `<div class="hg-player-timer ${quiz.status === "paused" ? "is-paused" : ""}">Time <strong data-player-countdown>${formatPlayerCountdown(quiz.status === "paused" ? quiz.remainingMs || 0 : remainingQuestionTime(quiz))}</strong></div>` : ""}${questionTitle}${quiz.text ? `<p>${escapeHTML(quiz.text)}</p>` : ""}${quiz.imageUrl ? `<img src="${escapeHTML(quiz.imageUrl)}" alt="Quiz question image" referrerpolicy="no-referrer">` : ""}${quiz.audioUrl ? `<audio controls preload="metadata" src="${escapeHTML(quiz.audioUrl)}">Your browser does not support audio.</audio>` : ""}${response}`;
     const form = area.querySelector("[data-answer-form]");
     if (form) form.addEventListener("submit", async event => {
       event.preventDefault();
@@ -467,6 +478,14 @@
     }
 
     selectedHistoryRoomId = "";
+    if (data.quizHistoryError) {
+      host.innerHTML = '<div class="hg-empty"><i class="fa-solid fa-triangle-exclamation"></i><br><strong>Quiz history could not be loaded</strong><br>Check your connection and confirm the latest Firebase database rules are deployed.</div>';
+      return;
+    }
+    if (!data.quizHistoryLoaded) {
+      host.innerHTML = '<div class="hg-empty"><i class="fa-solid fa-spinner fa-spin"></i><br>Loading your quiz history…</div>';
+      return;
+    }
     if (!rooms.length) {
       host.innerHTML = '<div class="hg-empty"><i class="fa-solid fa-clock-rotate-left"></i><br><strong>My Quiz History</strong><br>You have not participated in any quiz rooms yet.</div>';
       return;

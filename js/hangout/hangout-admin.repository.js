@@ -58,14 +58,14 @@ window.HangoutAdminRepository = (() => {
       requireQuizAdmin();
       const snap = await (await database()).ref("hangout/rooms").once("value");
       const rooms = snap.val() || {};
-      const completedRooms = Object.entries(rooms)
-        .filter(([roomId, room]) => room?.status === "completed" && !historyBackfills.has(roomId));
-      completedRooms.forEach(([roomId]) => historyBackfills.add(roomId));
-      if (completedRooms.length) {
-        Promise.all(completedRooms.map(([roomId]) => this.refreshPlayerQuizHistory(roomId)))
+      const roomsNeedingBackfill = Object.keys(rooms)
+        .filter(roomId => !historyBackfills.has(roomId));
+      roomsNeedingBackfill.forEach(roomId => historyBackfills.add(roomId));
+      if (roomsNeedingBackfill.length) {
+        Promise.all(roomsNeedingBackfill.map(roomId => this.refreshPlayerQuizHistory(roomId)))
           .catch(error => {
-            completedRooms.forEach(([roomId]) => historyBackfills.delete(roomId));
-            console.error("Existing completed quiz history could not be migrated:", error);
+            roomsNeedingBackfill.forEach(roomId => historyBackfills.delete(roomId));
+            console.error("Existing quiz history could not be backfilled:", error);
             showToast("Existing quiz history could not be synced. Check database rules and retry.", "error");
           });
       }

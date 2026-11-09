@@ -9,8 +9,11 @@ window.HangoutRepository = (() => {
   };
   const ref = path => db().ref(`hangout/${path}`);
   // Returns an unsubscribe function.
-  const listen = (query, event, handler) => {
-    query.on(event, handler, error => console.error(`Hangout listener failed (${event}):`, error));
+  const listen = (query, event, handler, onError) => {
+    query.on(event, handler, error => {
+      console.error(`Hangout listener failed (${event}):`, error);
+      onError?.(error);
+    });
     return () => query.off(event, handler);
   };
 
@@ -32,8 +35,8 @@ window.HangoutRepository = (() => {
     subscribeScores: cb => listen(ref("scores"), "value", snap => cb(snap.val() || {})),
     subscribePublicResults: cb => listen(ref("publicResults"), "value", snap => cb(snap.val() || {})),
     subscribeScoreLog: (uid, cb) => listen(ref(`scoreLog/${uid}`).limitToLast(50), "value", snap => cb(snap.val() || {})),
-    subscribeOwnQuizHistory: (uid, cb) =>
-      listen(ref(`playerQuizHistory/${uid}`), "value", snap => cb(snap.val() || {})),
+    subscribeOwnQuizHistory: (uid, cb, onError) =>
+      listen(ref(`playerQuizHistory/${uid}`), "value", snap => cb(snap.val() || {}), onError),
     subscribeOwnAnswer: (roomId, questionId, uid, cb) =>
       listen(ref(`answers/${roomId}/${questionId}/${uid}`), "value", snap => cb(snap.val())),
     async readTimedOutAnswerKey(roomId, questionId) {

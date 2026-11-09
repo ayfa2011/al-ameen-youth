@@ -61,10 +61,15 @@
 .hg-admin-btn{width:32px; height:32px; font-size:14px}
 
 /* Question area: height is fixed and never depends on the panel below */
-.hg-question{flex:0 0 var(--hg-question-h); height:var(--hg-question-h); margin:10px 12px 0; padding:14px; overflow-y:auto; border-radius:18px; background:var(--hg-soft); border:1px solid var(--hg-line)}
-.hg-question h3{margin:0 0 6px; font-size:16px}
-.hg-question p{margin:0 0 8px; white-space:pre-wrap; word-break:break-word}
-.hg-question img{display:block; max-width:100%; max-height:150px; margin:6px auto 0; border-radius:12px; object-fit:contain}
+.hg-question{flex:0 0 var(--hg-question-h); height:var(--hg-question-h); margin:6px 10px 0; padding:10px; overflow-y:auto; border-radius:16px; background:var(--hg-soft); border:1px solid var(--hg-line)}
+.hg-question-header{display:flex; align-items:center; justify-content:space-between; gap:8px; min-width:0; margin:0 0 7px}
+.hg-question-room{min-width:0; overflow:hidden; color:var(--hg-text); font-size:13px; font-weight:800; text-overflow:ellipsis; white-space:nowrap}
+.hg-question-badges{display:flex; flex:0 0 auto; align-items:center; gap:5px}
+.hg-question-badges span{padding:3px 7px; border:1px solid #bcd4f5; border-radius:7px; background:#fff; color:var(--hg-blue-dark); font-size:10px; font-weight:800; line-height:1.2; white-space:nowrap}
+.hg-question-badges span+span{border-color:#b3dec8; background:#e9f7ef; color:#17663a}
+.hg-question h3{margin:0 0 5px; font-size:15px}
+.hg-question p{margin:0 0 6px; white-space:pre-wrap; word-break:break-word}
+.hg-question img{display:block; max-width:100%; max-height:150px; margin:4px auto 0; border-radius:10px; object-fit:contain}
 .hg-question-empty{display:flex; height:100%; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:var(--hg-muted); text-align:center}
 .hg-question-empty i{font-size:26px; color:var(--hg-blue); opacity:.7}
 
@@ -229,7 +234,7 @@
 .hg-evaluation-result.is-correct{color:#18713b}
 .hg-evaluation-result.is-wrong{color:var(--hg-red)}
 .hg-live-label{display:block; margin-bottom:5px; color:var(--hg-blue-dark); font-size:11px; font-weight:700}
-.hg-question audio{display:block; width:100%; margin:8px 0}
+.hg-question audio{display:block; width:100%; margin:6px 0}
 .hg-player-answer{display:grid; gap:8px; margin-top:10px}
 .hg-player-answer fieldset{display:grid; gap:6px; margin:0; padding:8px; border:1px solid var(--hg-line); border-radius:12px}
 .hg-answer-option{display:flex; align-items:center; gap:8px; padding:7px 9px; border-radius:10px; background:#fff; color:var(--hg-text)}

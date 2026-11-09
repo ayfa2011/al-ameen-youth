@@ -62,7 +62,7 @@ window.HangoutService = (() => {
   };
 
   const formatDuration = seconds => { const s = Math.max(0, Math.round(seconds || 0)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
-  const formatTime = ts => ts ? new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+  const formatTime = ts => ts ? new Date(ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true }) : "";
   const formatDate = iso => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString([], { day: "2-digit", month: "short", year: "numeric" }); };
 
   return Object.freeze({

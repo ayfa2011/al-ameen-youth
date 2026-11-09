@@ -47,6 +47,8 @@ HOW IT WORKS
 - Dashboard -> Hangout -> Online Quiz -> Quiz screen (when already signed in as a Member).
 - Question Area has a fixed height. Only the area below it switches
   (Chat / Score Board / More / Profile). Chat keeps its messages when you switch.
+- The live question header displays the room name once, with the question number
+  and points highlighted on the same compact, responsive line.
 - Quiz Admin Panel (gear icon) provides independent rooms, question drafts,
   editable questions, MCQ / True-False / Short Answer, time limits, points,
   explanations, and image/audio uploads. Questions remain private until
@@ -69,7 +71,9 @@ HOW IT WORKS
   archived question/answer/evaluation details, and final score, rank and
   correct/wrong/unanswered summary. Final score and rank remain pending until
   the room is completed and every manual evaluation is resolved. Re-evaluation
-  and room score adjustments refresh these private history records.
+  and room score adjustments refresh these private history records. Opening
+  Quiz Rooms as an admin backfills participant history for active and completed
+  rooms; deploy the latest database rules for player history reads and writes.
 - Admins can publish or unpublish each room's results. Published snapshots are
   shown on the player Score Board; unpublished room results are not exposed
   there. Results can be published after the room is completed; adjustments and
