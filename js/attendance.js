@@ -164,6 +164,8 @@ function toggleAttendanceDetails(programId) {
   const el = document.getElementById("attendance-details-" + programId);
   if (el) el.classList.toggle("hidden");
 }
+
+function filterAttendanceReports(query = "") {
   const term = String(query || "").trim().toLowerCase();
   document.querySelectorAll("#reportsTableBody tr").forEach(row => {
     row.hidden = Boolean(term) && !row.textContent.toLowerCase().includes(term);

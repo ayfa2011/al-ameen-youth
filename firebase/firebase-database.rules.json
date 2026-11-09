@@ -229,12 +229,63 @@
         ".write": "auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true",
         "$roomId": {
           ".validate": "newData.hasChildren(['name', 'month', 'status', 'createdAt', 'updatedAt']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 120 && newData.child('description').isString() && newData.child('description').val().length <= 500 && newData.child('month').isString() && newData.child('month').val().length <= 7 && (newData.child('status').val() == 'draft' || newData.child('status').val() == 'ready' || newData.child('status').val() == 'live' || newData.child('status').val() == 'completed') && newData.child('createdAt').isString() && newData.child('updatedAt').isString()",
+          "name": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 120"
+          },
+          "description": {
+            ".validate": "newData.isString() && newData.val().length <= 500"
+          },
+          "month": {
+            ".validate": "newData.isString() && newData.val().length <= 7"
+          },
+          "status": {
+            ".validate": "newData.isString() && (newData.val() == 'draft' || newData.val() == 'ready' || newData.val() == 'live' || newData.val() == 'completed')"
+          },
+          "createdAt": {
+            ".validate": "newData.isString()"
+          },
+          "updatedAt": {
+            ".validate": "newData.isString()"
+          },
           "questionCounter": {
             ".validate": "newData.isNumber() && newData.val() >= 0"
           },
           "questions": {
             "$questionId": {
               ".validate": "newData.hasChildren(['questionNumber', 'text', 'type', 'points', 'timeLimit', 'explanation', 'correctAnswer', 'imageUrl', 'audioUrl', 'createdAt', 'updatedAt']) && newData.child('questionNumber').isNumber() && newData.child('questionNumber').val() >= 1 && newData.child('text').isString() && newData.child('text').val().length <= 4000 && (newData.child('text').val().length > 0 || newData.child('imageUrl').val().length > 0 || newData.child('audioUrl').val().length > 0) && (newData.child('type').val() == 'mcq' || newData.child('type').val() == 'trueFalse' || newData.child('type').val() == 'short') && newData.child('points').isNumber() && newData.child('points').val() >= 1 && newData.child('points').val() <= 10000 && newData.child('timeLimit').isNumber() && newData.child('timeLimit').val() >= 1 && newData.child('timeLimit').val() <= 3600 && newData.child('explanation').isString() && newData.child('explanation').val().length <= 2000 && newData.child('correctAnswer').isString() && newData.child('correctAnswer').val().length <= 1000 && newData.child('imageUrl').isString() && newData.child('imageUrl').val().length <= 2000 && newData.child('audioUrl').isString() && newData.child('audioUrl').val().length <= 2000 && newData.child('createdAt').isString() && newData.child('updatedAt').isString() && ((newData.child('type').val() == 'short' && !newData.child('options').exists()) || (newData.child('type').val() == 'trueFalse' && newData.child('options').hasChildren(['true', 'false']) && (newData.child('correctAnswer').val() == 'true' || newData.child('correctAnswer').val() == 'false')) || (newData.child('type').val() == 'mcq' && newData.child('options').hasChildren(['option1', 'option2']) && newData.child('options').child(newData.child('correctAnswer').val()).exists()))",
+              "questionNumber": {
+                ".validate": "newData.isNumber() && newData.val() >= 1"
+              },
+              "text": {
+                ".validate": "newData.isString() && newData.val().length <= 4000"
+              },
+              "type": {
+                ".validate": "newData.isString() && (newData.val() == 'mcq' || newData.val() == 'trueFalse' || newData.val() == 'short')"
+              },
+              "points": {
+                ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 10000"
+              },
+              "timeLimit": {
+                ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 3600"
+              },
+              "explanation": {
+                ".validate": "newData.isString() && newData.val().length <= 2000"
+              },
+              "correctAnswer": {
+                ".validate": "newData.isString() && newData.val().length <= 1000"
+              },
+              "imageUrl": {
+                ".validate": "newData.isString() && newData.val().length <= 2000"
+              },
+              "audioUrl": {
+                ".validate": "newData.isString() && newData.val().length <= 2000"
+              },
+              "createdAt": {
+                ".validate": "newData.isString()"
+              },
+              "updatedAt": {
+                ".validate": "newData.isString()"
+              },
               "options": {
                 "true": {
                   ".validate": "newData.parent().parent().child('type').val() == 'trueFalse' && newData.isString() && newData.val() == 'True'"
@@ -301,9 +352,36 @@
               ".read": "auth != null && auth.uid == $uid",
               ".write": "auth != null && auth.uid == $uid && !data.exists() && root.child('hangout/quiz/status').val() == 'live' && root.child('hangout/quiz/roomId').val() == $roomId && root.child('hangout/quiz/questionId').val() == $questionId && newData.child('questionPoints').val() == root.child('hangout/quiz/points').val() && now < root.child('hangout/quiz/startedAt').val() + (root.child('hangout/quiz/remainingMs').val() == null ? root.child('hangout/quiz/timeLimit').val() * 1000 : root.child('hangout/quiz/remainingMs').val())",
               ".validate": "newData.hasChildren(['uid', 'playerName', 'answer', 'questionPoints', 'submittedAt']) && newData.child('uid').val() == $uid && newData.child('playerName').isString() && newData.child('playerName').val().length <= 80 && newData.child('answer').isString() && newData.child('answer').val().length >= 1 && newData.child('answer').val().length <= 1000 && newData.child('questionPoints').isNumber() && newData.child('questionPoints').val() >= 0 && newData.child('submittedAt').isString()",
+              "uid": {
+                ".validate": "newData.isString() && newData.val() == $uid"
+              },
+              "playerName": {
+                ".validate": "newData.isString() && newData.val().length <= 80"
+              },
+              "answer": {
+                ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 1000"
+              },
+              "questionPoints": {
+                ".validate": "newData.isNumber() && newData.val() >= 0"
+              },
+              "submittedAt": {
+                ".validate": "newData.isString()"
+              },
               "evaluation": {
                 ".write": "auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true && !data.exists()",
                 ".validate": "newData.hasChildren(['result', 'points', 'evaluatedAt', 'evaluatorUid', 'pointsAwarded']) && (newData.child('result').val() == 'correct' || newData.child('result').val() == 'wrong') && newData.child('points').isNumber() && newData.child('points').val() >= 0 && newData.child('evaluatedAt').isString() && newData.child('evaluatorUid').isString() && newData.child('pointsAwarded').isBoolean()",
+                "result": {
+                  ".validate": "newData.isString() && (newData.val() == 'correct' || newData.val() == 'wrong')"
+                },
+                "points": {
+                  ".validate": "newData.isNumber() && newData.val() >= 0"
+                },
+                "evaluatedAt": {
+                  ".validate": "newData.isString()"
+                },
+                "evaluatorUid": {
+                  ".validate": "newData.isString()"
+                },
                 "pointsAwarded": {
                   ".write": "auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true && data.val() == false && newData.val() == true",
                   ".validate": "newData.isBoolean()"
@@ -404,6 +482,18 @@
         ".write": "auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true",
         "$roomId": {
           ".validate": "newData.hasChildren(['roomId', 'roomName', 'published', 'updatedAt']) && newData.child('roomId').val() == $roomId && newData.child('roomName').isString() && newData.child('roomName').val().length <= 120 && newData.child('published').isBoolean() && newData.child('updatedAt').isString() && (newData.child('published').val() == false || newData.child('rows').exists())",
+          "roomId": {
+            ".validate": "newData.isString() && newData.val() == $roomId"
+          },
+          "roomName": {
+            ".validate": "newData.isString() && newData.val().length <= 120"
+          },
+          "published": {
+            ".validate": "newData.isBoolean()"
+          },
+          "updatedAt": {
+            ".validate": "newData.isString()"
+          },
           "rows": {
             "$uid": {
               ".validate": "newData.hasChildren(['uid', 'name', 'points', 'rank']) && newData.child('uid').val() == $uid && newData.child('name').isString() && newData.child('name').val().length <= 80 && newData.child('points').isNumber() && newData.child('points').val() >= 0 && newData.child('rank').isNumber() && newData.child('rank').val() >= 1"
