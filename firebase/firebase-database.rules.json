@@ -1,7 +1,7 @@
 {
   "rules": {
     ".read": false,
-    ".write": "auth != null && auth.token.role == 'official'",
+    ".write": false,
     "members": {
       ".read": true,
       ".write": "auth != null && auth.token.role == 'official'",
@@ -125,13 +125,14 @@
     "auditLog": {
       ".read": true,
       "$eventId": {
-        ".write": "auth != null && auth.token.role == 'official' && !data.exists() && newData.exists() && newData.child('actorUid').val() == auth.uid && newData.child('actorRole').val() == auth.token.role",
-        ".validate": "newData.hasChildren(['action', 'path', 'actorUid', 'actorRole', 'clientAt', 'createdAt']) && newData.child('action').isString() && newData.child('path').isString() && newData.child('actorUid').isString() && newData.child('actorRole').val() == 'official' && newData.child('clientAt').isString() && newData.child('createdAt').isNumber() && (!newData.child('recordId').exists() || newData.child('recordId').isString())"
+        ".write": "auth != null && !data.exists() && newData.exists() && newData.child('actorUid').val() == auth.uid && ((auth.token.role == 'official' && newData.child('actorRole').val() == 'official') || (auth.token.email == 'kebir.limra@gmail.com' && auth.token.googleAuth == true && newData.child('actorRole').val() == 'quizAdmin' && newData.child('path').val().beginsWith('hangout/')))",
+        ".validate": "newData.hasChildren(['action', 'path', 'actorUid', 'actorRole', 'clientAt', 'createdAt']) && newData.child('action').isString() && newData.child('path').isString() && newData.child('actorUid').isString() && (newData.child('actorRole').val() == 'official' || newData.child('actorRole').val() == 'quizAdmin') && newData.child('clientAt').isString() && newData.child('createdAt').isNumber() && (!newData.child('recordId').exists() || newData.child('recordId').isString())"
       }
     },
     "hangout": {
       "quiz": {
         ".read": "auth != null",
+        ".write": "auth != null && auth.token.email == 'kebir.limra@gmail.com' && auth.token.googleAuth == true",
         ".validate": "newData.hasChildren(['updatedAt'])",
         "monthLabel": {
           ".validate": "newData.isString() && newData.val().length <= 40"
@@ -174,6 +175,7 @@
       "scores": {
         ".read": "auth != null",
         "$uid": {
+          ".write": "auth != null && auth.token.email == 'kebir.limra@gmail.com' && auth.token.googleAuth == true",
           ".validate": "newData.hasChildren(['points']) && newData.child('points').isNumber()",
           "points": {
             ".validate": "newData.isNumber()"
@@ -189,6 +191,7 @@
       "scoreLog": {
         "$uid": {
           ".read": "auth != null && (auth.uid == $uid || auth.token.role == 'official')",
+          ".write": "auth != null && auth.token.email == 'kebir.limra@gmail.com' && auth.token.googleAuth == true",
           "$logId": {
             ".validate": "newData.hasChildren(['points', 'at']) && newData.child('points').isNumber() && newData.child('at').isString() && (!newData.child('note').exists() || (newData.child('note').isString() && newData.child('note').val().length <= 200))"
           }
@@ -197,7 +200,7 @@
       "chat": {
         ".read": "auth != null",
         "$msgId": {
-          ".write": "auth != null && (auth.token.firebase.sign_in_provider == 'google.com' || auth.token.googleAuth == true) && !data.exists() && newData.exists()",
+          ".write": "auth != null && ((auth.token.firebase.sign_in_provider == 'google.com' || auth.token.googleAuth == true) && !data.exists() && newData.exists())",
           ".validate": "newData.hasChildren(['uid', 'name', 'createdAt']) && newData.child('name').isString() && newData.child('name').val().length <= 80 && (data.exists() || (newData.child('uid').val() == auth.uid && newData.child('createdAt').val() == now && newData.child('name').val() == root.child('hangout/users/' + auth.uid + '/name').val())) && (newData.child('text').exists() || newData.child('voice').exists())",
           "uid": {
             ".validate": "newData.isString()"
@@ -218,6 +221,7 @@
             ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 120"
           },
           "deleted": {
+            ".write": "auth != null && auth.token.email == 'kebir.limra@gmail.com' && auth.token.googleAuth == true && data.parent().exists()",
             ".validate": "newData.isBoolean()"
           },
           "$other": {

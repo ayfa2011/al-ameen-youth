@@ -106,7 +106,7 @@
     });
 
     ctx.users = () => data.users;
-    ctx.isOfficial = () => HangoutAdminRepository.isOfficial();
+    ctx.isQuizAdmin = () => HangoutAdminRepository.isQuizAdmin();
     refreshAdminButton();
     renderQuestion(null);
     $('[data-panel="more"]').innerHTML = '<div class="hg-empty"><i class="fa-solid fa-ellipsis"></i><br>More features are coming soon.</div>';
@@ -126,7 +126,7 @@
 
   function refreshAdminButton() {
     const button = $('[data-act="admin"]');
-    if (button) button.hidden = !HangoutAdminRepository.isOfficial();
+    if (button) button.hidden = !HangoutAdminRepository.isQuizAdmin();
   }
 
   function setPanel(name) {

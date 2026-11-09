@@ -1,40 +1,72 @@
-// HANGOUT — official/admin writes ONLY.
-// Uses the website's existing official session and the audited helpers in
-// js/firebase-data.js (same pattern as the other features). Hangout Google
-// users can never run these; the database rules also block them.
+// HANGOUT — quiz admin writes for the single approved Google account.
 window.HangoutAdminRepository = (() => {
-  function requireOfficial() {
-    if (typeof isSupervisorLoggedIn !== "function" || !isSupervisorLoggedIn()) {
-      throw new Error("Officials access is required for Hangout admin actions.");
+  const QUIZ_ADMIN_EMAIL = "kebir.limra@gmail.com";
+
+  function isQuizAdmin() {
+    const user = window.firebaseAuth?.currentUser;
+    return typeof currentUserRole === "function"
+      && currentUserRole() === "member"
+      && String(user?.email || "").toLowerCase() === QUIZ_ADMIN_EMAIL;
+  }
+
+  function requireQuizAdmin() {
+    if (!isQuizAdmin()) {
+      throw new Error("Quiz admin access is available only to the approved account.");
+    }
+  }
+
+  async function appendQuizAudit(action, path, recordId = "", afterUpdatedAt = "") {
+    try {
+      await window.firebaseReady;
+      const user = window.firebaseAuth?.currentUser;
+      if (!user || !window.firebaseDb) throw new Error("Firebase is unavailable.");
+      await window.firebaseDb.ref("auditLog").push({
+        action,
+        path,
+        recordId,
+        actorUid: user.uid,
+        actorRole: "quizAdmin",
+        beforeUpdatedAt: "",
+        afterUpdatedAt,
+        clientAt: new Date().toISOString(),
+        createdAt: firebase.database.ServerValue.TIMESTAMP
+      });
+    } catch (error) {
+      console.error("Quiz admin audit event could not be recorded:", error);
     }
   }
 
   return Object.freeze({
-    isOfficial: () => typeof isSupervisorLoggedIn === "function" && isSupervisorLoggedIn(),
+    isQuizAdmin,
 
-    saveQuiz(quiz) {
-      requireOfficial();
-      return auditedFirebaseUpdate({ "hangout/quiz": { ...quiz, updatedAt: new Date().toISOString() } }, { action: "hangout.quiz.update", path: "hangout/quiz" });
+    async saveQuiz(quiz) {
+      requireQuizAdmin();
+      const updatedAt = new Date().toISOString();
+      await window.firebaseDb.ref("hangout/quiz").set({ ...quiz, updatedAt });
+      await appendQuizAudit("hangout.quiz.update", "hangout/quiz", "", updatedAt);
     },
 
     // Adds (or subtracts) points and keeps a history line for the player's profile.
     async awardPoints(uid, delta, note) {
-      requireOfficial();
+      requireQuizAdmin();
+      await window.firebaseReady;
       const now = new Date().toISOString();
-      const result = await firebaseAuditedTransaction(`hangout/scores/${uid}`,
+      const result = await window.firebaseDb.ref(`hangout/scores/${uid}`).transaction(
         current => ({ points: Number(current?.points || 0) + delta, updatedAt: now }),
-        { action: "hangout.score.award", path: `hangout/scores/${uid}`, recordId: uid, afterUpdatedAt: now });
+      );
       if (!result.committed) throw new Error("Score could not be saved. Try again.");
+      await appendQuizAudit("hangout.score.award", `hangout/scores/${uid}`, uid, now);
       const entry = { points: delta, at: now };
       if (note) entry.note = note;
-      await firebasePush(`hangout/scoreLog/${uid}`, entry);
+      await window.firebaseDb.ref(`hangout/scoreLog/${uid}`).push(entry);
       return result.snapshot.val().points;
     },
 
     // Moderation is a soft delete (deleted:true), like the rest of the website.
-    hideMessage(messageId) {
-      requireOfficial();
-      return auditedFirebaseUpdate({ [`hangout/chat/${messageId}/deleted`]: true }, { action: "hangout.chat.hide", path: "hangout/chat", recordId: messageId });
+    async hideMessage(messageId) {
+      requireQuizAdmin();
+      await window.firebaseDb.ref(`hangout/chat/${messageId}/deleted`).set(true);
+      await appendQuizAudit("hangout.chat.hide", "hangout/chat", messageId);
     }
   });
 })();

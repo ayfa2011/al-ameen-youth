@@ -1,5 +1,5 @@
-// ONLINE QUIZ — admin controls (UI only). Visible only while an official is
-// signed in on the main website. Writes go through HangoutAdminRepository.
+// ONLINE QUIZ — admin controls (UI only). Visible only to the approved quiz
+// admin account. Writes go through HangoutAdminRepository.
 window.HangoutQuizAdmin = (() => {
   const MAX_IMAGE_CHARS = 380000; // below the 400000 limit in the database rules
 
@@ -21,7 +21,7 @@ window.HangoutQuizAdmin = (() => {
   }
 
   function open(source) {
-    if (!HangoutAdminRepository.isOfficial()) { showToast("Officials access is required.", "error"); return; }
+    if (!HangoutAdminRepository.isQuizAdmin()) { showToast("Quiz admin access is required.", "error"); return; }
     document.getElementById("hgAdminSheet")?.remove();
     const modal = document.createElement("div");
     modal.id = "hgAdminSheet";
@@ -72,7 +72,7 @@ window.HangoutQuizAdmin = (() => {
       const button = form.querySelector('[type="submit"]');
       button.disabled = true;
       try { await HangoutAdminRepository.saveQuiz(values); showToast("Question published.", "success"); }
-      catch (error) { console.error("Hangout quiz save failed:", error); showToast("Could not publish. Sign in as an official and check the database rules.", "error"); }
+      catch (error) { console.error("Hangout quiz save failed:", error); showToast("Could not publish. Check Quiz Admin access and database rules.", "error"); }
       finally { button.disabled = false; }
     }
 
@@ -114,7 +114,7 @@ window.HangoutQuizAdmin = (() => {
         const total = await HangoutAdminRepository.awardPoints(form.elements.uid.value, delta, form.elements.note.value.trim());
         showToast(`Saved. New total: ${total} points.`, "success");
         form.elements.points.value = ""; form.elements.note.value = "";
-      } catch (error) { console.error("Hangout score save failed:", error); showToast("Could not save points. Sign in as an official and check the database rules.", "error"); }
+      } catch (error) { console.error("Hangout score save failed:", error); showToast("Could not save points. Check Quiz Admin access and database rules.", "error"); }
       finally { button.disabled = false; }
     });
   }

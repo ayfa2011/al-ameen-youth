@@ -37,7 +37,7 @@ window.HangoutQuizChat = (() => {
       if (removed) body = '<span class="hg-msg-text">Message removed by admin</span>';
       else if (m.voice) body = `<div class="hg-voice"><button type="button" class="hg-voice-play" data-act="play" data-id="${escapeHTML(id)}" aria-label="Play voice message"><i class="fa-solid fa-play"></i></button><div class="hg-voice-bar"><span></span></div><span class="hg-voice-dur">${HangoutService.formatDuration(m.voiceDur)}</span></div>`;
       else body = `<span class="hg-msg-text">${escapeHTML(m.text)}</span>`;
-      const hide = ctx.isOfficial() && !removed ? `<button type="button" class="hg-msg-del" data-act="hide" data-id="${escapeHTML(id)}">Hide</button>` : "";
+      const hide = ctx.isQuizAdmin() && !removed ? `<button type="button" class="hg-msg-del" data-act="hide" data-id="${escapeHTML(id)}">Hide</button>` : "";
       return `<div class="hg-msg ${own ? "is-own" : ""} ${removed ? "is-removed" : ""}" data-id="${escapeHTML(id)}" data-uid="${escapeHTML(m.uid)}">
         ${HangoutUI.avatar(author?.photo, name, m.uid)}
         <div class="hg-bubble"><span class="hg-msg-name">${escapeHTML(name)}</span>${body}<span class="hg-msg-time">${escapeHTML(HangoutService.formatTime(m.createdAt))}${hide}</span></div>
