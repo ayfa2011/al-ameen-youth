@@ -28,18 +28,18 @@ ONE-TIME SETUP (do these BEFORE opening Hangout)
 1) Firebase Console -> Authentication -> Sign-in method -> turn ON "Google".
 2) Firebase Console -> Authentication -> Settings -> Authorized domains ->
    make sure your website domain is listed (e.g. yourname.github.io or your own domain).
-3) Publish the database and Storage rules:
-     firebase deploy --only database,storage --project al-ameen-website-e24d0
-   or paste firebase/firebase-database.rules.json into Realtime Database -> Rules
-   and firebase/storage.rules into Firebase Storage -> Rules.
+3) Publish the Realtime Database rules:
+     firebase deploy --only database --project al-ameen-website-e24d0
+   or paste firebase/firebase-database.rules.json into Realtime Database -> Rules.
+   Publish `firebase/storage.rules` separately only when configuring Firebase
+   Storage features such as profile photos.
    The Hangout rules accept the already verified Google Member session. A
    website upload alone does NOT publish rules (see DATA-SAFETY.md).
-4) Before using quiz image/audio uploads, create the default bucket in Firebase
-   Console -> Build -> Storage -> Get started, then verify its name matches
-   `storageBucket` in `js/firebase-config.js`. The configured production bucket
-   currently returns 404 because it does not exist. Cloud Storage requires the
-   Blaze pay-as-you-go plan; review and approve any billing implications before
-   enabling it.
+4) Quiz image/audio uploads are stored as Base64 in Realtime Database, with a
+   200 KB per-file limit; a Storage bucket is not required for quiz media.
+   Firebase Storage is separate and may still be needed for profile photos.
+   Creating a bucket requires the Blaze pay-as-you-go plan; review billing
+   implications before enabling it.
 5) Upload the website files to GitHub / hosting as usual.
 
 HOW IT WORKS
@@ -76,8 +76,9 @@ HOW IT WORKS
 NOTES
 -----
 - Voice messages are stored inside the Realtime Database (max 45 seconds each).
-- Question images and audio are stored in Firebase Storage under
-  `/quiz-media/{roomId}/{questionId}/`; each upload is limited to 10 MB.
+- Question images and audio are stored as Base64 data URLs with each source
+  file limited to 200 KB. Larger files are rejected instead of falling back to
+  Storage.
 - On localhost Hangout stays off, same as the rest of the website
   (local testing needs the staging Firebase config described in DATA-SAFETY.md).
 - If Google login opens in a new page on some phones (popup blocked), the site

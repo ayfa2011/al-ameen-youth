@@ -1,7 +1,7 @@
 // HANGOUT — quiz admin writes for approved Google accounts.
 window.HangoutAdminRepository = (() => {
   const QUIZ_ADMIN_EMAILS = ["kebir.limra@gmail.com", "ayfaramboor@gmail.com"];
-  const MAX_MEDIA_BYTES = 10 * 1024 * 1024;
+  const MAX_MEDIA_BYTES = 200 * 1024;
   const MEDIA_TYPES = /^(image\/(jpeg|png|webp|gif)|audio\/(mpeg|mp4|ogg|wav|webm|aac|x-m4a))$/i;
 
   function isQuizAdmin() {
@@ -83,19 +83,21 @@ window.HangoutAdminRepository = (() => {
       return db.ref(`hangout/rooms/${roomId}/questions`).push().key;
     },
 
-    async uploadQuestionMedia(roomId, questionId, file, expectedKind) {
+    async encodeQuestionMedia(file, expectedKind) {
       requireQuizAdmin();
       await window.firebaseReady;
       if (!file || file.size > MAX_MEDIA_BYTES || !MEDIA_TYPES.test(file.type)
         || (expectedKind && !file.type.startsWith(`${expectedKind}/`))) {
-        throw new Error("Choose an image or audio file under 10 MB in a supported format.");
+        throw new Error("Choose a supported image or audio file no larger than 200 KB.");
       }
-      const app = HangoutAuth.isUsingMainSession() ? firebase.app() : HangoutFirebase.app();
-      if (typeof firebase.storage !== "function" || !app) throw new Error("Firebase Storage is unavailable.");
-      const kind = file.type.startsWith("image/") ? "image" : "audio";
-      const storageRef = firebase.storage(app).ref(`quiz-media/${roomId}/${questionId}/${kind}-${Date.now()}`);
-      await storageRef.put(file, { contentType: file.type, cacheControl: "public,max-age=3600" });
-      return storageRef.getDownloadURL();
+      const reader = new FileReader();
+      const dataUrl = await new Promise((resolve, reject) => {
+        reader.addEventListener("load", () => resolve(reader.result), { once: true });
+        reader.addEventListener("error", () => reject(reader.error || new Error("The media file could not be read.")), { once: true });
+        reader.readAsDataURL(file);
+      });
+      if (typeof dataUrl !== "string") throw new Error("The media file could not be encoded.");
+      return dataUrl;
     },
 
     async addQuestion(roomId, questionId, question) {

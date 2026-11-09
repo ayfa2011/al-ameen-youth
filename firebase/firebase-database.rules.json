@@ -144,10 +144,10 @@
           ".validate": "newData.isString() && newData.val().length <= 4000"
         },
         "imageUrl": {
-          ".validate": "newData.isString() && newData.val().length <= 400000"
+          ".validate": "newData.isString() && newData.val().length <= 274000 && (newData.val() == '' || newData.val().beginsWith('https://') || newData.val().beginsWith('data:image/'))"
         },
         "audioUrl": {
-          ".validate": "newData.isString() && newData.val().length <= 2000 && (newData.val() == '' || newData.val().beginsWith('https://'))"
+          ".validate": "newData.isString() && newData.val().length <= 274000 && (newData.val() == '' || newData.val().beginsWith('https://') || newData.val().beginsWith('data:audio/'))"
         },
         "roomId": {
           ".validate": "newData.isString() && newData.val().length <= 100"
@@ -252,7 +252,7 @@
           },
           "questions": {
             "$questionId": {
-              ".validate": "newData.hasChildren(['questionNumber', 'text', 'type', 'points', 'timeLimit', 'explanation', 'correctAnswer', 'imageUrl', 'audioUrl', 'createdAt', 'updatedAt']) && newData.child('questionNumber').isNumber() && newData.child('questionNumber').val() >= 1 && newData.child('text').isString() && newData.child('text').val().length <= 4000 && (newData.child('text').val().length > 0 || newData.child('imageUrl').val().length > 0 || newData.child('audioUrl').val().length > 0) && (newData.child('type').val() == 'mcq' || newData.child('type').val() == 'trueFalse' || newData.child('type').val() == 'short') && newData.child('points').isNumber() && newData.child('points').val() >= 1 && newData.child('points').val() <= 10000 && newData.child('timeLimit').isNumber() && newData.child('timeLimit').val() >= 1 && newData.child('timeLimit').val() <= 3600 && newData.child('explanation').isString() && newData.child('explanation').val().length <= 2000 && newData.child('correctAnswer').isString() && newData.child('correctAnswer').val().length <= 1000 && newData.child('imageUrl').isString() && newData.child('imageUrl').val().length <= 2000 && newData.child('audioUrl').isString() && newData.child('audioUrl').val().length <= 2000 && newData.child('createdAt').isString() && newData.child('updatedAt').isString() && ((newData.child('type').val() == 'short' && !newData.child('options').exists()) || (newData.child('type').val() == 'trueFalse' && newData.child('options').hasChildren(['true', 'false']) && (newData.child('correctAnswer').val() == 'true' || newData.child('correctAnswer').val() == 'false')) || (newData.child('type').val() == 'mcq' && newData.child('options').hasChildren(['option1', 'option2']) && newData.child('options').child(newData.child('correctAnswer').val()).exists()))",
+              ".validate": "newData.hasChildren(['questionNumber', 'text', 'type', 'points', 'timeLimit', 'explanation', 'correctAnswer', 'imageUrl', 'audioUrl', 'createdAt', 'updatedAt']) && newData.child('questionNumber').isNumber() && newData.child('questionNumber').val() >= 1 && newData.child('text').isString() && newData.child('text').val().length <= 4000 && (newData.child('text').val().length > 0 || newData.child('imageUrl').val().length > 0 || newData.child('audioUrl').val().length > 0) && (newData.child('type').val() == 'mcq' || newData.child('type').val() == 'trueFalse' || newData.child('type').val() == 'short') && newData.child('points').isNumber() && newData.child('points').val() >= 1 && newData.child('points').val() <= 10000 && newData.child('timeLimit').isNumber() && newData.child('timeLimit').val() >= 1 && newData.child('timeLimit').val() <= 3600 && newData.child('explanation').isString() && newData.child('explanation').val().length <= 2000 && newData.child('correctAnswer').isString() && newData.child('correctAnswer').val().length <= 1000 && newData.child('imageUrl').isString() && newData.child('imageUrl').val().length <= 274000 && (newData.child('imageUrl').val() == '' || newData.child('imageUrl').val().beginsWith('https://') || newData.child('imageUrl').val().beginsWith('data:image/')) && newData.child('audioUrl').isString() && newData.child('audioUrl').val().length <= 274000 && (newData.child('audioUrl').val() == '' || newData.child('audioUrl').val().beginsWith('https://') || newData.child('audioUrl').val().beginsWith('data:audio/')) && newData.child('createdAt').isString() && newData.child('updatedAt').isString() && ((newData.child('type').val() == 'short' && !newData.child('options').exists()) || (newData.child('type').val() == 'trueFalse' && newData.child('options').hasChildren(['true', 'false']) && (newData.child('correctAnswer').val() == 'true' || newData.child('correctAnswer').val() == 'false')) || (newData.child('type').val() == 'mcq' && newData.child('options').hasChildren(['option1', 'option2']) && newData.child('options').child(newData.child('correctAnswer').val()).exists()))",
               "questionNumber": {
                 ".validate": "newData.isNumber() && newData.val() >= 1"
               },
@@ -275,10 +275,10 @@
                 ".validate": "newData.isString() && newData.val().length <= 1000"
               },
               "imageUrl": {
-                ".validate": "newData.isString() && newData.val().length <= 2000"
+                ".validate": "newData.isString() && newData.val().length <= 274000 && (newData.val() == '' || newData.val().beginsWith('https://') || newData.val().beginsWith('data:image/'))"
               },
               "audioUrl": {
-                ".validate": "newData.isString() && newData.val().length <= 2000"
+                ".validate": "newData.isString() && newData.val().length <= 274000 && (newData.val() == '' || newData.val().beginsWith('https://') || newData.val().beginsWith('data:audio/'))"
               },
               "createdAt": {
                 ".validate": "newData.isString()"

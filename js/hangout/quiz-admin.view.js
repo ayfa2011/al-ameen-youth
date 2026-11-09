@@ -1,6 +1,6 @@
 // ONLINE QUIZ — room, question and evaluation admin screens.
 window.HangoutQuizAdmin = (() => {
-  const MAX_MEDIA_BYTES = 10 * 1024 * 1024;
+  const MAX_MEDIA_BYTES = 200 * 1024;
   const TYPE_LABELS = { mcq: "Multiple choice", trueFalse: "True / False", short: "Short answer" };
 
   function open(source) {
@@ -112,7 +112,7 @@ window.HangoutQuizAdmin = (() => {
         <label>Explanation (optional)<textarea name="explanation" maxlength="2000"></textarea></label>
         <label>Question Image (optional)<input name="image" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></label>
         <label>Audio (optional)<input name="audio" type="file" accept="audio/*"></label>
-        <p class="hg-hint">Image and audio uploads must be under 10 MB. Text, image and audio may be used together. Questions are saved as drafts until published.</p>
+        <p class="hg-hint">Image and audio files must be 200 KB or smaller and are stored in the database. Text, image and audio may be used together. Questions are saved as drafts until published.</p>
         <div class="hg-form-actions"><button type="submit" class="hg-btn">Save as Draft</button></div>
       </form>
       <h4 class="hg-section-title">Questions (${questions.length})</h4>
@@ -233,11 +233,11 @@ window.HangoutQuizAdmin = (() => {
           throw new Error("Enter a question or attach an image/audio prompt.");
         }
         [image, audio].filter(Boolean).forEach(file => {
-          if (file.size > MAX_MEDIA_BYTES) throw new Error("Image and audio files must be under 10 MB.");
+          if (file.size > MAX_MEDIA_BYTES) throw new Error("Image and audio files must be 200 KB or smaller.");
         });
         const questionId = editingId || HangoutAdminRepository.newQuestionId(roomId);
-        const imageUrl = image ? await HangoutAdminRepository.uploadQuestionMedia(roomId, questionId, image, "image") : editingQuestion?.imageUrl || "";
-        const audioUrl = audio ? await HangoutAdminRepository.uploadQuestionMedia(roomId, questionId, audio, "audio") : editingQuestion?.audioUrl || "";
+        const imageUrl = image ? await HangoutAdminRepository.encodeQuestionMedia(image, "image") : editingQuestion?.imageUrl || "";
+        const audioUrl = audio ? await HangoutAdminRepository.encodeQuestionMedia(audio, "audio") : editingQuestion?.audioUrl || "";
         const question = {
           text: questionForm.elements.text.value.trim(),
           type, points, timeLimit, options, correctAnswer, explanation: questionForm.elements.explanation.value.trim(), imageUrl, audioUrl

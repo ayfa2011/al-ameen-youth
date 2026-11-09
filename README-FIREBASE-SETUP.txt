@@ -79,14 +79,17 @@ player's room score with a required reason; previous score, delta, new total,
 editor, and timestamp are kept in immutable adjustment history. Player-facing
 room results remain hidden until an admin publishes the completed room.
 
-Question images and audio are uploaded under
-`/quiz-media/{roomId}/{questionId}/` in Firebase Storage. Publish both updated
-Realtime Database and Storage rules before using quiz room management:
+Quiz question images and audio are stored as Base64 data URLs directly on each
+question in Realtime Database. Each source file is limited to 200 KB; larger
+files are rejected before saving. The live quiz shares those same data URLs
+with participants. Quiz media therefore does not require a Storage bucket.
+Publish the updated Realtime Database rules before using quiz room management:
 
-  firebase deploy --only database,storage --project al-ameen-website-e24d0
+  firebase deploy --only database --project al-ameen-website-e24d0
 
-Only the approved quiz admin accounts can upload quiz media, and each file must
-be 10 MB or smaller. Signed-in quiz players can read the uploaded media.
+Only approved quiz admins can write room/question records; signed-in quiz
+players can read the active quiz media. Base64 increases media size by roughly
+one third, so keep quiz files small.
 
 6) Google Apps Script deployment
 ---------------------------------
