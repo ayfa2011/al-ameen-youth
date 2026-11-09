@@ -128,6 +128,110 @@
         ".write": "auth != null && auth.token.role == 'official' && !data.exists() && newData.exists() && newData.child('actorUid').val() == auth.uid && newData.child('actorRole').val() == auth.token.role",
         ".validate": "newData.hasChildren(['action', 'path', 'actorUid', 'actorRole', 'clientAt', 'createdAt']) && newData.child('action').isString() && newData.child('path').isString() && newData.child('actorUid').isString() && newData.child('actorRole').val() == 'official' && newData.child('clientAt').isString() && newData.child('createdAt').isNumber() && (!newData.child('recordId').exists() || newData.child('recordId').isString())"
       }
+    },
+    "hangout": {
+      "quiz": {
+        ".read": "auth != null",
+        ".validate": "newData.hasChildren(['updatedAt'])",
+        "monthLabel": {
+          ".validate": "newData.isString() && newData.val().length <= 40"
+        },
+        "title": {
+          ".validate": "newData.isString() && newData.val().length <= 200"
+        },
+        "text": {
+          ".validate": "newData.isString() && newData.val().length <= 4000"
+        },
+        "imageUrl": {
+          ".validate": "newData.isString() && newData.val().length <= 400000"
+        },
+        "updatedAt": {
+          ".validate": "newData.isString()"
+        },
+        "$other": {
+          ".validate": false
+        }
+      },
+      "users": {
+        ".read": "auth != null",
+        "$uid": {
+          ".write": "auth != null && auth.token.firebase.sign_in_provider == 'google.com' && auth.uid == $uid",
+          ".validate": "newData.hasChildren(['name'])",
+          "name": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 80 && (auth.token.name == null || newData.val() == auth.token.name)"
+          },
+          "photo": {
+            ".validate": "newData.isString() && newData.val().length <= 600 && (newData.val() == '' || newData.val().beginsWith('https://'))"
+          },
+          "joinedAt": {
+            ".validate": "newData.isNumber()"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      },
+      "scores": {
+        ".read": "auth != null",
+        "$uid": {
+          ".validate": "newData.hasChildren(['points']) && newData.child('points').isNumber()",
+          "points": {
+            ".validate": "newData.isNumber()"
+          },
+          "updatedAt": {
+            ".validate": "newData.isString()"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      },
+      "scoreLog": {
+        "$uid": {
+          ".read": "auth != null && (auth.uid == $uid || auth.token.role == 'official')",
+          "$logId": {
+            ".validate": "newData.hasChildren(['points', 'at']) && newData.child('points').isNumber() && newData.child('at').isString() && (!newData.child('note').exists() || (newData.child('note').isString() && newData.child('note').val().length <= 200))"
+          }
+        }
+      },
+      "chat": {
+        ".read": "auth != null",
+        "$msgId": {
+          ".write": "auth != null && auth.token.firebase.sign_in_provider == 'google.com' && !data.exists() && newData.exists()",
+          ".validate": "newData.hasChildren(['uid', 'name', 'createdAt']) && newData.child('name').isString() && newData.child('name').val().length <= 80 && (data.exists() || (newData.child('uid').val() == auth.uid && newData.child('createdAt').val() == now && newData.child('name').val() == root.child('hangout/users/' + auth.uid + '/name').val())) && (newData.child('text').exists() || newData.child('voice').exists())",
+          "uid": {
+            ".validate": "newData.isString()"
+          },
+          "name": {
+            ".validate": "newData.isString()"
+          },
+          "createdAt": {
+            ".validate": "newData.isNumber()"
+          },
+          "text": {
+            ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 1000"
+          },
+          "voice": {
+            ".validate": "newData.isBoolean()"
+          },
+          "voiceDur": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 120"
+          },
+          "deleted": {
+            ".validate": "newData.isBoolean()"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      },
+      "voice": {
+        "$msgId": {
+          ".read": "auth != null",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider == 'google.com' && !data.exists() && newData.exists()",
+          ".validate": "newData.isString() && newData.val().length <= 400000 && newData.val().beginsWith('data:audio/')"
+        }
+      }
     }
   }
 }

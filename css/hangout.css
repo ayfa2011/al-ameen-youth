@@ -1,0 +1,167 @@
+/* ============================================================
+   HANGOUT + ONLINE QUIZ — DESIGN ONLY
+   All class names start with "hg-" so nothing here can affect the
+   existing website. No data or Firebase code lives in this file.
+   ============================================================ */
+
+.hg-root,.hg-modal{
+  --hg-bg:#eceff4; --hg-card:#fff; --hg-blue:#2f7be5; --hg-blue-dark:#1f5fbf;
+  --hg-soft:#e8f1fc; --hg-soft-2:#f3f8fe; --hg-line:#dbe6f4; --hg-text:#1f2d3d;
+  --hg-muted:#6b7a8c; --hg-red:#e04545; --hg-own:#d6e9ff;
+  --hg-question-h:clamp(170px,30dvh,280px);
+  font-family:var(--ayfa-font-family,"Noto Sans Kannada",Arial,sans-serif); font-size:14px; line-height:1.45; color:var(--hg-text);
+}
+.hg-root{
+  position:fixed; inset:0; z-index:9000; display:flex; justify-content:center; align-items:stretch;
+  background:var(--hg-bg); color:var(--hg-text);
+  padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0);
+}
+.hg-root[hidden]{display:none}
+.hg-root *,.hg-modal *{box-sizing:border-box}
+.hg-root button,.hg-modal button,.hg-modal input,.hg-modal textarea,.hg-modal select{font-family:inherit}
+.hg-root [hidden],.hg-modal [hidden]{display:none !important}
+
+/* One centred column: full screen on phones, rounded card on desktop */
+.hg-shell{width:100%; max-width:560px; height:100%; display:flex; flex-direction:column; background:var(--hg-card); overflow:hidden}
+@media (min-width:700px){
+  .hg-root{padding:16px 0}
+  .hg-shell{border-radius:22px; box-shadow:0 14px 50px rgba(31,45,61,.16); max-height:880px; align-self:center}
+}
+
+/* ---------- Hub ---------- */
+.hg-hub{flex:1; display:flex; flex-direction:column; min-height:0}
+.hg-topbar{display:flex; align-items:center; gap:10px; padding:12px 14px; border-bottom:1px solid var(--hg-line); background:var(--hg-card)}
+.hg-topbar h2{margin:0; font-size:18px; flex:1}
+.hg-icon-btn{display:grid; place-items:center; width:38px; height:38px; border:0; border-radius:12px; background:var(--hg-soft); color:var(--hg-blue-dark); font-size:16px; cursor:pointer}
+.hg-icon-btn:active{transform:scale(.95)}
+.hg-hub-body{flex:1; overflow-y:auto; padding:18px 14px; background:var(--hg-bg)}
+.hg-hub-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:12px}
+.hg-hub-card{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; min-height:120px; padding:14px; border:1px solid var(--hg-line); border-radius:18px; background:var(--hg-card); color:var(--hg-text); font-weight:600; cursor:pointer; box-shadow:0 2px 8px rgba(31,45,61,.06)}
+.hg-hub-card i{font-size:28px; color:var(--hg-blue)}
+.hg-hub-card:active{transform:scale(.97)}
+
+/* ---------- Login gate ---------- */
+.hg-login{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:28px 22px; text-align:center; background:var(--hg-bg)}
+.hg-login-card{width:100%; max-width:360px; padding:28px 22px; border-radius:22px; background:var(--hg-card); box-shadow:0 6px 24px rgba(31,45,61,.1)}
+.hg-login-card i.hg-login-icon{font-size:38px; color:var(--hg-blue); margin-bottom:10px}
+.hg-login-card h3{margin:0 0 6px; font-size:20px}
+.hg-login-card p{margin:0 0 18px; color:var(--hg-muted)}
+.hg-google-btn{display:flex; align-items:center; justify-content:center; gap:10px; width:100%; padding:13px 16px; border:1px solid var(--hg-line); border-radius:14px; background:#fff; color:var(--hg-text); font-size:15px; font-weight:600; cursor:pointer}
+.hg-google-btn:disabled{opacity:.6; cursor:default}
+.hg-google-btn .fa-google{color:#ea4335}
+.hg-login-error{min-height:18px; margin-top:12px; color:var(--hg-red); font-size:13px}
+.hg-link-btn{border:0; background:none; color:var(--hg-muted); font-size:13px; cursor:pointer; text-decoration:underline}
+
+/* ---------- Quiz screen ---------- */
+.hg-quiz{flex:1; display:flex; flex-direction:column; min-height:0}
+.hg-qheader{display:flex; align-items:center; gap:10px; padding:11px 14px; border-bottom:1px solid var(--hg-line); background:var(--hg-card)}
+.hg-qheader strong{font-size:17px; white-space:nowrap}
+.hg-month{flex:1; min-width:0; color:var(--hg-muted); font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.hg-exit{padding:6px 14px; border:0; border-radius:999px; background:var(--hg-red); color:#fff; font-size:12px; font-weight:700; letter-spacing:.04em; cursor:pointer}
+.hg-admin-btn{width:32px; height:32px; font-size:14px}
+
+/* Question area: height is fixed and never depends on the panel below */
+.hg-question{flex:0 0 var(--hg-question-h); height:var(--hg-question-h); margin:10px 12px 0; padding:14px; overflow-y:auto; border-radius:18px; background:var(--hg-soft); border:1px solid var(--hg-line)}
+.hg-question h3{margin:0 0 6px; font-size:16px}
+.hg-question p{margin:0 0 8px; white-space:pre-wrap; word-break:break-word}
+.hg-question img{display:block; max-width:100%; max-height:150px; margin:6px auto 0; border-radius:12px; object-fit:contain}
+.hg-question-empty{display:flex; height:100%; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:var(--hg-muted); text-align:center}
+.hg-question-empty i{font-size:26px; color:var(--hg-blue); opacity:.7}
+
+/* Changing area: only this part swaps between Chat / Score / More / Profile */
+.hg-body{flex:1; min-height:0; position:relative; margin:10px 12px 0}
+.hg-panel{position:absolute; inset:0; display:flex; flex-direction:column; min-height:0; overflow:hidden; border-radius:18px; background:var(--hg-soft-2); border:1px solid var(--hg-line)}
+
+/* Bottom navigation */
+.hg-nav{display:grid; grid-template-columns:repeat(4,1fr); gap:4px; padding:8px 10px 10px; background:var(--hg-card)}
+.hg-nav button{display:flex; flex-direction:column; align-items:center; gap:3px; padding:7px 4px; border:0; border-radius:14px; background:transparent; color:#7fa6d8; font-size:11px; font-weight:600; cursor:pointer}
+.hg-nav button i{font-size:19px}
+.hg-nav button.is-active{background:var(--hg-blue); color:#fff}
+
+/* ---------- Chat ---------- */
+.hg-chat-list{flex:1; min-height:0; overflow-y:auto; padding:12px 10px; display:flex; flex-direction:column; gap:8px; overscroll-behavior:contain}
+.hg-chat-empty{margin:auto; color:var(--hg-muted); text-align:center}
+.hg-msg{display:flex; gap:8px; align-items:flex-end; max-width:88%}
+.hg-msg.is-own{align-self:flex-end; flex-direction:row-reverse}
+.hg-avatar{flex:0 0 30px; width:30px; height:30px; border-radius:50%; overflow:hidden; display:grid; place-items:center; background:var(--hg-blue); color:#fff; font-size:13px; font-weight:700}
+.hg-avatar img{width:100%; height:100%; object-fit:cover; display:block}
+.hg-bubble{position:relative; padding:7px 11px 5px; border-radius:16px 16px 16px 4px; background:#fff; border:1px solid var(--hg-line); min-width:0; word-break:break-word}
+.hg-msg.is-own .hg-bubble{border-radius:16px 16px 4px 16px; background:var(--hg-own); border-color:#bcd9fb}
+.hg-msg-name{display:block; margin-bottom:1px; color:var(--hg-blue-dark); font-size:12px; font-weight:700}
+.hg-msg-text{white-space:pre-wrap}
+.hg-msg-time{display:block; margin-top:2px; text-align:right; color:var(--hg-muted); font-size:10.5px}
+.hg-msg.is-removed .hg-msg-text{color:var(--hg-muted); font-style:italic}
+.hg-msg-del{margin-left:8px; border:0; background:none; color:var(--hg-red); font-size:11px; cursor:pointer; padding:0}
+.hg-voice{display:flex; align-items:center; gap:9px; min-width:150px}
+.hg-voice-play{display:grid; place-items:center; width:34px; height:34px; border:0; border-radius:50%; background:var(--hg-blue); color:#fff; cursor:pointer}
+.hg-voice-bar{flex:1; height:5px; border-radius:3px; background:#c9dcf5; overflow:hidden}
+.hg-voice-bar span{display:block; height:100%; width:0; background:var(--hg-blue)}
+.hg-voice-dur{font-size:11px; color:var(--hg-muted)}
+
+.hg-emoji-panel{display:grid; grid-template-columns:repeat(8,1fr); gap:2px; padding:8px; border-top:1px solid var(--hg-line); background:#fff; max-height:150px; overflow-y:auto}
+.hg-emoji-panel button{border:0; background:none; font-size:22px; padding:3px; border-radius:8px; cursor:pointer}
+.hg-emoji-panel button:active{background:var(--hg-soft)}
+.hg-composer{display:flex; align-items:center; gap:7px; padding:8px; border-top:1px solid var(--hg-line); background:#fff}
+.hg-composer input{flex:1; min-width:0; padding:10px 14px; border:1px solid var(--hg-line); border-radius:999px; background:var(--hg-soft-2); font:inherit; color:inherit; outline:none}
+.hg-composer input:focus{border-color:var(--hg-blue)}
+.hg-composer .hg-icon-btn{border-radius:50%; flex:0 0 40px; width:40px; height:40px}
+.hg-composer .hg-send{background:var(--hg-blue); color:#fff}
+.hg-recorder{display:flex; align-items:center; gap:10px; padding:9px 12px; border-top:1px solid var(--hg-line); background:#fff3f3}
+.hg-rec-dot{width:11px; height:11px; border-radius:50%; background:var(--hg-red); animation:hg-pulse 1s infinite}
+.hg-rec-time{flex:1; font-weight:700; font-variant-numeric:tabular-nums}
+@keyframes hg-pulse{50%{opacity:.25}}
+
+/* ---------- Scoreboard ---------- */
+.hg-score{flex:1; min-height:0; display:flex; flex-direction:column}
+.hg-score-head{padding:12px 14px 8px}
+.hg-score-head small{display:block; color:var(--hg-muted); letter-spacing:.12em; font-size:10.5px; font-weight:700}
+.hg-score-head h3{margin:0; font-size:17px}
+.hg-yourpos{margin:0 12px 8px; padding:7px 12px; border-radius:12px; background:var(--hg-blue); color:#fff; font-weight:700; font-size:13px}
+.hg-score-list{flex:1; min-height:0; overflow-y:auto; margin:0; padding:0 12px 12px; list-style:none; display:flex; flex-direction:column; gap:8px}
+.hg-row{display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:14px; background:#fff; border:1px solid var(--hg-line)}
+.hg-row .hg-rank{flex:0 0 38px; text-align:center; font-weight:800; color:var(--hg-muted)}
+.hg-row .hg-rank.is-medal{font-size:22px}
+.hg-row .hg-name{flex:1; min-width:0; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.hg-row .hg-pts{font-weight:800; color:var(--hg-blue-dark)}
+.hg-row.rank-1{background:linear-gradient(90deg,#fff8dc,#fff); border-color:#f1d98a}
+.hg-row.rank-2{background:linear-gradient(90deg,#f1f4f8,#fff); border-color:#cfd7e2}
+.hg-row.rank-3{background:linear-gradient(90deg,#fdeede,#fff); border-color:#e9c29a}
+.hg-row.is-you{box-shadow:0 0 0 2px var(--hg-blue) inset}
+.hg-you-tag{margin-left:6px; padding:1px 7px; border-radius:999px; background:var(--hg-blue); color:#fff; font-size:10px; vertical-align:middle}
+.hg-empty{margin:auto; padding:20px; color:var(--hg-muted); text-align:center}
+
+/* ---------- More / Profile ---------- */
+.hg-scroll{flex:1; min-height:0; overflow-y:auto; padding:14px}
+.hg-profile-head{display:flex; flex-direction:column; align-items:center; gap:6px; padding:8px 0 14px; text-align:center}
+.hg-profile-head .hg-avatar{width:74px; height:74px; flex-basis:74px; font-size:30px}
+.hg-profile-head h3{margin:4px 0 0; font-size:18px}
+.hg-profile-head span{color:var(--hg-muted); font-size:13px; word-break:break-all}
+.hg-stats{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px}
+.hg-stat{padding:12px; border-radius:14px; background:#fff; border:1px solid var(--hg-line); text-align:center}
+.hg-stat b{display:block; font-size:22px; color:var(--hg-blue-dark)}
+.hg-stat small{color:var(--hg-muted)}
+.hg-section-title{margin:6px 2px 8px; font-size:13px; font-weight:700; color:var(--hg-muted); letter-spacing:.06em; text-transform:uppercase}
+.hg-log{margin:0 0 14px; padding:0; list-style:none; display:flex; flex-direction:column; gap:7px}
+.hg-log li{display:flex; justify-content:space-between; gap:10px; padding:9px 12px; border-radius:12px; background:#fff; border:1px solid var(--hg-line)}
+.hg-log small{display:block; color:var(--hg-muted)}
+.hg-log .hg-plus{font-weight:800; color:#1b9b57}
+.hg-log .hg-minus{font-weight:800; color:var(--hg-red)}
+.hg-outline-btn{width:100%; padding:11px; border:1px solid var(--hg-line); border-radius:14px; background:#fff; color:var(--hg-text); font-weight:600; cursor:pointer}
+
+/* ---------- Admin sheet ---------- */
+.hg-modal{position:fixed; inset:0; z-index:9100; display:grid; place-items:center; padding:14px; background:rgba(20,30,45,.5)}
+.hg-sheet{width:min(100%,520px); max-height:92dvh; overflow-y:auto; padding:16px; border-radius:20px; background:#fff; color:var(--hg-text)}
+.hg-sheet h3{margin:0 0 10px; font-size:18px; display:flex; justify-content:space-between; align-items:center}
+.hg-tabs{display:flex; gap:6px; margin-bottom:12px}
+.hg-tabs button{flex:1; padding:9px; border:0; border-radius:12px; background:var(--hg-soft); color:var(--hg-blue-dark); font-weight:600; cursor:pointer}
+.hg-tabs button.is-active{background:var(--hg-blue); color:#fff}
+.hg-form{display:grid; gap:10px}
+.hg-form label{display:grid; gap:4px; font-size:12.5px; font-weight:600; color:var(--hg-muted)}
+.hg-form input,.hg-form textarea,.hg-form select{width:100%; padding:10px 12px; border:1px solid var(--hg-line); border-radius:12px; font:inherit; color:var(--hg-text); background:#fff}
+.hg-form textarea{min-height:90px; resize:vertical}
+.hg-form-actions{display:flex; gap:8px; justify-content:flex-end; margin-top:4px}
+.hg-btn{padding:10px 16px; border:0; border-radius:12px; background:var(--hg-blue); color:#fff; font-weight:700; cursor:pointer}
+.hg-btn.is-light{background:var(--hg-soft); color:var(--hg-blue-dark)}
+.hg-btn:disabled{opacity:.6; cursor:default}
+.hg-hint{margin:0; color:var(--hg-muted); font-size:12px}
+.hg-preview{max-width:100%; max-height:120px; border-radius:10px; object-fit:contain}

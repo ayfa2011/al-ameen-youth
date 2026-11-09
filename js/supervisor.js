@@ -8,6 +8,7 @@ let pendingSessionDraft = null;
 let authLoginInProgress = false;
 let selectedLoginRole = "";
 let authScreenNotice = "";
+const GOOGLE_ROLE_PENDING_KEY = "ayfaPendingGoogleLoginRole";
 
 function currentUserRole() {
   return isRoleAuthenticated() ? ayfaAuthContext.role : "";
@@ -64,11 +65,14 @@ function isSupervisorLoggedIn() {
 
 function authErrorMessage(error) {
   const code = String(error?.code || "");
-  if (code.includes("invalid-credential") || code.includes("user-not-found") || code.includes("wrong-password")) return "Login password is incorrect.";
-  if (code.includes("too-many-requests")) return "Too many attempts. Please try again later.";
-  if (code.includes("network-request-failed")) return "Connection failed. Check your internet and try again.";
-  if (code.includes("permission-denied")) return "This account has no active website role. Contact an official.";
-  return error?.message || "Login could not be completed. Please try again.";
+  if (code.includes("wrong-password") || code.includes("invalid-credential") || code === "role-login-rejected") return error.message || "Password is incorrect. Please try again.";
+  if (code.includes("popup-closed") || code.includes("cancelled-popup")) return "Google sign-in was cancelled. Please try again.";
+  if (code.includes("unauthorized-domain")) return "This website address is not enabled for Google sign-in. Add it under Firebase Authentication → Settings → Authorized domains.";
+  if (code.includes("operation-not-allowed")) return "Google sign-in is not enabled in Firebase Authentication.";
+  if (code.includes("network-request-failed") || code.includes("network_error")) return "Connection failed. Check your internet and try again.";
+  if (code.includes("permission-denied")) return "This sign-in could not be assigned a website role. Please try again.";
+  if (code === "role-login-rejected") return error.message;
+  return error?.message || "Google sign-in could not be completed. Please try again.";
 }
 
 function showAuthScreen(role = "", message = "") {
@@ -82,55 +86,49 @@ function showAuthScreen(role = "", message = "") {
   const form = document.getElementById("roleLoginForm");
   const hint = document.getElementById("authRoleHint");
   const error = document.getElementById("pinError");
+  const passwordField = document.getElementById("officialPasswordField");
+  const passwordInput = document.getElementById("authPassword");
+  const loginButton = document.getElementById("loginBtn");
   selectedLoginRole = role === "member" || role === "official" ? role : "";
   if (error) error.textContent = selectedLoginRole ? message : "";
   const screenMessage = document.getElementById("authScreenMessage");
-  if (screenMessage) screenMessage.textContent = message || (selectedLoginRole ? "Sign in with your registered account." : "");
+  if (screenMessage) screenMessage.textContent = message || (selectedLoginRole === "official" ? "Enter the Admin & Incharges password." : selectedLoginRole === "member" ? "Choose a Google account to continue." : "");
   choices?.classList.toggle("hidden", Boolean(selectedLoginRole));
   form?.classList.toggle("hidden", !selectedLoginRole);
   hint?.classList.toggle("hidden", !selectedLoginRole);
-  if (hint) hint.textContent = "";
+  passwordField?.classList.toggle("hidden", selectedLoginRole !== "official");
+  if (passwordInput) {
+    passwordInput.required = selectedLoginRole === "official";
+    if (!selectedLoginRole) passwordInput.value = "";
+  }
+  if (loginButton) {
+    loginButton.innerHTML = selectedLoginRole === "official"
+      ? '<i class="fa-solid fa-lock"></i><span>Login</span>'
+      : '<i class="fa-brands fa-google"></i><span>Continue with Google</span>';
+  }
+  if (hint) hint.textContent = selectedLoginRole === "official" ? "" : selectedLoginRole === "member" ? "Sign in with any Google account for read-only access." : "";
   const title = document.querySelector("#pinScreen .pin-box h2");
-  if (title) title.textContent = selectedLoginRole === "official" ? "Officials Login" : selectedLoginRole === "member" ? "Member Login" : "ಅಲ್‌ ಅಮೀನ್ ಯೂತ್ ಫೆಡರೇಶನ್";
-  const password = document.getElementById("authPassword");
-  if (selectedLoginRole && password) password.value = "";
-  if (selectedLoginRole && password) password.focus({ preventScroll: true });
+  if (title) title.textContent = selectedLoginRole === "official" ? "Admin & Incharges Login" : selectedLoginRole === "member" ? "Member Login" : "ಅಲ್‌ ಅಮೀನ್ ಯೂತ್ ಫೆಡರೇಶನ್";
+  const button = document.getElementById("loginBtn");
+  if (button) button.disabled = false;
 }
 
 function selectLoginRole(role) {
-  if (role === "member") {
-    document.getElementById("pinScreen")?.classList.add("hidden");
-    document.getElementById("appContainer")?.classList.remove("hidden");
-    ayfaAuthContext = { user: null, role: "member", expiresAt: Infinity, ready: true };
-    refreshSupervisorUI();
-    return;
+  if (role === "member" || role === "official") {
+    authScreenNotice = "";
+    showAuthScreen(role);
   }
-  if (role === "official") { showAuthScreen("official"); return; }
-}
-
-// Members skip the password step: request a member-role token directly.
-async function openMemberSessionDirect() {
-  const error = document.getElementById("pinError");
-  if (error) error.textContent = "Member login is disabled. The website is publicly viewable; official login is required for changes.";
-  return;
-}
-
-function toggleAuthPassword() {
-  const input = document.getElementById("authPassword");
-  const button = document.querySelector(".auth-password-toggle");
-  if (!input || !button) return;
-  const show = input.type === "password";
-  input.type = show ? "text" : "password";
-  button.setAttribute("aria-label", show ? "Hide password" : "Show password");
-  button.innerHTML = `<i class="fa-regular ${show ? "fa-eye-slash" : "fa-eye"}"></i>`;
 }
 
 async function resolveFirebaseRole(user) {
   await window.firebaseReady;
   const token = await user.getIdTokenResult();
   const role = String(token.claims?.role || "").trim().toLowerCase();
-  if (role !== "member" && role !== "official") {
-    const error = new Error("This account has no active website role. Contact an official.");
+  const validLogin = role === "member"
+    ? token.claims?.googleAuth === true
+    : role === "official" && token.claims?.passwordAuth === true;
+  if (!validLogin) {
+    const error = new Error("Please sign in using the correct method for your account.");
     error.code = "permission-denied";
     throw error;
   }
@@ -161,48 +159,211 @@ async function activateRoleSession(user, resolved) {
   updateAuthSessionTimer();
 }
 
+async function completeGoogleRoleLogin(role, googleUser) {
+  if (role !== "member") throw new Error("Admin & Incharges sign in with a password.");
+  if (!window.firebaseDb || !window.firebaseAuth || !SCRIPT_URL) throw new Error(window.firebaseConfigError || "Google login is not configured for this environment.");
+  await window.firebaseReady;
+  const idToken = await googleUser.getIdToken(true);
+  const response = await fetch(SCRIPT_URL, {
+    method: "POST",
+    mode: "cors",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ action: "createGoogleRoleToken", role, idToken })
+  });
+  let tokenResult;
+  try {
+    tokenResult = await response.json();
+  } catch (error) {
+    console.error("Google role-token response could not be read:", error);
+    throw new Error("The login service returned an unreadable response. Please try again.");
+  }
+  if (!response.ok || tokenResult.success === false || tokenResult.error || !tokenResult.customToken) {
+    const error = new Error(tokenResult.error || "The selected login type could not be verified.");
+    error.code = "role-login-rejected";
+    throw error;
+  }
+  const credential = await window.firebaseAuth.signInWithCustomToken(tokenResult.customToken);
+  const resolved = await resolveFirebaseRole(credential.user);
+  if (resolved.role !== role) {
+    const mismatch = new Error("Choose the login type assigned to this account.");
+    mismatch.code = "role-mismatch";
+    throw mismatch;
+  }
+  await credential.user.updateProfile({
+    displayName: googleUser.displayName || credential.user.displayName || googleUser.email || "",
+    photoURL: googleUser.photoURL || credential.user.photoURL || null
+  });
+  sessionStorage.removeItem(GOOGLE_ROLE_PENDING_KEY);
+  await activateRoleSession(credential.user, resolved);
+}
+
+async function completeOfficialPasswordLogin(password) {
+  if (!window.firebaseDb || !window.firebaseAuth || !SCRIPT_URL) throw new Error(window.firebaseConfigError || "Admin & Incharges login is not configured for this environment.");
+  await window.firebaseReady;
+  const response = await fetch(SCRIPT_URL, {
+    method: "POST",
+    mode: "cors",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ action: "createOfficialPasswordToken", password })
+  });
+  let tokenResult;
+  try {
+    tokenResult = await response.json();
+  } catch (error) {
+    console.error("Password role-token response could not be read:", error);
+    throw new Error("The login service returned an unreadable response. Please try again.");
+  }
+  if (!response.ok || tokenResult.success === false || tokenResult.error || !tokenResult.customToken) {
+    const error = new Error(tokenResult.error || "Password is incorrect. Please try again.");
+    error.code = "role-login-rejected";
+    throw error;
+  }
+  const credential = await window.firebaseAuth.signInWithCustomToken(tokenResult.customToken);
+  const resolved = await resolveFirebaseRole(credential.user);
+  if (resolved.role !== "official") {
+    const mismatch = new Error("This sign-in is not an Admin & Incharges account.");
+    mismatch.code = "role-mismatch";
+    throw mismatch;
+  }
+  await activateRoleSession(credential.user, resolved);
+}
+
 async function submitRoleLogin(event) {
   event.preventDefault();
-  if (!selectedLoginRole) return;
-  const password = String(document.getElementById("authPassword")?.value || "");
+  if (!selectedLoginRole || authLoginInProgress) return;
   const button = document.getElementById("loginBtn");
   const error = document.getElementById("pinError");
   if (error) error.textContent = "";
-  if (button) { button.disabled = true; button.textContent = "Signing in…"; }
+  if (button) {
+    button.disabled = true;
+    button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Signing in…</span>';
+  }
   const roleHint = document.getElementById("authRoleHint");
   roleHint?.classList.add("hidden");
   authLoginInProgress = true;
+  let redirectStarted = false;
   try {
-    if (!window.firebaseDb || !window.firebaseAuth || !SCRIPT_URL) throw new Error(window.firebaseConfigError || "Firebase login is not configured for this environment.");
-    await window.firebaseReady;
-    const response = await fetch(SCRIPT_URL, {
-      method: "POST", mode: "cors", headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "createRoleToken", role: selectedLoginRole, password })
-    });
-    const tokenResult = await response.json();
-    if (!response.ok || tokenResult.success === false || tokenResult.error || !tokenResult.customToken) {
-      const error = new Error(tokenResult.error || "Incorrect password. Please try again.");
-      error.code = "role-login-rejected";
-      throw error;
+    if (selectedLoginRole === "official") {
+      const password = String(document.getElementById("authPassword")?.value || "");
+      await completeOfficialPasswordLogin(password);
+    } else {
+      if (!window.firebaseAuth || !SCRIPT_URL) throw new Error(window.firebaseConfigError || "Google login is not configured for this environment.");
+      await window.firebaseReady;
+      sessionStorage.setItem(GOOGLE_ROLE_PENDING_KEY, selectedLoginRole);
+      const provider = new firebase.auth.GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+      const result = await window.firebaseAuth.signInWithPopup(provider);
+      await completeGoogleRoleLogin(selectedLoginRole, result.user);
     }
-    const credential = await window.firebaseAuth.signInWithCustomToken(tokenResult.customToken);
-    const resolved = await resolveFirebaseRole(credential.user);
-    if (resolved.role !== selectedLoginRole) {
-      const mismatch = new Error("Choose the login type assigned to this account.");
-      mismatch.code = "role-mismatch";
-      throw mismatch;
-    }
-    await activateRoleSession(credential.user, resolved);
   } catch (loginError) {
-    console.error("Role login failed:", loginError);
-    if (loginError?.code === "role-mismatch" || loginError?.code === "permission-denied") {
-      await window.firebaseAuth.signOut().catch(() => {});
+    const code = String(loginError?.code || "");
+    if (code.includes("popup-blocked") || code.includes("operation-not-supported")) {
+      try {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: "select_account" });
+        sessionStorage.setItem(GOOGLE_ROLE_PENDING_KEY, selectedLoginRole);
+        await window.firebaseAuth.signInWithRedirect(provider);
+        redirectStarted = true;
+        return;
+      } catch (redirectError) {
+        console.error("Google redirect sign-in failed:", redirectError);
+        loginError = redirectError;
+      }
     }
-    if (error) error.textContent = loginError?.code === "role-login-rejected" ? loginError.message : authErrorMessage(loginError);
-    roleHint?.classList.remove("hidden");
+    console.error("Role login failed:", loginError);
+    authScreenNotice = authErrorMessage(loginError);
+    await window.firebaseAuth?.signOut().catch(signOutError => console.error("Temporary Google session cleanup failed:", signOutError));
+    sessionStorage.removeItem(GOOGLE_ROLE_PENDING_KEY);
+    if (error) error.textContent = authScreenNotice;
+    if (selectedLoginRole === "member") roleHint?.classList.remove("hidden");
   } finally {
-    authLoginInProgress = false;
-    if (button) { button.disabled = false; button.textContent = "Login"; }
+    if (!redirectStarted) {
+      authLoginInProgress = false;
+      if (button) {
+        button.disabled = false;
+        button.innerHTML = selectedLoginRole === "official"
+          ? '<i class="fa-solid fa-lock"></i><span>Login</span>'
+          : '<i class="fa-brands fa-google"></i><span>Continue with Google</span>';
+      }
+    }
+  }
+}
+
+function updateProfilePhotoPreview(value) {
+  const image = document.getElementById("profilePhotoPreview");
+  const fallback = document.getElementById("profilePhotoFallback");
+  if (!image || !fallback) return;
+  const photoUrl = String(value || "").trim();
+  if (!photoUrl) {
+    image.removeAttribute("src");
+    image.classList.add("hidden");
+    fallback.classList.remove("hidden");
+    return;
+  }
+  image.onerror = () => {
+    image.classList.add("hidden");
+    fallback.classList.remove("hidden");
+  };
+  image.onload = () => {
+    image.classList.remove("hidden");
+    fallback.classList.add("hidden");
+  };
+  image.src = photoUrl;
+}
+
+function renderProfilePage() {
+  if (!isRoleAuthenticated()) return;
+  const user = ayfaAuthContext.user;
+  const nameInput = document.getElementById("profileDisplayName");
+  const photoInput = document.getElementById("profilePhotoURL");
+  const email = document.getElementById("profileEmail");
+  const role = document.getElementById("profileRole");
+  const status = document.getElementById("profileSaveStatus");
+  if (nameInput) nameInput.value = user.displayName || user.email?.split("@")[0] || "";
+  if (photoInput) photoInput.value = user.photoURL || "";
+  if (email) email.textContent = user.email || "";
+  if (role) role.textContent = ayfaAuthContext.role === "official" ? "Admin & Incharges" : "Member";
+  if (status) status.textContent = "";
+  updateProfilePhotoPreview(photoInput?.value || "");
+}
+
+async function saveProfileChanges(event) {
+  event.preventDefault();
+  if (!isRoleAuthenticated()) {
+    showAuthScreen("", "Please sign in again to update your profile.");
+    return;
+  }
+  const nameInput = document.getElementById("profileDisplayName");
+  const photoInput = document.getElementById("profilePhotoURL");
+  const status = document.getElementById("profileSaveStatus");
+  const button = document.getElementById("saveProfileButton");
+  const displayName = String(nameInput?.value || "").trim();
+  const photoURL = String(photoInput?.value || "").trim();
+  if (!displayName || displayName.length > 80) {
+    if (status) status.textContent = "Enter a name between 1 and 80 characters.";
+    nameInput?.focus();
+    return;
+  }
+  if (photoURL) {
+    try {
+      if (photoURL.length > 2000 || new URL(photoURL).protocol !== "https:") throw new Error("invalid photo URL");
+    } catch (_) {
+      if (status) status.textContent = "Enter a valid public HTTPS image link, or leave the field empty.";
+      photoInput?.focus();
+      return;
+    }
+  }
+  if (button) button.disabled = true;
+  if (status) status.textContent = "Saving…";
+  try {
+    await ayfaAuthContext.user.updateProfile({ displayName, photoURL: photoURL || null });
+    renderProfilePage();
+    if (status) status.textContent = "Profile updated.";
+  } catch (error) {
+    console.error("Profile update failed:", error);
+    if (status) status.textContent = authErrorMessage(error);
+  } finally {
+    if (button) button.disabled = false;
   }
 }
 
@@ -219,7 +380,7 @@ async function restoreRoleSession(user) {
     await activateRoleSession(user, resolved);
   } catch (error) {
     const expired = error?.code === "session-expired";
-    const notice = expired ? "Your session expired. Please sign in again." : "No valid role session was found. Please sign in.";
+    const notice = expired ? "Your session expired. Please sign in again." : "Please sign in with Google to continue.";
     ayfaAuthContext = { user: null, role: null, expiresAt: 0, ready: true };
     authScreenNotice = notice;
     await window.firebaseAuth.signOut().catch(() => {});
@@ -264,7 +425,7 @@ function openSupervisorLogin() {
 
 function requireSupervisor() {
   if (isSupervisorLoggedIn()) return true;
-  showToast("Officials access is required for this action.");
+  showToast("Admin & Incharges access is required for this action.");
   return false;
 }
 
@@ -272,7 +433,7 @@ function supervisorButtonHTML() {
   if (isRoleAuthenticated()) {
     return "";
   }
-  return `<button type="button" class="ayfa-supervisor-btn" onclick="openSupervisorLogin()"><i class="fa-solid fa-lock"></i> Officials Login</button>`;
+  return `<button type="button" class="ayfa-supervisor-btn" onclick="openSupervisorLogin()"><i class="fa-solid fa-lock"></i> Admin &amp; Incharges Login</button>`;
 }
 
 function applyRolePermissions() {
@@ -303,14 +464,46 @@ function supervisorInjectStyles() {
 
 supervisorInjectStyles();
 document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("pinScreen")?.classList.add("hidden");
-  document.getElementById("appContainer")?.classList.remove("hidden");
+  document.getElementById("pinScreen")?.classList.remove("hidden");
+  document.getElementById("appContainer")?.classList.add("hidden");
+  const screenMessage = document.getElementById("authScreenMessage");
+  const choices = document.getElementById("authRoleChoices");
+  if (screenMessage) screenMessage.textContent = "Checking your sign-in…";
+  choices?.classList.add("hidden");
   ayfaAuthContext.ready = true;
-  if (window.firebaseAuth) window.firebaseAuth.onAuthStateChanged(user => {
+  void initializeRoleAuthentication();
+});
+
+async function initializeRoleAuthentication() {
+  if (!window.firebaseAuth) {
+    showAuthScreen("", window.firebaseConfigError || "Firebase Authentication is unavailable.");
+    return;
+  }
+  const pendingRole = sessionStorage.getItem(GOOGLE_ROLE_PENDING_KEY);
+  authLoginInProgress = Boolean(pendingRole);
+  try {
+    await window.firebaseReady;
+    const result = await window.firebaseAuth.getRedirectResult();
+    if (pendingRole && result.user) {
+      await completeGoogleRoleLogin(pendingRole, result.user);
+    } else if (pendingRole) {
+      authScreenNotice = "Google sign-in was not completed. Please try again.";
+      showAuthScreen("", authScreenNotice);
+    }
+  } catch (error) {
+    console.error("Google redirect login could not be completed:", error);
+    await window.firebaseAuth.signOut().catch(signOutError => console.error("Temporary Google session cleanup failed:", signOutError));
+    authScreenNotice = authErrorMessage(error);
+    showAuthScreen(pendingRole || "", authScreenNotice);
+  } finally {
+    sessionStorage.removeItem(GOOGLE_ROLE_PENDING_KEY);
+    authLoginInProgress = false;
+  }
+  window.firebaseAuth.onAuthStateChanged(user => {
     if (authLoginInProgress) return;
     void restoreRoleSession(user);
   });
-});
+}
 function checkRoleExpiryOnResume() {
   if (ayfaAuthContext.user && Number.isFinite(ayfaAuthContext.expiresAt) && Date.now() >= ayfaAuthContext.expiresAt) void expireRoleSession();
   else updateAuthSessionTimer();

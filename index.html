@@ -23,9 +23,10 @@
 
   <link
     rel="stylesheet"
-    href="css/style.css?v=20261027-minimal-donor-list"
+    href="css/style.css?v=20261109-role-login-update"
   >
   <link rel="stylesheet" href="css/agenda.css?v=20261023-agenda-accordion-compact">
+  <link rel="stylesheet" href="css/hangout.css?v=20261109-hangout">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Kannada:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -67,14 +68,16 @@
       <p id="authScreenMessage" class="auth-screen-message"></p>
       <div id="authRoleChoices" class="auth-role-choices">
         <button type="button" class="auth-role-choice" data-view-event="click" data-view-handler="selectLoginRole" data-view-args='["member"]'><i class="fa-solid fa-user"></i><span><strong>Member Login</strong><small>Read-only access</small></span><i class="fa-solid fa-chevron-right"></i></button>
-        <button type="button" class="auth-role-choice officials" data-view-event="click" data-view-handler="selectLoginRole" data-view-args='["official"]'><i class="fa-solid fa-user-shield"></i><span><strong>Officials Login</strong><small>Manage records</small></span><i class="fa-solid fa-chevron-right"></i></button>
+        <button type="button" class="auth-role-choice officials" data-view-event="click" data-view-handler="selectLoginRole" data-view-args='["official"]'><i class="fa-solid fa-user-shield"></i><span><strong>Admin &amp; Incharges Login</strong><small>Manage records</small></span><i class="fa-solid fa-chevron-right"></i></button>
       </div>
       <form id="roleLoginForm" class="role-login-form hidden" data-view-event="submit" data-view-handler="submitRoleLogin" data-view-pass-event="true">
         <button type="button" class="auth-back-button" data-view-event="click" data-view-handler="showAuthScreen"><i class="fa-solid fa-arrow-left"></i> Change login type</button>
-        <label for="authPassword">Password</label>
-        <div class="auth-password-wrap"><input type="password" id="authPassword" name="password" autocomplete="current-password" required><button type="button" class="auth-password-toggle" data-view-event="click" data-view-handler="toggleAuthPassword" aria-label="Show password"><i class="fa-regular fa-eye"></i></button></div>
         <p id="pinError" class="pin-error" aria-live="polite"></p>
-        <button type="submit" id="loginBtn" class="btn-pin">Login</button>
+        <div id="officialPasswordField" class="hidden">
+          <label for="authPassword">Password</label>
+          <input type="password" id="authPassword" name="password" autocomplete="current-password">
+        </div>
+        <button type="submit" id="loginBtn" class="google-login-button"><i class="fa-brands fa-google"></i><span>Continue with Google</span></button>
       </form>
       <p id="authRoleHint" class="auth-role-hint hidden"></p>
 
@@ -325,6 +328,12 @@
 
         </button>
 
+        <!-- HANGOUT (Online Quiz + chat). Code lives in js/hangout/ -->
+        <button type="button" class="grid-card" data-view-event="click" data-view-handler="openHangout">
+          <i class="fa-solid fa-comments card-icon"></i>
+          <span>Hangout</span>
+        </button>
+
         <!-- MORE -->
         <button type="button" class="grid-card" data-view-event="click" data-view-handler="openMorePage">
           <i class="fa-solid fa-ellipsis card-icon"></i>
@@ -339,10 +348,34 @@
       <div class="more-page-card">
         <header class="more-page-heading"><div><span><i class="fa-solid fa-ellipsis"></i> MENU</span><h2 id="moreTitle">More</h2><p>Choose an option.</p></div></header>
         <div class="more-page-actions">
+          <button type="button" class="grid-card more-page-action" data-view-event="click" data-view-handler="openProfilePage"><i class="fa-solid fa-user-pen card-icon"></i><span>Profile</span></button>
           <button type="button" class="grid-card more-page-action" data-view-event="click" data-view-handler="openExcelExportPage"><i class="fa-solid fa-file-excel card-icon"></i><span>Export Excel</span></button>
           <button type="button" class="grid-card more-page-action" data-view-event="click" data-view-handler="openCollectionsPage"><i class="fa-solid fa-layer-group card-icon"></i><span>Collection</span></button>
         </div>
         <button type="button" class="more-page-back" data-view-event="click" data-view-handler="showDashboard"><i class="fa-solid fa-arrow-left"></i> Back to Dashboard</button>
+      </div>
+    </section>
+
+    <section id="profileView" class="view-section hidden" aria-labelledby="profileTitle">
+      <div class="profile-page-card">
+        <header class="more-page-heading"><div><span><i class="fa-solid fa-user"></i> ACCOUNT</span><h2 id="profileTitle">Profile</h2><p>Details imported from Google. Changes here apply to your website profile only.</p></div></header>
+        <div class="profile-identity">
+          <div class="profile-avatar">
+            <img id="profilePhotoPreview" class="hidden" alt="Profile photo preview">
+            <span id="profilePhotoFallback" aria-hidden="true"><i class="fa-solid fa-user"></i></span>
+          </div>
+          <div class="profile-account-info"><strong id="profileEmail"></strong><span id="profileRole"></span></div>
+        </div>
+        <form id="profileForm" class="profile-form" data-view-event="submit" data-view-handler="saveProfileChanges" data-view-pass-event="true">
+          <label for="profileDisplayName">Name</label>
+          <input id="profileDisplayName" name="displayName" type="text" maxlength="80" autocomplete="name" required>
+          <label for="profilePhotoURL">Photo link</label>
+          <input id="profilePhotoURL" name="photoURL" type="text" inputmode="url" maxlength="2000" autocomplete="url" placeholder="https://...">
+          <p class="profile-form-hint">Use a public HTTPS image link, or leave it empty to remove your photo.</p>
+          <p id="profileSaveStatus" class="profile-save-status" aria-live="polite"></p>
+          <button id="saveProfileButton" type="submit" class="profile-save-button"><i class="fa-solid fa-floppy-disk"></i> Save profile</button>
+        </form>
+        <button type="button" class="more-page-back" data-view-event="click" data-view-handler="openMorePage"><i class="fa-solid fa-arrow-left"></i> Back to More</button>
       </div>
     </section>
 
@@ -1342,10 +1375,10 @@
   <script src="js/data/house-fund.repository.js"></script>
   <script src="js/services/house-fund.service.js"></script>
 
-  <script src="js/supervisor.js?v=20261026-open-member-login"></script>
+  <script src="js/supervisor.js?v=20261109-role-login-update"></script>
   <script src="js/firebase-export.js?v=20261024-collections-routes"></script>
 
-  <script src="js/script.js?v=20261027-delete-confirm"></script>
+  <script src="js/script.js?v=20261109-google-login-profile"></script>
 
   <script src="js/members.js?v=20261027-delete-confirm"></script>
 
@@ -1369,6 +1402,19 @@
   <script src="js/services/asset-inventory.service.js?v=20261023-assets-compact-editor"></script>
   <script src="js/views/asset-inventory.view.js?v=20261027-delete-confirm"></script>
   <script src="js/views/blood-donation-poster.view.js"></script>
+  <!-- =========================================================
+       HANGOUT (Online Quiz) — separate folder js/hangout/
+       Order: Firebase connection, Google login, data, logic, screens
+  ========================================================== -->
+  <script src="js/hangout/hangout-firebase.js?v=20261109-hangout"></script>
+  <script src="js/hangout/hangout-auth.js?v=20261109-hangout"></script>
+  <script src="js/hangout/hangout.repository.js?v=20261109-hangout"></script>
+  <script src="js/hangout/hangout-admin.repository.js?v=20261109-hangout"></script>
+  <script src="js/hangout/hangout.service.js?v=20261109-hangout"></script>
+  <script src="js/hangout/hangout-hub.view.js?v=20261109-hangout"></script>
+  <script src="js/hangout/quiz-chat.view.js?v=20261109-hangout"></script>
+  <script src="js/hangout/quiz-admin.view.js?v=20261109-hangout"></script>
+  <script src="js/hangout/quiz.view.js?v=20261109-hangout"></script>
   <script src="js/views/app-events.view.js"></script>
 
 

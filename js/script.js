@@ -122,6 +122,7 @@ function hideAllViews() {
 
     "dashboardView",
     "moreView",
+    "profileView",
     "collectionsView",
     "excelExportView",
     "activityReportsView",
@@ -196,6 +197,7 @@ window.addEventListener("popstate", event => {
     rentals: openRentalManagement,
     about: openAboutPage,
     more: openMorePage,
+    profile: openProfilePage,
     collections: openCollectionsPage,
     excelExport: openExcelExportPage,
     poster: openPosterGenerator
@@ -204,7 +206,7 @@ window.addEventListener("popstate", event => {
   updateAppTopBar(view);
 });
 
-const APP_PAGE_TITLES = { dashboard: "ಅಲ್ ಅಮೀನ್ ಯೂತ್ ಫೆಡರೇಶನ್", members: "Members", officeBearers: "Office Bearers", bearersTable: "Office Bearers", activities: "Activities", blood: "Blood Donors", agenda: "Agenda", finance: "Finance", assets: "Assets", attendance: "Attendance", rentals: "Rentals", poster: "Blood Donation Poster", about: "About", more: "More", collections: "Collections", excelExport: "Export Excel" };
+const APP_PAGE_TITLES = { dashboard: "ಅಲ್ ಅಮೀನ್ ಯೂತ್ ಫೆಡರೇಶನ್", members: "Members", officeBearers: "Office Bearers", bearersTable: "Office Bearers", activities: "Activities", blood: "Blood Donors", agenda: "Agenda", finance: "Finance", assets: "Assets", attendance: "Attendance", rentals: "Rentals", poster: "Blood Donation Poster", about: "About", more: "More", profile: "Profile", collections: "Collections", excelExport: "Export Excel" };
 
 function updateAppTopBar(view = history.state?.appView || "dashboard") {
   const back = document.getElementById("appBackButton");
@@ -231,6 +233,16 @@ function openMorePage() {
   });
 }
 window.openMorePage = openMorePage;
+
+function openProfilePage() {
+  navigateAppView("profile", () => {
+    hideAllViews();
+    document.getElementById("profileView")?.classList.remove("hidden");
+    if (typeof renderProfilePage === "function") renderProfilePage();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+}
+window.openProfilePage = openProfilePage;
 
 function openCollectionsPage() {
   navigateAppView("collections", () => {
@@ -603,7 +615,7 @@ async function saveOfficeBearerEditor(mode, index, formData) {
     console.error("Office bearer save failed:", error);
     const details = String(error?.code || error?.message || "").toLowerCase();
     showToast(details.includes("permission_denied") || details.includes("permission denied")
-      ? "Firebase denied this write. Sign in again as an official. If the problem continues, the deployed database rules may need updating."
+      ? "Firebase denied this write. Sign in again with Admin & Incharges. If the problem continues, the deployed database rules may need updating."
       : "Could not save office bearer. Check the connection and try again.");
   }
 }
@@ -631,7 +643,7 @@ async function deleteOfficeBearer(index) {
     console.error("Office bearer delete failed:", error);
     const details = String(error?.code || error?.message || "").toLowerCase();
     showToast(details.includes("permission_denied") || details.includes("permission denied")
-      ? "Firebase denied this change. Sign in again as an official, and verify the deployed database rules."
+      ? "Firebase denied this change. Sign in again with Admin & Incharges, and verify the deployed database rules."
       : "Could not delete office bearer. Check the connection and try again.");
   }
 }
