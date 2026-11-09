@@ -1,8 +1,6 @@
-// HANGOUT — Firebase connection ONLY.
-// Hangout users sign in with Google. The website's existing official/member
-// session uses the default Firebase app, so Hangout gets its own named app
-// ("hangout") on the SAME project. Two separate sign-in states: logging into
-// Hangout never logs out an official, and vice versa.
+// HANGOUT — Firebase connections.
+// Reuse the main Firebase database for an already signed-in Google member;
+// keep the named app for standalone Hangout sign-in sessions.
 // No Google-login code (hangout-auth.js) and no database paths
 // (hangout.repository.js) belong in this file.
 window.HangoutFirebase = (() => {
@@ -22,8 +20,14 @@ window.HangoutFirebase = (() => {
     app: get,
     isAvailable: () => Boolean(get()),
     unavailableMessage: () => window.firebaseConfigError || "Hangout is not available in this environment.",
+    mainAuth: () => window.firebaseAuth || null,
+    mainDb: () => window.firebaseDb || null,
     auth: () => { const a = get(); return a ? firebase.auth(a) : null; },
-    db: () => { const a = get(); return a ? firebase.database(a) : null; },
+    db: () => {
+      if (window.HangoutAuth?.isUsingMainSession()) return window.firebaseDb || null;
+      const a = get();
+      return a ? firebase.database(a) : null;
+    },
     serverTimestamp: () => firebase.database.ServerValue.TIMESTAMP
   });
 })();

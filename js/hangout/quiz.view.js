@@ -200,7 +200,7 @@
       <div class="hg-stats"><div class="hg-stat"><b>${me ? me.points : 0}</b><small>Total points</small></div><div class="hg-stat"><b>${me ? escapeHTML(HangoutService.rankLabel(me.rank)) : "—"}</b><small>Current rank</small></div></div>
       <div class="hg-section-title">Quiz participation</div>
       ${entries.length ? `<ul class="hg-log">${log}</ul>` : '<p class="hg-hint" style="margin-bottom:14px">No points yet. They will appear here after the admin awards them.</p>'}
-      <button type="button" class="hg-outline-btn" data-act="signout"><i class="fa-solid fa-arrow-right-from-bracket"></i> Sign out of Google</button>
+      <button type="button" class="hg-outline-btn" data-act="signout"><i class="fa-solid fa-arrow-right-from-bracket"></i> ${HangoutAuth.isUsingMainSession() ? "Sign out of website" : "Sign out of Google"}</button>
     </div>`;
     host.querySelector('[data-act="signout"]').addEventListener("click", () => {
       HangoutAuth.signOut().catch(error => console.error("Hangout sign-out failed:", error));

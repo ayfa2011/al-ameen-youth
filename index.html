@@ -23,7 +23,7 @@
 
   <link
     rel="stylesheet"
-    href="css/style.css?v=20261109-role-login-update"
+    href="css/style.css?v=20261109-profile-photo-upload"
   >
   <link rel="stylesheet" href="css/agenda.css?v=20261023-agenda-accordion-compact">
   <link rel="stylesheet" href="css/hangout.css?v=20261109-hangout">
@@ -360,18 +360,17 @@
       <div class="profile-page-card">
         <header class="more-page-heading"><div><span><i class="fa-solid fa-user"></i> ACCOUNT</span><h2 id="profileTitle">Profile</h2><p>Details imported from Google. Changes here apply to your website profile only.</p></div></header>
         <div class="profile-identity">
-          <div class="profile-avatar">
+          <button type="button" class="profile-avatar" id="profilePhotoPicker" aria-label="Choose a profile photo" title="Choose a profile photo" data-view-event="click" data-view-handler="openProfilePhotoPicker">
             <img id="profilePhotoPreview" class="hidden" alt="Profile photo preview">
             <span id="profilePhotoFallback" aria-hidden="true"><i class="fa-solid fa-user"></i></span>
-          </div>
+          </button>
           <div class="profile-account-info"><strong id="profileEmail"></strong><span id="profileRole"></span></div>
         </div>
+        <input id="profilePhotoFile" class="hidden" type="file" accept="image/jpeg,image/png,image/webp" data-view-event="change" data-view-handler="handleProfilePhotoSelection" data-view-pass-event="true">
         <form id="profileForm" class="profile-form" data-view-event="submit" data-view-handler="saveProfileChanges" data-view-pass-event="true">
           <label for="profileDisplayName">Name</label>
           <input id="profileDisplayName" name="displayName" type="text" maxlength="80" autocomplete="name" required>
-          <label for="profilePhotoURL">Photo link</label>
-          <input id="profilePhotoURL" name="photoURL" type="text" inputmode="url" maxlength="2000" autocomplete="url" placeholder="https://...">
-          <p class="profile-form-hint">Use a public HTTPS image link, or leave it empty to remove your photo.</p>
+          <p class="profile-form-hint">Tap your photo above to choose a picture from your gallery. It will be compressed and saved to Firebase.</p>
           <p id="profileSaveStatus" class="profile-save-status" aria-live="polite"></p>
           <button id="saveProfileButton" type="submit" class="profile-save-button"><i class="fa-solid fa-floppy-disk"></i> Save profile</button>
         </form>
@@ -1362,6 +1361,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
   <script src="js/firebase-config-loader.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -1375,7 +1375,7 @@
   <script src="js/data/house-fund.repository.js"></script>
   <script src="js/services/house-fund.service.js"></script>
 
-  <script src="js/supervisor.js?v=20261109-role-login-update"></script>
+  <script src="js/supervisor.js?v=20261109-profile-photo-upload"></script>
   <script src="js/firebase-export.js?v=20261024-collections-routes"></script>
 
   <script src="js/script.js?v=20261109-google-login-profile"></script>
@@ -1406,15 +1406,15 @@
        HANGOUT (Online Quiz) — separate folder js/hangout/
        Order: Firebase connection, Google login, data, logic, screens
   ========================================================== -->
-  <script src="js/hangout/hangout-firebase.js?v=20261109-hangout"></script>
-  <script src="js/hangout/hangout-auth.js?v=20261109-hangout"></script>
-  <script src="js/hangout/hangout.repository.js?v=20261109-hangout"></script>
-  <script src="js/hangout/hangout-admin.repository.js?v=20261109-hangout"></script>
-  <script src="js/hangout/hangout.service.js?v=20261109-hangout"></script>
-  <script src="js/hangout/hangout-hub.view.js?v=20261109-hangout"></script>
-  <script src="js/hangout/quiz-chat.view.js?v=20261109-hangout"></script>
-  <script src="js/hangout/quiz-admin.view.js?v=20261109-hangout"></script>
-  <script src="js/hangout/quiz.view.js?v=20261109-hangout"></script>
+  <script src="js/hangout/hangout-firebase.js?v=20261109-single-login"></script>
+  <script src="js/hangout/hangout-auth.js?v=20261109-single-login"></script>
+  <script src="js/hangout/hangout.repository.js?v=20261109-single-login"></script>
+  <script src="js/hangout/hangout-admin.repository.js?v=20261109-single-login"></script>
+  <script src="js/hangout/hangout.service.js?v=20261109-single-login"></script>
+  <script src="js/hangout/hangout-hub.view.js?v=20261109-single-login"></script>
+  <script src="js/hangout/quiz-chat.view.js?v=20261109-single-login"></script>
+  <script src="js/hangout/quiz-admin.view.js?v=20261109-single-login"></script>
+  <script src="js/hangout/quiz.view.js?v=20261109-single-login"></script>
   <script src="js/views/app-events.view.js"></script>
 
 

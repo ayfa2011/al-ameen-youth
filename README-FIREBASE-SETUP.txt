@@ -44,7 +44,21 @@ device until the user logs out or the Firebase refresh token is revoked. Do not
 restore a root-level auth-only read/write rule, because that would override
 these role restrictions.
 
-4) Google Apps Script deployment
+4) Profile photo storage
+-----------------------
+Profile photos are converted to JPEG, compressed to at most 512 KB, and saved
+to Firebase Storage at `/profile-photos/{userId}/avatar.jpg`. Enable Firebase
+Storage and publish `firebase/storage.rules` (also configured in firebase.json)
+with:
+
+  firebase deploy --only storage --project al-ameen-website-e24d0
+
+The rules allow signed-in users to read profile photos and each account to
+upload only its own photo. Firebase Storage availability, quotas and pricing
+depend on the project's bucket and plan; do not upgrade or enable billing
+unless you approve any resulting charges.
+
+5) Google Apps Script deployment
 ---------------------------------
 The Apps Script checks Firebase ID tokens and role claims for protected
 endpoints, including Google role-token issuance, Agenda compatibility and
@@ -54,7 +68,7 @@ Realtime Database rules together so the existing open rules do not remain
 active. The existing service-account properties sign role tokens and continue
 the spreadsheet sync.
 
-5) Website files
+6) Website files
 ----------------
 Replace the following in your GitHub website project:
     index.html

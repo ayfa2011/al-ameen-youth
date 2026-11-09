@@ -1,7 +1,9 @@
-// HANGOUT — Google account sign-in ONLY (name, photo, identity).
-// No database reads/writes here. Uses the separate "hangout" Firebase app.
+// HANGOUT — reuse the website's Google member session when one is active.
+// The separate Hangout app remains available for users without that session.
 window.HangoutAuth = (() => {
   let started = false, resolved = false;
+  let mainSessionResolved = false, hangoutSessionResolved = false;
+  let mainProfile = null, hangoutProfile = null;
   const listeners = new Set();
 
   function toProfile(user) {
@@ -15,14 +17,54 @@ window.HangoutAuth = (() => {
     };
   }
 
+  function notify() {
+    if (!resolved) return;
+    const profile = mainProfile || hangoutProfile;
+    listeners.forEach(fn => fn(profile));
+  }
+
   function start() {
     if (started) return;
-    const auth = HangoutFirebase.auth();
-    if (!auth) return;
     started = true;
-    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
-    auth.getRedirectResult().catch(error => console.warn("Hangout redirect sign-in:", error));
-    auth.onAuthStateChanged(user => { resolved = true; const profile = toProfile(user); listeners.forEach(fn => fn(profile)); });
+    const mainAuth = HangoutFirebase.mainAuth();
+    const hangoutAuth = HangoutFirebase.auth();
+    if (!mainAuth || !hangoutAuth) {
+      resolved = true;
+      notify();
+      return;
+    }
+
+    mainAuth.onAuthStateChanged(async user => {
+      mainProfile = null;
+      if (user) {
+        try {
+          const token = await user.getIdTokenResult();
+          if (token.claims?.role === "member" && token.claims?.googleAuth === true) {
+            mainProfile = toProfile(user);
+            if (hangoutAuth.currentUser) {
+              await hangoutAuth.signOut().catch(error => console.error("Old Hangout session cleanup failed:", error));
+            }
+          }
+        } catch (error) {
+          console.error("Main website sign-in could not be checked for Hangout:", error);
+        }
+      }
+      mainSessionResolved = true;
+      resolved = mainSessionResolved && hangoutSessionResolved;
+      notify();
+    });
+
+    hangoutAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+      .then(() => hangoutAuth.getRedirectResult())
+      .catch(error => console.error("Hangout session could not be restored:", error))
+      .finally(() => {
+        hangoutAuth.onAuthStateChanged(user => {
+          hangoutProfile = toProfile(user);
+          hangoutSessionResolved = true;
+          resolved = mainSessionResolved && hangoutSessionResolved;
+          notify();
+        });
+      });
   }
 
   function errorMessage(error) {
@@ -36,13 +78,15 @@ window.HangoutAuth = (() => {
 
   return Object.freeze({
     isAvailable: () => HangoutFirebase.isAvailable(),
-    current: () => toProfile(HangoutFirebase.auth()?.currentUser),
+    current: () => mainProfile || hangoutProfile,
+    isUsingMainSession: () => Boolean(mainProfile),
     // Tells the caller about every sign-in/out. Waits for Firebase to restore a
     // saved session first, so a signed-in user never sees a login flash.
     onChange(fn) { start(); listeners.add(fn); if (resolved) fn(this.current()); return () => listeners.delete(fn); },
     errorMessage,
     async signIn() {
       start();
+      if (mainProfile) return null;
       const auth = HangoutFirebase.auth();
       if (!auth) throw new Error(HangoutFirebase.unavailableMessage());
       const provider = new firebase.auth.GoogleAuthProvider();
@@ -54,6 +98,9 @@ window.HangoutAuth = (() => {
         throw error;
       }
     },
-    signOut() { return HangoutFirebase.auth()?.signOut() || Promise.resolve(); }
+    signOut() {
+      const auth = mainProfile ? HangoutFirebase.mainAuth() : HangoutFirebase.auth();
+      return auth?.signOut() || Promise.resolve();
+    }
   });
 })();

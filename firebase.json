@@ -2,6 +2,9 @@
   "database": {
     "rules": "firebase/firebase-database.rules.json"
   },
+  "storage": {
+    "rules": "firebase/storage.rules"
+  },
   "hosting": {
     "public": ".",
     "ignore": [

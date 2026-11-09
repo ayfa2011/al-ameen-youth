@@ -9,7 +9,7 @@ Edited (small additions only):
 
 New files:
   css/hangout.css                         DESIGN only
-  js/hangout/hangout-firebase.js          Firebase connection only (separate "hangout" Firebase app)
+  js/hangout/hangout-firebase.js          Main member session + standalone Hangout Firebase connection
   js/hangout/hangout-auth.js              Google account login only
   js/hangout/hangout.repository.js        Database reads/writes for Google users
   js/hangout/hangout-admin.repository.js  Database writes for officials (audited, same helpers as other features)
@@ -20,8 +20,8 @@ New files:
   js/hangout/quiz-admin.view.js           Admin controls
 
 The main website uses Google sign-in for Members and password sign-in for
-Admin & Incharges. Hangout uses its own Google sign-in on a separate Firebase
-app instance, so signing into Hangout does not replace the main website session.
+Admin & Incharges. Hangout reuses a signed-in Member's website Google session,
+so Members do not need to sign in again.
 
 ONE-TIME SETUP (do these BEFORE opening Hangout)
 ------------------------------------------------
@@ -31,12 +31,13 @@ ONE-TIME SETUP (do these BEFORE opening Hangout)
 3) Publish the new rules (same way you published rules before):
      firebase deploy --only database --project al-ameen-website-e24d0
    or paste firebase/firebase-database.rules.json into Realtime Database -> Rules.
-   A website upload alone does NOT publish rules (see DATA-SAFETY.md).
+   The Hangout rules accept the already verified Google Member session. A
+   website upload alone does NOT publish rules (see DATA-SAFETY.md).
 4) Upload the website files to GitHub / hosting as usual.
 
 HOW IT WORKS
 ------------
-- Dashboard -> Hangout -> Online Quiz -> Google login -> Quiz screen.
+- Dashboard -> Hangout -> Online Quiz -> Quiz screen (when already signed in as a Member).
 - Question Area has a fixed height. Only the area below it switches
   (Chat / Score Board / More / Profile). Chat keeps its messages when you switch.
 - Admin controls (gear icon, top right of the quiz header) appear only when an

@@ -9,6 +9,8 @@ let authLoginInProgress = false;
 let selectedLoginRole = "";
 let authScreenNotice = "";
 const GOOGLE_ROLE_PENDING_KEY = "ayfaPendingGoogleLoginRole";
+const MAX_PROFILE_PHOTO_BYTES = 512 * 1024;
+const MAX_PROFILE_PHOTO_SOURCE_BYTES = 15 * 1024 * 1024;
 
 function currentUserRole() {
   return isRoleAuthenticated() ? ayfaAuthContext.role : "";
@@ -190,8 +192,8 @@ async function completeGoogleRoleLogin(role, googleUser) {
     throw mismatch;
   }
   await credential.user.updateProfile({
-    displayName: googleUser.displayName || credential.user.displayName || googleUser.email || "",
-    photoURL: googleUser.photoURL || credential.user.photoURL || null
+    displayName: credential.user.displayName || googleUser.displayName || googleUser.email || "",
+    photoURL: credential.user.photoURL || googleUser.photoURL || null
   });
   sessionStorage.removeItem(GOOGLE_ROLE_PENDING_KEY);
   await activateRoleSession(credential.user, resolved);
@@ -311,20 +313,125 @@ function updateProfilePhotoPreview(value) {
   image.src = photoUrl;
 }
 
+function openProfilePhotoPicker() {
+  if (!isRoleAuthenticated()) {
+    showAuthScreen("", "Please sign in again to update your profile.");
+    return;
+  }
+  document.getElementById("profilePhotoFile")?.click();
+}
+
+function compressProfilePhoto(file) {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const maxSide = 640;
+      const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+      const context = canvas.getContext("2d");
+      if (!context) {
+        reject(new Error("Photo compression is not available in this browser."));
+        return;
+      }
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const qualities = [0.82, 0.68, 0.54, 0.4];
+      const encode = index => {
+        if (index >= qualities.length) {
+          if (canvas.width <= 320 || canvas.height <= 320) {
+            reject(new Error("This photo could not be compressed enough. Choose a smaller picture."));
+            return;
+          }
+          canvas.width = Math.max(1, Math.round(canvas.width * 0.75));
+          canvas.height = Math.max(1, Math.round(canvas.height * 0.75));
+          const resizedContext = canvas.getContext("2d");
+          if (!resizedContext) {
+            reject(new Error("Photo compression is not available in this browser."));
+            return;
+          }
+          resizedContext.drawImage(image, 0, 0, canvas.width, canvas.height);
+          encode(0);
+          return;
+        }
+        canvas.toBlob(blob => {
+          if (!blob) {
+            reject(new Error("Photo compression failed. Please choose another picture."));
+            return;
+          }
+          if (blob.size <= MAX_PROFILE_PHOTO_BYTES) resolve(blob);
+          else encode(index + 1);
+        }, "image/jpeg", qualities[index]);
+      };
+      encode(0);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("This picture could not be opened. Choose a JPEG, PNG or WebP image."));
+    };
+    image.src = objectUrl;
+  });
+}
+
+async function handleProfilePhotoSelection(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  const status = document.getElementById("profileSaveStatus");
+  const picker = document.getElementById("profilePhotoPicker");
+  if (!isRoleAuthenticated()) {
+    showAuthScreen("", "Please sign in again to update your profile.");
+    return;
+  }
+  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+    if (status) status.textContent = "Choose a JPEG, PNG or WebP photo.";
+    event.target.value = "";
+    return;
+  }
+  if (file.size > MAX_PROFILE_PHOTO_SOURCE_BYTES) {
+    if (status) status.textContent = "Choose a photo smaller than 15 MB.";
+    event.target.value = "";
+    return;
+  }
+  if (picker) picker.disabled = true;
+  if (status) status.textContent = "Compressing photo…";
+  try {
+    await window.firebaseReady;
+    if (typeof firebase.storage !== "function") throw new Error("Firebase Storage is unavailable. Enable Firebase Storage for this project.");
+    const blob = await compressProfilePhoto(file);
+    if (status) status.textContent = "Uploading photo…";
+    const storageRef = firebase.storage().ref(`profile-photos/${ayfaAuthContext.user.uid}/avatar.jpg`);
+    await storageRef.put(blob, { contentType: "image/jpeg", cacheControl: "public,max-age=3600" });
+    const photoURL = await storageRef.getDownloadURL();
+    await ayfaAuthContext.user.updateProfile({ photoURL });
+    renderProfilePage();
+    if (status) status.textContent = "Profile photo saved.";
+  } catch (error) {
+    console.error("Profile photo upload failed:", error);
+    if (status) status.textContent = error?.code === "storage/unauthorized"
+      ? "Firebase Storage rules do not allow this upload. Publish the profile photo rules."
+      : error?.code === "storage/bucket-not-found"
+        ? "Firebase Storage is not set up for this project yet."
+        : error?.message || "Photo upload failed. Check your connection and try again.";
+  } finally {
+    if (picker) picker.disabled = false;
+    event.target.value = "";
+  }
+}
+
 function renderProfilePage() {
   if (!isRoleAuthenticated()) return;
   const user = ayfaAuthContext.user;
   const nameInput = document.getElementById("profileDisplayName");
-  const photoInput = document.getElementById("profilePhotoURL");
   const email = document.getElementById("profileEmail");
   const role = document.getElementById("profileRole");
   const status = document.getElementById("profileSaveStatus");
   if (nameInput) nameInput.value = user.displayName || user.email?.split("@")[0] || "";
-  if (photoInput) photoInput.value = user.photoURL || "";
   if (email) email.textContent = user.email || "";
   if (role) role.textContent = ayfaAuthContext.role === "official" ? "Admin & Incharges" : "Member";
   if (status) status.textContent = "";
-  updateProfilePhotoPreview(photoInput?.value || "");
+  updateProfilePhotoPreview(user.photoURL || "");
 }
 
 async function saveProfileChanges(event) {
@@ -334,29 +441,18 @@ async function saveProfileChanges(event) {
     return;
   }
   const nameInput = document.getElementById("profileDisplayName");
-  const photoInput = document.getElementById("profilePhotoURL");
   const status = document.getElementById("profileSaveStatus");
   const button = document.getElementById("saveProfileButton");
   const displayName = String(nameInput?.value || "").trim();
-  const photoURL = String(photoInput?.value || "").trim();
   if (!displayName || displayName.length > 80) {
     if (status) status.textContent = "Enter a name between 1 and 80 characters.";
     nameInput?.focus();
     return;
   }
-  if (photoURL) {
-    try {
-      if (photoURL.length > 2000 || new URL(photoURL).protocol !== "https:") throw new Error("invalid photo URL");
-    } catch (_) {
-      if (status) status.textContent = "Enter a valid public HTTPS image link, or leave the field empty.";
-      photoInput?.focus();
-      return;
-    }
-  }
   if (button) button.disabled = true;
   if (status) status.textContent = "Saving…";
   try {
-    await ayfaAuthContext.user.updateProfile({ displayName, photoURL: photoURL || null });
+    await ayfaAuthContext.user.updateProfile({ displayName });
     renderProfilePage();
     if (status) status.textContent = "Profile updated.";
   } catch (error) {

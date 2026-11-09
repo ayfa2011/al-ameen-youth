@@ -155,7 +155,7 @@
       "users": {
         ".read": "auth != null",
         "$uid": {
-          ".write": "auth != null && auth.token.firebase.sign_in_provider == 'google.com' && auth.uid == $uid",
+          ".write": "auth != null && (auth.token.firebase.sign_in_provider == 'google.com' || auth.token.googleAuth == true) && auth.uid == $uid",
           ".validate": "newData.hasChildren(['name'])",
           "name": {
             ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 80 && (auth.token.name == null || newData.val() == auth.token.name)"
@@ -197,7 +197,7 @@
       "chat": {
         ".read": "auth != null",
         "$msgId": {
-          ".write": "auth != null && auth.token.firebase.sign_in_provider == 'google.com' && !data.exists() && newData.exists()",
+          ".write": "auth != null && (auth.token.firebase.sign_in_provider == 'google.com' || auth.token.googleAuth == true) && !data.exists() && newData.exists()",
           ".validate": "newData.hasChildren(['uid', 'name', 'createdAt']) && newData.child('name').isString() && newData.child('name').val().length <= 80 && (data.exists() || (newData.child('uid').val() == auth.uid && newData.child('createdAt').val() == now && newData.child('name').val() == root.child('hangout/users/' + auth.uid + '/name').val())) && (newData.child('text').exists() || newData.child('voice').exists())",
           "uid": {
             ".validate": "newData.isString()"
@@ -228,7 +228,7 @@
       "voice": {
         "$msgId": {
           ".read": "auth != null",
-          ".write": "auth != null && auth.token.firebase.sign_in_provider == 'google.com' && !data.exists() && newData.exists()",
+          ".write": "auth != null && (auth.token.firebase.sign_in_provider == 'google.com' || auth.token.googleAuth == true) && !data.exists() && newData.exists()",
           ".validate": "newData.isString() && newData.val().length <= 400000 && newData.val().beginsWith('data:audio/')"
         }
       }
