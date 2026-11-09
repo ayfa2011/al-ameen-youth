@@ -165,9 +165,32 @@
           ".validate": "newData.isString() && (newData.val() == 'mcq' || newData.val() == 'trueFalse' || newData.val() == 'short')"
         },
         "options": {
-          ".validate": "newData.numChildren() <= 8",
-          "$optionId": {
+          "0": {
             ".validate": "newData.hasChildren(['id', 'text']) && newData.child('id').isString() && newData.child('text').isString() && newData.child('text').val().length <= 300"
+          },
+          "1": {
+            ".validate": "newData.hasChildren(['id', 'text']) && newData.child('id').isString() && newData.child('text').isString() && newData.child('text').val().length <= 300"
+          },
+          "2": {
+            ".validate": "newData.hasChildren(['id', 'text']) && newData.child('id').isString() && newData.child('text').isString() && newData.child('text').val().length <= 300"
+          },
+          "3": {
+            ".validate": "newData.hasChildren(['id', 'text']) && newData.child('id').isString() && newData.child('text').isString() && newData.child('text').val().length <= 300"
+          },
+          "4": {
+            ".validate": "newData.hasChildren(['id', 'text']) && newData.child('id').isString() && newData.child('text').isString() && newData.child('text').val().length <= 300"
+          },
+          "5": {
+            ".validate": "newData.hasChildren(['id', 'text']) && newData.child('id').isString() && newData.child('text').isString() && newData.child('text').val().length <= 300"
+          },
+          "6": {
+            ".validate": "newData.hasChildren(['id', 'text']) && newData.child('id').isString() && newData.child('text').isString() && newData.child('text').val().length <= 300"
+          },
+          "7": {
+            ".validate": "newData.hasChildren(['id', 'text']) && newData.child('id').isString() && newData.child('text').isString() && newData.child('text').val().length <= 300"
+          },
+          "$other": {
+            ".validate": false
           }
         },
         "points": {
@@ -211,10 +234,40 @@
           },
           "questions": {
             "$questionId": {
-              ".validate": "newData.hasChildren(['questionNumber', 'text', 'type', 'points', 'timeLimit', 'explanation', 'correctAnswer', 'imageUrl', 'audioUrl', 'createdAt', 'updatedAt']) && newData.child('questionNumber').isNumber() && newData.child('questionNumber').val() >= 1 && newData.child('text').isString() && newData.child('text').val().length <= 4000 && (newData.child('text').val().length > 0 || newData.child('imageUrl').val().length > 0 || newData.child('audioUrl').val().length > 0) && (newData.child('type').val() == 'mcq' || newData.child('type').val() == 'trueFalse' || newData.child('type').val() == 'short') && newData.child('points').isNumber() && newData.child('points').val() >= 1 && newData.child('points').val() <= 10000 && newData.child('timeLimit').isNumber() && newData.child('timeLimit').val() >= 1 && newData.child('timeLimit').val() <= 3600 && newData.child('explanation').isString() && newData.child('explanation').val().length <= 2000 && newData.child('correctAnswer').isString() && newData.child('correctAnswer').val().length <= 1000 && newData.child('imageUrl').isString() && newData.child('imageUrl').val().length <= 2000 && newData.child('audioUrl').isString() && newData.child('audioUrl').val().length <= 2000 && newData.child('createdAt').isString() && newData.child('updatedAt').isString() && ((newData.child('type').val() == 'short' && newData.child('options').numChildren() == 0) || (newData.child('type').val() == 'trueFalse' && newData.child('options').hasChildren(['true', 'false']) && newData.child('options').numChildren() == 2 && (newData.child('correctAnswer').val() == 'true' || newData.child('correctAnswer').val() == 'false')) || (newData.child('type').val() == 'mcq' && newData.child('options').numChildren() >= 2 && newData.child('options').numChildren() <= 8 && newData.child('options').child(newData.child('correctAnswer').val()).exists()))",
+              ".validate": "newData.hasChildren(['questionNumber', 'text', 'type', 'points', 'timeLimit', 'explanation', 'correctAnswer', 'imageUrl', 'audioUrl', 'createdAt', 'updatedAt']) && newData.child('questionNumber').isNumber() && newData.child('questionNumber').val() >= 1 && newData.child('text').isString() && newData.child('text').val().length <= 4000 && (newData.child('text').val().length > 0 || newData.child('imageUrl').val().length > 0 || newData.child('audioUrl').val().length > 0) && (newData.child('type').val() == 'mcq' || newData.child('type').val() == 'trueFalse' || newData.child('type').val() == 'short') && newData.child('points').isNumber() && newData.child('points').val() >= 1 && newData.child('points').val() <= 10000 && newData.child('timeLimit').isNumber() && newData.child('timeLimit').val() >= 1 && newData.child('timeLimit').val() <= 3600 && newData.child('explanation').isString() && newData.child('explanation').val().length <= 2000 && newData.child('correctAnswer').isString() && newData.child('correctAnswer').val().length <= 1000 && newData.child('imageUrl').isString() && newData.child('imageUrl').val().length <= 2000 && newData.child('audioUrl').isString() && newData.child('audioUrl').val().length <= 2000 && newData.child('createdAt').isString() && newData.child('updatedAt').isString() && ((newData.child('type').val() == 'short' && !newData.child('options').exists()) || (newData.child('type').val() == 'trueFalse' && newData.child('options').hasChildren(['true', 'false']) && (newData.child('correctAnswer').val() == 'true' || newData.child('correctAnswer').val() == 'false')) || (newData.child('type').val() == 'mcq' && newData.child('options').hasChildren(['option1', 'option2']) && newData.child('options').child(newData.child('correctAnswer').val()).exists()))",
               "options": {
-                "$optionId": {
-                  ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 300"
+                "true": {
+                  ".validate": "newData.parent().parent().child('type').val() == 'trueFalse' && newData.isString() && newData.val() == 'True'"
+                },
+                "false": {
+                  ".validate": "newData.parent().parent().child('type').val() == 'trueFalse' && newData.isString() && newData.val() == 'False'"
+                },
+                "option1": {
+                  ".validate": "newData.parent().parent().child('type').val() == 'mcq' && newData.isString() && newData.val().length > 0 && newData.val().length <= 300"
+                },
+                "option2": {
+                  ".validate": "newData.parent().parent().child('type').val() == 'mcq' && newData.isString() && newData.val().length > 0 && newData.val().length <= 300"
+                },
+                "option3": {
+                  ".validate": "newData.parent().parent().child('type').val() == 'mcq' && newData.isString() && newData.val().length > 0 && newData.val().length <= 300"
+                },
+                "option4": {
+                  ".validate": "newData.parent().parent().child('type').val() == 'mcq' && newData.isString() && newData.val().length > 0 && newData.val().length <= 300"
+                },
+                "option5": {
+                  ".validate": "newData.parent().parent().child('type').val() == 'mcq' && newData.isString() && newData.val().length > 0 && newData.val().length <= 300"
+                },
+                "option6": {
+                  ".validate": "newData.parent().parent().child('type').val() == 'mcq' && newData.isString() && newData.val().length > 0 && newData.val().length <= 300"
+                },
+                "option7": {
+                  ".validate": "newData.parent().parent().child('type').val() == 'mcq' && newData.isString() && newData.val().length > 0 && newData.val().length <= 300"
+                },
+                "option8": {
+                  ".validate": "newData.parent().parent().child('type').val() == 'mcq' && newData.isString() && newData.val().length > 0 && newData.val().length <= 300"
+                },
+                "$other": {
+                  ".validate": false
                 }
               },
               "deleted": {
@@ -350,7 +403,7 @@
         ".read": "auth != null",
         ".write": "auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true",
         "$roomId": {
-          ".validate": "newData.hasChildren(['roomId', 'roomName', 'published', 'updatedAt']) && newData.child('roomId').val() == $roomId && newData.child('roomName').isString() && newData.child('roomName').val().length <= 120 && newData.child('published').isBoolean() && newData.child('updatedAt').isString() && (!newData.child('published').val() || newData.child('rows').exists())",
+          ".validate": "newData.hasChildren(['roomId', 'roomName', 'published', 'updatedAt']) && newData.child('roomId').val() == $roomId && newData.child('roomName').isString() && newData.child('roomName').val().length <= 120 && newData.child('published').isBoolean() && newData.child('updatedAt').isString() && (newData.child('published').val() == false || newData.child('rows').exists())",
           "rows": {
             "$uid": {
               ".validate": "newData.hasChildren(['uid', 'name', 'points', 'rank']) && newData.child('uid').val() == $uid && newData.child('name').isString() && newData.child('name').val().length <= 80 && newData.child('points').isNumber() && newData.child('points').val() >= 0 && newData.child('rank').isNumber() && newData.child('rank').val() >= 1"
