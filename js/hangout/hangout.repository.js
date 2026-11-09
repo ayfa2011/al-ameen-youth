@@ -32,6 +32,8 @@ window.HangoutRepository = (() => {
     subscribeScores: cb => listen(ref("scores"), "value", snap => cb(snap.val() || {})),
     subscribePublicResults: cb => listen(ref("publicResults"), "value", snap => cb(snap.val() || {})),
     subscribeScoreLog: (uid, cb) => listen(ref(`scoreLog/${uid}`).limitToLast(50), "value", snap => cb(snap.val() || {})),
+    subscribeOwnQuizHistory: (uid, cb) =>
+      listen(ref(`playerQuizHistory/${uid}`), "value", snap => cb(snap.val() || {})),
     subscribeOwnAnswer: (roomId, questionId, uid, cb) =>
       listen(ref(`answers/${roomId}/${questionId}/${uid}`), "value", snap => cb(snap.val())),
     async readTimedOutAnswerKey(roomId, questionId) {

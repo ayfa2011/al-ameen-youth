@@ -361,6 +361,10 @@ window.HangoutQuizAdmin = (() => {
           confirmLabel: "Switch Quiz",
           danger: true
         })) return;
+        if (activeQuiz?.questionId && ["live", "paused"].includes(activeQuiz.status)
+          && (activeQuiz.roomId !== state.controlRoomId || activeQuiz.questionId !== questionId)) {
+          await HangoutAdminRepository.revealQuestion(activeQuiz.roomId, activeQuiz.questionId);
+        }
         await HangoutAdminRepository.publishQuestion(state.controlRoomId, questionId);
         showToast(index === 0 && !active ? "Quiz started." : `Question #${questions[index][1].questionNumber} published.`, "success");
         await renderQuizControl(host, state, source);
@@ -462,7 +466,10 @@ window.HangoutQuizAdmin = (() => {
       ${items.length ? `<div class="hg-evaluation-list">${items.map(row => `<article class="hg-evaluation-card">
         <small>${escapeHTML(row.roomName)} · Question #${Number(row.questionNumber) || "—"} · ${escapeHTML(row.playerName || "Player")}</small>
         <strong>${escapeHTML(row.questionText)}</strong><p>Answer: ${escapeHTML(row.answer || "")}</p>
-        ${row.evaluation ? `<div class="hg-evaluation-result ${row.evaluation.result === "correct" ? "is-correct" : "is-wrong"}">${row.evaluation.result === "correct" ? "Correct" : "Wrong"} · ${Number(row.evaluation.points) || 0} points · ${escapeHTML(new Date(row.evaluation.evaluatedAt).toLocaleString())}</div>${row.evaluation.result === "correct" && !row.evaluation.pointsAwarded ? `<button type="button" class="hg-btn is-light" data-retry-evaluation="${escapeHTML(row.answerId)}">Retry points</button>` : ""}` : `<div class="hg-form-actions"><button type="button" class="hg-btn" data-evaluate="correct" data-answer-id="${escapeHTML(row.answerId)}">Correct · ${Number(row.questionPoints) || 0} pts</button><button type="button" class="hg-btn is-danger" data-evaluate="wrong" data-answer-id="${escapeHTML(row.answerId)}">Wrong · 0 pts</button></div>`}
+        ${row.evaluation ? `<div class="hg-evaluation-result ${row.evaluation.result === "correct" ? "is-correct" : "is-wrong"}">${row.evaluation.result === "correct" ? "Correct" : "Wrong"} · ${Number(row.evaluation.points) || 0} points · ${escapeHTML(new Date(row.evaluation.evaluatedAt).toLocaleString())}</div>
+          ${Object.values(row.evaluation.history || {}).length ? `<small>Previous evaluations: ${Object.values(row.evaluation.history).map(item => `${item.result === "correct" ? "Correct" : "Wrong"} · ${Number(item.points) || 0} pts · ${escapeHTML(new Date(item.evaluatedAt).toLocaleString())}`).join(" | ")}</small>` : ""}
+          ${row.evaluation.pointsAwarded ? "" : `<button type="button" class="hg-btn is-light" data-retry-evaluation="${escapeHTML(row.answerId)}">Retry score update</button>`}
+          <div class="hg-form-actions"><button type="button" class="hg-btn" data-evaluate="correct" data-answer-id="${escapeHTML(row.answerId)}">Re-evaluate as Correct · ${Number(row.questionPoints) || 0} pts</button><button type="button" class="hg-btn is-danger" data-evaluate="wrong" data-answer-id="${escapeHTML(row.answerId)}">Re-evaluate as Wrong · 0 pts</button></div>` : `<div class="hg-form-actions"><button type="button" class="hg-btn" data-evaluate="correct" data-answer-id="${escapeHTML(row.answerId)}">Correct · ${Number(row.questionPoints) || 0} pts</button><button type="button" class="hg-btn is-danger" data-evaluate="wrong" data-answer-id="${escapeHTML(row.answerId)}">Wrong · 0 pts</button></div>`}
       </article>`).join("")}</div>` : `<div class="hg-empty">${state.evaluationTab === "pending" ? "No pending short answers." : "No evaluated answers yet."}</div>`}`;
       host.querySelectorAll("[data-eval-tab]").forEach(button => button.addEventListener("click", () => {
         state.evaluationTab = button.dataset.evalTab;
@@ -475,7 +482,9 @@ window.HangoutQuizAdmin = (() => {
         button.disabled = true;
         try {
           await HangoutAdminRepository.evaluateAnswer(row, result);
-          showToast(result === "correct" ? "Correct answer saved and points awarded." : "Wrong answer saved.", "success");
+          showToast(row.evaluation
+            ? "Evaluation history and score updated."
+            : result === "correct" ? "Correct answer saved and points awarded." : "Wrong answer saved.", "success");
           renderEvaluations(host, state);
         } catch (error) {
           console.error("Short answer evaluation failed:", error);

@@ -35,6 +35,7 @@ window.HangoutService = (() => {
       roomName: String(quiz.roomName || ""),
       questionId: String(quiz.questionId || ""),
       questionNumber: Number(quiz.questionNumber) || 0,
+      publishedAt: String(quiz.publishedAt || ""),
       type: ["mcq", "trueFalse", "short"].includes(quiz.type) ? quiz.type : "",
       options: Object.entries(quiz.options || {}).map(([id, option]) => ({
         id: String(option?.id || id).slice(0, 80),

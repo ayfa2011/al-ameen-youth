@@ -3,6 +3,7 @@ window.HangoutAdminRepository = (() => {
   const QUIZ_ADMIN_EMAILS = ["kebir.limra@gmail.com", "ayfaramboor@gmail.com"];
   const MAX_MEDIA_BYTES = 200 * 1024;
   const MEDIA_TYPES = /^(image\/(jpeg|png|webp|gif)|audio\/(mpeg|mp4|ogg|wav|webm|aac|x-m4a))$/i;
+  const historyBackfills = new Set();
 
   function isQuizAdmin() {
     const user = window.firebaseAuth?.currentUser;
@@ -56,7 +57,19 @@ window.HangoutAdminRepository = (() => {
     async listRooms() {
       requireQuizAdmin();
       const snap = await (await database()).ref("hangout/rooms").once("value");
-      return snap.val() || {};
+      const rooms = snap.val() || {};
+      const completedRooms = Object.entries(rooms)
+        .filter(([roomId, room]) => room?.status === "completed" && !historyBackfills.has(roomId));
+      completedRooms.forEach(([roomId]) => historyBackfills.add(roomId));
+      if (completedRooms.length) {
+        Promise.all(completedRooms.map(([roomId]) => this.refreshPlayerQuizHistory(roomId)))
+          .catch(error => {
+            completedRooms.forEach(([roomId]) => historyBackfills.delete(roomId));
+            console.error("Existing completed quiz history could not be migrated:", error);
+            showToast("Existing quiz history could not be synced. Check database rules and retry.", "error");
+          });
+      }
+      return rooms;
     },
 
     async createRoom(room) {
@@ -160,10 +173,11 @@ window.HangoutAdminRepository = (() => {
               answerId: `${roomId}_${questionId}_${uid}`,
               roomId,
               roomName: room.name || "Quiz room",
+              roomMonth: room.month || "",
               questionId,
               questionNumber: question.questionNumber,
               questionText: question.text || "",
-              questionPoints: Number(question.points) || 0,
+              questionPoints: Number(answer.questionPoints) || Number(question.points) || 0,
               questionType: question.type || "mcq"
             });
           });
@@ -175,6 +189,11 @@ window.HangoutAdminRepository = (() => {
     async publishQuestion(roomId, questionId) {
       requireQuizAdmin();
       const db = await database();
+      const activeQuiz = (await db.ref("hangout/quiz").once("value")).val();
+      if (activeQuiz?.questionId && ["live", "paused"].includes(activeQuiz.status)
+        && (activeQuiz.roomId !== roomId || activeQuiz.questionId !== questionId)) {
+        await this.revealQuestion(activeQuiz.roomId, activeQuiz.questionId);
+      }
       const roomSnap = await db.ref(`hangout/rooms/${roomId}`).once("value");
       const room = roomSnap.val();
       const question = room?.questions?.[questionId];
@@ -182,15 +201,17 @@ window.HangoutAdminRepository = (() => {
       const timestamp = now();
       const options = Object.entries(question.options || {}).map(([id, text]) => ({ id, text }));
       const payload = {
-        roomId, roomName: room.name || "", questionId, questionNumber: question.questionNumber,
+        roomId, roomName: room.name || "", monthLabel: room.month || "", questionId, questionNumber: question.questionNumber,
         title: room.name || "", text: question.text || "", type: question.type || "mcq",
         options, points: Number(question.points) || 0, imageUrl: question.imageUrl || "",
         audioUrl: question.audioUrl || "", timeLimit: Number(question.timeLimit) || 60,
+        publishedAt: question.publishedAt || timestamp,
         startedAt: firebase.database.ServerValue.TIMESTAMP,
         remainingMs: null, answerRevealed: false, status: "live", updatedAt: timestamp
       };
       const updates = {
         [`hangout/answerKeys/${roomId}/${questionId}`]: { correctAnswer: question.correctAnswer || "", updatedAt: timestamp },
+        [`hangout/rooms/${roomId}/questions/${questionId}/publishedAt`]: question.publishedAt || timestamp,
         "hangout/quiz": payload,
         [`hangout/rooms/${roomId}/status`]: "live",
         [`hangout/rooms/${roomId}/updatedAt`]: timestamp
@@ -215,6 +236,7 @@ window.HangoutAdminRepository = (() => {
         [`hangout/rooms/${roomId}/updatedAt`]: timestamp
       };
       await db.ref().update(updates);
+      if (status === "completed") await this.refreshPlayerQuizHistory(roomId);
       await appendQuizAudit("hangout.quiz.room.status", `hangout/rooms/${roomId}`, roomId, timestamp);
     },
 
@@ -346,6 +368,7 @@ window.HangoutAdminRepository = (() => {
         throw new Error("Score adjustment could not be saved. Try again.");
       }
       await appendQuizAudit("hangout.score.adjust", `hangout/roomScores/${roomId}/${uid}`, historyId, editedAt);
+      await this.refreshPlayerQuizHistory(roomId);
       const published = (await db.ref(`hangout/publicResults/${roomId}/published`).once("value")).val();
       if (published) await this.setRoomResultsPublished(roomId, true);
       return result.snapshot.val();
@@ -433,7 +456,47 @@ window.HangoutAdminRepository = (() => {
       const quiz = quizSnap.val();
       const question = questionSnap.val();
       if (!quiz || quiz.roomId !== roomId || quiz.questionId !== questionId || !question) return false;
-      if (quiz.status === "revealed" || quiz.status === "completed") return true;
+      if (question.type !== "short") {
+        const [answersSnap, answerKeySnap] = await Promise.all([
+          db.ref(`hangout/answers/${roomId}/${questionId}`).once("value"),
+          db.ref(`hangout/answerKeys/${roomId}/${questionId}`).once("value")
+        ]);
+        const correctAnswer = answerKeySnap.child("correctAnswer").val();
+        const answers = answersSnap.val() || {};
+        const awardId = `${roomId}_${questionId}`;
+        for (const [uid, answer] of Object.entries(answers)) {
+          if (answer?.answer !== correctAnswer) continue;
+          const points = Number(answer.questionPoints) || 0;
+          const scoreRef = db.ref(`hangout/scores/${uid}`);
+          const result = await scoreRef.transaction(current => {
+            const score = current || { points: 0, autoAwards: {}, manualAwards: {} };
+            if (score.autoAwards?.[awardId]) return;
+            return {
+              ...score,
+              points: (Number(score.points) || 0) + points,
+              updatedAt: now(),
+              autoAwards: {
+                ...(score.autoAwards || {}),
+                [awardId]: { roomId, questionId, points }
+              },
+              lastAward: { roomId, questionId, points }
+            };
+          });
+          const savedAward = result.snapshot.child(`autoAwards/${awardId}`);
+          if (!savedAward.exists()) throw new Error(`Could not award the correct answer for player ${uid}.`);
+          const awardedPoints = Number(savedAward.child("points").val()) || 0;
+          await this.awardRoomQuestionPoints(uid, roomId, questionId, awardedPoints);
+          await db.ref(`hangout/scoreLog/${uid}/${awardId}`).set({
+            points: awardedPoints,
+            at: answer.submittedAt || now(),
+            note: `Question #${question.questionNumber} correct answer`
+          });
+        }
+      }
+      if (quiz.status === "revealed" || quiz.status === "completed") {
+        await this.refreshPlayerQuizHistory(roomId);
+        return true;
+      }
       const timestamp = now();
       await db.ref("hangout/quiz").update({
         status: "revealed",
@@ -443,8 +506,112 @@ window.HangoutAdminRepository = (() => {
         explanation: question.explanation || "",
         updatedAt: timestamp
       });
+      await this.refreshPlayerQuizHistory(roomId);
       await appendQuizAudit("hangout.quiz.answer.reveal", "hangout/quiz", questionId, timestamp);
       return true;
+    },
+
+    async refreshPlayerQuizHistory(roomId) {
+      requireQuizAdmin();
+      const db = await database();
+      const [roomSnap, answersSnap, roomScoresSnap, quizSnap] = await Promise.all([
+        db.ref(`hangout/rooms/${roomId}`).once("value"),
+        db.ref(`hangout/answers/${roomId}`).once("value"),
+        db.ref(`hangout/roomScores/${roomId}`).once("value"),
+        db.ref("hangout/quiz").once("value")
+      ]);
+      const room = roomSnap.val();
+      if (!room) throw new Error("The quiz room no longer exists.");
+      const answers = answersSnap.val() || {};
+      const scores = roomScoresSnap.val() || {};
+      const activeQuiz = quizSnap.val() || {};
+      const questions = Object.entries(room.questions || {})
+        .filter(([questionId, question]) => question && !question.deleted && (question.publishedAt || answers[questionId]))
+        .sort((a, b) => Number(a[1].questionNumber) - Number(b[1].questionNumber));
+      const participantIds = new Set(
+        Object.values(answers).flatMap(players => Object.keys(players || {}))
+      );
+      if (!participantIds.size) return;
+
+      const rows = [...participantIds].map(uid => {
+        const score = scores[uid] || {};
+        const earned = questions.map(([questionId, question]) => {
+          const answer = answers[questionId]?.[uid] || null;
+          const awaitingReveal = activeQuiz.roomId === roomId && activeQuiz.questionId === questionId
+            && ["live", "paused"].includes(activeQuiz.status);
+          if (!answer && awaitingReveal) return null;
+          const evaluation = answer?.evaluation || null;
+          const correctAnswer = awaitingReveal ? "" : String(question.correctAnswer || "");
+          const status = !answer
+            ? "unanswered"
+            : awaitingReveal
+              ? "awaitingResult"
+            : question.type === "short"
+              ? evaluation?.result || "pending"
+              : answer.answer === correctAnswer ? "correct" : "wrong";
+          return {
+            questionId,
+            roomName: String(room.name || "Quiz room"),
+            roomMonth: String(room.month || ""),
+            questionNumber: Number(question.questionNumber) || 0,
+            questionText: String(question.text || "").slice(0, 4000),
+            type: question.type || "mcq",
+            questionPoints: Number(answer?.questionPoints) || Number(question.points) || 0,
+            options: question.options || {},
+            answer: String(answer?.answer || ""),
+            submittedAt: String(answer?.submittedAt || ""),
+            status,
+            correctAnswer,
+            awardedPoints: Number(score.awards?.[questionId]?.points) || 0,
+            evaluation: evaluation ? {
+              result: evaluation.result,
+              points: Number(evaluation.points) || 0,
+              evaluatedAt: evaluation.evaluatedAt || "",
+              evaluatorUid: evaluation.evaluatorUid || ""
+            } : null,
+            evaluationHistory: evaluation?.history || {}
+          };
+        }).filter(Boolean);
+        const pending = earned.filter(item => item.status === "pending").length;
+        const completed = room.status === "completed";
+        const totalScore = Number(score.points) || 0;
+        return {
+          uid,
+          score,
+          earned,
+          pending,
+          summary: {
+            roomName: String(room.name || "Quiz room"),
+            month: String(room.month || ""),
+            status: completed ? (pending ? "evaluationPending" : "completed") : "inProgress",
+            isFinal: completed && pending === 0,
+            totalQuestions: questions.length,
+            totalScore,
+            maxScore: questions.reduce((total, [, question]) => total + (Number(question.points) || 0), 0),
+            correct: earned.filter(item => item.status === "correct").length,
+            wrong: earned.filter(item => item.status === "wrong").length,
+            unanswered: earned.filter(item => item.status === "unanswered").length,
+            pending,
+            rank: 0,
+            updatedAt: now()
+          }
+        };
+      });
+      rows.sort((a, b) => b.summary.totalScore - a.summary.totalScore || a.uid.localeCompare(b.uid));
+      rows.forEach((row, index) => {
+        row.summary.rank = index > 0 && row.summary.totalScore === rows[index - 1].summary.totalScore
+          ? rows[index - 1].summary.rank
+          : index + 1;
+      });
+      const updates = {};
+      rows.forEach(row => {
+        const base = `hangout/playerQuizHistory/${row.uid}/${roomId}`;
+        row.earned.forEach(item => {
+          updates[`${base}/questions/${item.questionId}`] = item;
+        });
+        updates[`${base}/summary`] = row.summary;
+      });
+      await db.ref().update(updates);
     },
 
     async endQuiz(roomId) {
@@ -454,10 +621,12 @@ window.HangoutAdminRepository = (() => {
       const timestamp = now();
       const updates = { [`hangout/rooms/${roomId}/status`]: "completed", [`hangout/rooms/${roomId}/updatedAt`]: timestamp };
       if (quiz?.roomId === roomId && quiz.questionId) {
+        await this.revealQuestion(roomId, quiz.questionId);
+        const latestQuiz = (await db.ref("hangout/quiz").once("value")).val() || quiz;
         const question = (await db.ref(`hangout/rooms/${roomId}/questions/${quiz.questionId}`).once("value")).val();
         if (question) {
           updates["hangout/quiz"] = {
-            ...quiz,
+            ...latestQuiz,
             status: "completed",
             remainingMs: 0,
             answerRevealed: true,
@@ -468,6 +637,7 @@ window.HangoutAdminRepository = (() => {
         }
       }
       await db.ref().update(updates);
+      await this.refreshPlayerQuizHistory(roomId);
       await appendQuizAudit("hangout.quiz.end", "hangout/quiz", roomId, timestamp);
     },
 
@@ -478,55 +648,116 @@ window.HangoutAdminRepository = (() => {
       const answerRef = db.ref(`hangout/answers/${row.roomId}/${row.questionId}/${row.uid}/evaluation`);
       const timestamp = now();
       const points = result === "correct" ? row.questionPoints : 0;
-      let evaluation = (await answerRef.once("value")).val();
-      if (!evaluation) {
-        try {
-          const transaction = await answerRef.transaction(current => current || {
-            result,
-            points,
-            evaluatedAt: timestamp,
-            evaluatorUid: window.firebaseAuth?.currentUser?.uid || "",
-            pointsAwarded: points === 0
-          });
-          evaluation = transaction.snapshot.val();
-        } catch (error) {
-          evaluation = (await answerRef.once("value")).val();
-          if (!evaluation) throw error;
+      const historyId = db.ref(`hangout/answers/${row.roomId}/${row.questionId}/${row.uid}/evaluation/history`).push().key;
+      const evaluatorUid = window.firebaseAuth?.currentUser?.uid || HangoutFirebase.auth()?.currentUser?.uid || "";
+      let previousEvaluation = null;
+      const transaction = await answerRef.transaction(current => {
+        previousEvaluation = current;
+        const next = {
+          ...(current || {}),
+          result,
+          points,
+          evaluatedAt: timestamp,
+          evaluatorUid,
+          pointsAwarded: false
+        };
+        if (current?.result) {
+          next.history = {
+            ...(current.history || {}),
+            [historyId]: {
+              result: current.result,
+              points: Number(current.points) || 0,
+              evaluatedAt: current.evaluatedAt || "",
+              evaluatorUid: current.evaluatorUid || "",
+              pointsAwarded: current.pointsAwarded === true
+            }
+          };
         }
-      }
+        return next;
+      });
+      if (!transaction.committed) throw new Error("The answer evaluation could not be saved.");
+      const evaluation = transaction.snapshot.val();
       if (!evaluation) throw new Error("The answer evaluation could not be saved.");
-      if (evaluation.result !== result) throw new Error("This answer was already evaluated with a different result.");
-
-      if (evaluation.points > 0 && !evaluation.pointsAwarded) {
-        await this.awardEvaluatedAnswer(row.uid, row.roomId, row.questionId, row.answerId, evaluation.points, row.questionNumber);
-        await answerRef.child("pointsAwarded").set(true);
-      }
-      return evaluation;
+      await this.applyEvaluatedAnswerScore(
+        row.uid,
+        row.roomId,
+        row.questionId,
+        row.answerId,
+        Number(evaluation.points) || 0,
+        row.questionNumber,
+        previousEvaluation?.pointsAwarded === true ? Number(previousEvaluation.points) || 0 : 0,
+        !previousEvaluation?.result
+      );
+      await answerRef.child("pointsAwarded").set(true);
+      return { ...evaluation, pointsAwarded: true };
     },
 
-    async awardEvaluatedAnswer(uid, roomId, questionId, answerId, points, questionNumber) {
+    async applyEvaluatedAnswerScore(uid, roomId, questionId, answerId, points, questionNumber, legacyPoints, isInitialEvaluation) {
       requireQuizAdmin();
       const db = await database();
       const timestamp = now();
-      await this.awardRoomQuestionPoints(uid, roomId, questionId, points, "manual");
-      const result = await db.ref(`hangout/scores/${uid}`).transaction(current => {
+      let scoreDelta = 0;
+      const globalResult = await db.ref(`hangout/scores/${uid}`).transaction(current => {
         const score = current || { points: 0, autoAwards: {}, manualAwards: {} };
-        if (score.manualAwards?.[answerId]) return;
+        const previous = typeof score.manualAwards?.[answerId] === "number"
+          ? score.manualAwards[answerId]
+          : score.manualAwards?.[answerId] === true ? legacyPoints : 0;
+        scoreDelta = points - previous;
+        if (Number(score.points || 0) + scoreDelta < 0) return;
         return {
           ...score,
-          points: (Number(score.points) || 0) + points,
+          points: (Number(score.points) || 0) + scoreDelta,
           updatedAt: timestamp,
-          manualAwards: { ...(score.manualAwards || {}), [answerId]: true }
+          manualAwards: { ...(score.manualAwards || {}), [answerId]: points }
         };
       });
-      if (!result.committed && !result.snapshot.child(`manualAwards/${answerId}`).exists()) {
-        throw new Error("Score could not be saved. Try again.");
+      const savedManualPoints = globalResult.snapshot.child(`manualAwards/${answerId}`).val();
+      if (globalResult.snapshot.child("points").val() < 0) {
+        throw new Error("The score cannot be reduced below zero.");
       }
-      await db.ref(`hangout/scoreLog/${uid}/${answerId}`).set({
-        points,
-        at: timestamp,
-        note: `Question #${questionNumber} evaluation`
+      if (savedManualPoints !== points) throw new Error("Score could not be reconciled. Try again.");
+
+      const roomRef = db.ref(`hangout/roomScores/${roomId}/${uid}`);
+      const roomResult = await roomRef.transaction(current => {
+        const score = current || { points: 0, awards: {}, adjustments: {} };
+        const existingAward = score.awards?.[questionId];
+        if (existingAward && existingAward.kind !== "manual") return;
+        const previous = Number(existingAward?.points) || 0;
+        const delta = points - previous;
+        if ((Number(score.points) || 0) + delta < 0) return;
+        if (delta === 0 && existingAward?.kind === "manual") return;
+        return {
+          ...score,
+          points: (Number(score.points) || 0) + delta,
+          updatedAt: timestamp,
+          awards: {
+            ...(score.awards || {}),
+            [questionId]: { points, kind: "manual", at: timestamp }
+          },
+          lastAward: { questionId, points }
+        };
       });
+      const savedRoomAward = roomResult.snapshot.child(`awards/${questionId}`).val();
+      if (Number(savedRoomAward?.points) !== points || savedRoomAward?.kind !== "manual") {
+        throw new Error("Room scoreboard could not be reconciled. Retry the evaluation.");
+      }
+
+      if (isInitialEvaluation) {
+        await db.ref(`hangout/scoreLog/${uid}/${answerId}`).set({
+          points,
+          at: timestamp,
+          note: `Question #${questionNumber} evaluation`
+        });
+      } else if (scoreDelta !== 0) {
+        await db.ref(`hangout/scoreLog/${uid}`).push({
+          points: scoreDelta,
+          at: timestamp,
+          note: `Question #${questionNumber} re-evaluation`
+        });
+      }
+      const published = (await db.ref(`hangout/publicResults/${roomId}/published`).once("value")).val();
+      if (published) await this.setRoomResultsPublished(roomId, true);
+      await this.refreshPlayerQuizHistory(roomId);
     },
 
     async awardRoomQuestionPoints(uid, roomId, questionId, points, kind = "automatic") {
@@ -573,6 +804,30 @@ window.HangoutAdminRepository = (() => {
       } catch (error) {
         const existing = (await answerRef.once("value")).val();
         if (existing?.answer !== value.answer) throw error;
+      }
+
+      let historySaved = false;
+      try {
+        const historyRef = db.ref(`hangout/playerQuizHistory/${user.uid}/${quiz.roomId}/questions/${quiz.questionId}`);
+        const options = Object.fromEntries((quiz.options || []).map(option => [option.id, option.text]));
+        const historyResult = await historyRef.transaction(current => {
+          if (current) return;
+          return {
+            roomName: String(quiz.roomName || "Quiz room").slice(0, 120),
+            roomMonth: String(quiz.monthLabel || "").slice(0, 40),
+            questionNumber: Number(quiz.questionNumber) || 0,
+            questionText: String(quiz.text || "").slice(0, 4000),
+            type: quiz.type || "mcq",
+            questionPoints: Number(quiz.points) || 0,
+            options,
+            answer: value.answer,
+            submittedAt: value.submittedAt,
+            status: quiz.type === "short" ? "pending" : "awaitingResult"
+          };
+        });
+        historySaved = historyResult.snapshot.exists();
+      } catch (error) {
+        console.error("Player quiz history could not be recorded at submission:", error);
       }
 
       if (quiz.type !== "short") {
@@ -623,9 +878,9 @@ window.HangoutAdminRepository = (() => {
             note: `Question #${quiz.questionNumber} correct answer`
           });
         }
-        return { ...value, autoPointsAwarded };
+        return { ...value, autoPointsAwarded, historySaved };
       }
-      return { ...value, autoPointsAwarded: false };
+      return { ...value, autoPointsAwarded: false, historySaved };
     },
 
     async saveQuiz(quiz) {

@@ -3,6 +3,7 @@
 window.HangoutQuizChat = (() => {
   const LOAD_LAST = 60;
   const VOICE_TYPES = ["audio/webm;codecs=opus", "audio/mp4", "audio/webm", "audio/ogg;codecs=opus"];
+  const EMOJI_ONLY = /^(?:\p{Extended_Pictographic}|\p{Emoji_Presentation}|\uFE0F|\u200D|\s)+$/u;
 
   function mount(panel, ctx) {
     panel.innerHTML = `
@@ -33,6 +34,7 @@ window.HangoutQuizChat = (() => {
       const author = ctx.users()[m.uid];
       const name = author?.name || m.name || "Player";
       const removed = m.deleted === true;
+      const emojiOnly = !removed && !m.voice && EMOJI_ONLY.test(String(m.text || "").trim());
       let body;
       if (removed) body = '<span class="hg-msg-text">Message removed by admin</span>';
       else if (m.voice) body = `<div class="hg-voice"><button type="button" class="hg-voice-play" data-act="play" data-id="${escapeHTML(id)}" aria-label="Play voice message"><i class="fa-solid fa-play"></i></button><div class="hg-voice-bar"><span></span></div><span class="hg-voice-dur">${HangoutService.formatDuration(m.voiceDur)}</span></div>`;
@@ -40,7 +42,10 @@ window.HangoutQuizChat = (() => {
       const hide = ctx.isQuizAdmin() && !removed ? `<button type="button" class="hg-msg-del" data-act="hide" data-id="${escapeHTML(id)}">Hide</button>` : "";
       return `<div class="hg-msg ${own ? "is-own" : ""} ${removed ? "is-removed" : ""}" data-id="${escapeHTML(id)}" data-uid="${escapeHTML(m.uid)}">
         ${HangoutUI.avatar(author?.photo, name, m.uid)}
-        <div class="hg-bubble"><span class="hg-msg-name">${escapeHTML(name)}</span>${body}<span class="hg-msg-time">${escapeHTML(HangoutService.formatTime(m.createdAt))}${hide}</span></div>
+        <div class="hg-bubble ${emojiOnly ? "is-emoji" : ""}">
+          <div class="hg-msg-meta"><span class="hg-msg-name">${escapeHTML(name)}</span><time class="hg-msg-time">${escapeHTML(HangoutService.formatTime(m.createdAt))}</time>${hide}</div>
+          ${body}
+        </div>
       </div>`;
     }
 

@@ -55,15 +55,30 @@ HOW IT WORKS
   The shared question timer pauses and resumes with the quiz; time expiry
   closes submissions and reveals the answer and explanation.
 - Evaluation has separate pending and history sections for short answers.
-  Correct answers award the configured points once; wrong answers award zero.
+  Correct answers award points immediately; wrong answers award zero. History
+  supports re-evaluation, records each prior decision, and reconciles the
+  player's global and room scores by the point difference without duplicates.
+- Correct MCQ and True/False answers update scores on submission; the admin
+  reconciles all correct submissions again before revealing a question at
+  timeout, on advance, or when ending the quiz. The per-question award ledger
+  prevents duplicate points, and no-answer/wrong-answer submissions earn zero.
 - Scoreboard Management is room-specific. Approved admins can inspect player
   totals and ranks, apply reason-required adjustments, and review immutable
   previous/new score history with editor and timestamp.
+- More -> My Quiz History shows only the signed-in player's participated rooms,
+  archived question/answer/evaluation details, and final score, rank and
+  correct/wrong/unanswered summary. Final score and rank remain pending until
+  the room is completed and every manual evaluation is resolved. Re-evaluation
+  and room score adjustments refresh these private history records.
 - Admins can publish or unpublish each room's results. Published snapshots are
   shown on the player Score Board; unpublished room results are not exposed
   there. Results can be published after the room is completed; adjustments and
   manual evaluations refresh an already published result.
 - Chat messages have a "Hide" soft-delete action.
+- Chat bubbles use compact content-sized spacing, with each sender's time on
+  the same line as their name. A gentle five-second sound plays once when a
+  newly published question arrives; browsers may require a user interaction
+  before they allow audio.
 - Other Members and Admin & Incharges users can play, chat, and view scores,
   but cannot publish questions, change scores, or hide chat messages.
 - Players cannot set their own score: Realtime Database rules validate the
@@ -79,6 +94,8 @@ NOTES
 - Question images and audio are stored as Base64 data URLs with each source
   file limited to 200 KB. Larger files are rejected instead of falling back to
   Storage.
+- Player quiz history is stored under the authenticated player's UID in
+  Realtime Database; publish the updated database rules with the website.
 - On localhost Hangout stays off, same as the rest of the website
   (local testing needs the staging Firebase config described in DATA-SAFETY.md).
 - If Google login opens in a new page on some phones (popup blocked), the site

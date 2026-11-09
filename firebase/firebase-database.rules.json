@@ -161,6 +161,9 @@
         "questionNumber": {
           ".validate": "newData.isNumber() && newData.val() >= 1"
         },
+        "publishedAt": {
+          ".validate": "newData.isString() && newData.val().length <= 40"
+        },
         "type": {
           ".validate": "newData.isString() && (newData.val() == 'mcq' || newData.val() == 'trueFalse' || newData.val() == 'short')"
         },
@@ -286,6 +289,9 @@
               "updatedAt": {
                 ".validate": "newData.isString()"
               },
+              "publishedAt": {
+                ".validate": "newData.isString()"
+              },
               "options": {
                 "true": {
                   ".validate": "newData.parent().parent().child('type').val() == 'trueFalse' && newData.isString() && newData.val() == 'True'"
@@ -368,7 +374,7 @@
                 ".validate": "newData.isString()"
               },
               "evaluation": {
-                ".write": "auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true && !data.exists()",
+                ".write": "auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true",
                 ".validate": "newData.hasChildren(['result', 'points', 'evaluatedAt', 'evaluatorUid', 'pointsAwarded']) && (newData.child('result').val() == 'correct' || newData.child('result').val() == 'wrong') && newData.child('points').isNumber() && newData.child('points').val() >= 0 && newData.child('evaluatedAt').isString() && newData.child('evaluatorUid').isString() && newData.child('pointsAwarded').isBoolean()",
                 "result": {
                   ".validate": "newData.isString() && (newData.val() == 'correct' || newData.val() == 'wrong')"
@@ -385,6 +391,29 @@
                 "pointsAwarded": {
                   ".write": "auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true && data.val() == false && newData.val() == true",
                   ".validate": "newData.isBoolean()"
+                },
+                "history": {
+                  "$evaluationId": {
+                    ".validate": "newData.hasChildren(['result', 'points', 'evaluatedAt', 'evaluatorUid', 'pointsAwarded']) && (newData.child('result').val() == 'correct' || newData.child('result').val() == 'wrong') && newData.child('points').isNumber() && newData.child('points').val() >= 0 && newData.child('evaluatedAt').isString() && newData.child('evaluatorUid').isString() && newData.child('pointsAwarded').isBoolean()",
+                    "result": {
+                      ".validate": "newData.isString() && (newData.val() == 'correct' || newData.val() == 'wrong')"
+                    },
+                    "points": {
+                      ".validate": "newData.isNumber() && newData.val() >= 0"
+                    },
+                    "evaluatedAt": {
+                      ".validate": "newData.isString()"
+                    },
+                    "evaluatorUid": {
+                      ".validate": "newData.isString()"
+                    },
+                    "pointsAwarded": {
+                      ".validate": "newData.isBoolean()"
+                    },
+                    "$other": {
+                      ".validate": false
+                    }
+                  }
                 },
                 "$other": {
                   ".validate": false
@@ -437,7 +466,7 @@
           },
           "manualAwards": {
             "$answerId": {
-              ".validate": "newData.isBoolean() && newData.val() == true && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com' || (data.exists() && data.val() == newData.val()))"
+              ".validate": "(newData.isBoolean() && newData.val() == true && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com' || (data.exists() && data.val() == newData.val()))) || (newData.isNumber() && newData.val() >= 0 && auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true)"
             }
           },
           "$other": {
@@ -501,6 +530,108 @@
           },
           "$other": {
             ".validate": false
+          }
+        }
+      },
+      "playerQuizHistory": {
+        "$uid": {
+          ".read": "auth != null && auth.uid == $uid",
+          "$roomId": {
+            ".read": "auth != null && auth.uid == $uid",
+            ".write": "auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') && auth.token.googleAuth == true",
+            "summary": {
+              ".validate": "newData.hasChildren(['roomName', 'month', 'status', 'isFinal', 'totalQuestions', 'totalScore', 'maxScore', 'correct', 'wrong', 'unanswered', 'pending', 'rank', 'updatedAt']) && newData.child('roomName').isString() && newData.child('roomName').val().length <= 120 && newData.child('month').isString() && newData.child('month').val().length <= 40 && (newData.child('status').val() == 'inProgress' || newData.child('status').val() == 'evaluationPending' || newData.child('status').val() == 'completed') && newData.child('isFinal').isBoolean() && newData.child('totalQuestions').isNumber() && newData.child('totalQuestions').val() >= 0 && newData.child('totalScore').isNumber() && newData.child('totalScore').val() >= 0 && newData.child('maxScore').isNumber() && newData.child('maxScore').val() >= 0 && newData.child('correct').isNumber() && newData.child('correct').val() >= 0 && newData.child('wrong').isNumber() && newData.child('wrong').val() >= 0 && newData.child('unanswered').isNumber() && newData.child('unanswered').val() >= 0 && newData.child('pending').isNumber() && newData.child('pending').val() >= 0 && newData.child('rank').isNumber() && newData.child('rank').val() >= 0 && newData.child('updatedAt').isString()"
+            },
+            "questions": {
+              "$questionId": {
+                ".write": "(auth != null && auth.token.googleAuth == true && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com')) || (auth != null && auth.uid == $uid && !data.exists() && root.child('hangout/answers').child($roomId).child($questionId).child($uid).exists() && root.child('hangout/quiz/roomId').val() == $roomId && root.child('hangout/quiz/questionId').val() == $questionId && newData.child('roomName').val() == root.child('hangout/quiz/roomName').val() && newData.child('roomMonth').val() == root.child('hangout/quiz/monthLabel').val() && newData.child('questionNumber').val() == root.child('hangout/quiz/questionNumber').val() && newData.child('questionText').val() == root.child('hangout/quiz/text').val() && newData.child('type').val() == root.child('hangout/quiz/type').val() && newData.child('questionPoints').val() == root.child('hangout/answers').child($roomId).child($questionId).child($uid).child('questionPoints').val() && newData.child('answer').val() == root.child('hangout/answers').child($roomId).child($questionId).child($uid).child('answer').val() && newData.child('submittedAt').val() == root.child('hangout/answers').child($roomId).child($questionId).child($uid).child('submittedAt').val() && newData.child('status').val() == (root.child('hangout/quiz/type').val() == 'short' ? 'pending' : 'awaitingResult') && !newData.child('correctAnswer').exists() && !newData.child('awardedPoints').exists() && !newData.child('evaluation').exists() && !newData.child('evaluationHistory').exists())",
+                ".validate": "newData.hasChildren(['questionNumber', 'questionText', 'type', 'questionPoints', 'answer', 'submittedAt', 'status']) && newData.child('questionNumber').isNumber() && newData.child('questionNumber').val() >= 1 && newData.child('questionText').isString() && newData.child('questionText').val().length <= 4000 && (newData.child('type').val() == 'mcq' || newData.child('type').val() == 'trueFalse' || newData.child('type').val() == 'short') && newData.child('questionPoints').isNumber() && newData.child('questionPoints').val() >= 0 && newData.child('answer').isString() && newData.child('answer').val().length <= 1000 && newData.child('submittedAt').isString() && (newData.child('status').val() == 'pending' || newData.child('status').val() == 'awaitingResult' || newData.child('status').val() == 'correct' || newData.child('status').val() == 'wrong' || newData.child('status').val() == 'unanswered') && (!newData.child('correctAnswer').exists() || newData.child('correctAnswer').isString()) && (!newData.child('awardedPoints').exists() || (newData.child('awardedPoints').isNumber() && newData.child('awardedPoints').val() >= 0)) && (!newData.child('roomName').exists() || (newData.child('roomName').isString() && newData.child('roomName').val().length <= 120)) && (!newData.child('roomMonth').exists() || (newData.child('roomMonth').isString() && newData.child('roomMonth').val().length <= 40))",
+                "questionNumber": {
+                  ".validate": "newData.isNumber() && newData.val() >= 1"
+                },
+                "questionText": {
+                  ".validate": "newData.isString() && newData.val().length <= 4000"
+                },
+                "type": {
+                  ".validate": "newData.isString() && (newData.val() == 'mcq' || newData.val() == 'trueFalse' || newData.val() == 'short')"
+                },
+                "questionPoints": {
+                  ".validate": "newData.isNumber() && newData.val() >= 0"
+                },
+                "options": {
+                  "$optionId": {
+                    ".validate": "newData.isString() && newData.val().length <= 300"
+                  }
+                },
+                "answer": {
+                  ".validate": "newData.isString() && newData.val().length <= 1000"
+                },
+                "submittedAt": {
+                  ".validate": "newData.isString()"
+                },
+                "status": {
+                  ".validate": "newData.isString() && (newData.val() == 'pending' || newData.val() == 'awaitingResult' || newData.val() == 'correct' || newData.val() == 'wrong' || newData.val() == 'unanswered')"
+                },
+                "correctAnswer": {
+                  ".validate": "newData.isString() && newData.val().length <= 1000"
+                },
+                "awardedPoints": {
+                  ".validate": "newData.isNumber() && newData.val() >= 0"
+                },
+                "roomName": {
+                  ".validate": "newData.isString() && newData.val().length <= 120"
+                },
+                "roomMonth": {
+                  ".validate": "newData.isString() && newData.val().length <= 40"
+                },
+                "evaluation": {
+                  "result": {
+                    ".validate": "newData.isString() && (newData.val() == 'correct' || newData.val() == 'wrong')"
+                  },
+                  "points": {
+                    ".validate": "newData.isNumber() && newData.val() >= 0"
+                  },
+                  "evaluatedAt": {
+                    ".validate": "newData.isString()"
+                  },
+                  "evaluatorUid": {
+                    ".validate": "newData.isString()"
+                  },
+                  "$other": {
+                    ".validate": false
+                  }
+                },
+                "evaluationHistory": {
+                  "$evaluationId": {
+                    ".validate": "newData.hasChildren(['result', 'points', 'evaluatedAt', 'evaluatorUid', 'pointsAwarded']) && (newData.child('result').val() == 'correct' || newData.child('result').val() == 'wrong') && newData.child('points').isNumber() && newData.child('points').val() >= 0 && newData.child('evaluatedAt').isString() && newData.child('evaluatorUid').isString() && newData.child('pointsAwarded').isBoolean()",
+                    "result": {
+                      ".validate": "newData.isString() && (newData.val() == 'correct' || newData.val() == 'wrong')"
+                    },
+                    "points": {
+                      ".validate": "newData.isNumber() && newData.val() >= 0"
+                    },
+                    "evaluatedAt": {
+                      ".validate": "newData.isString()"
+                    },
+                    "evaluatorUid": {
+                      ".validate": "newData.isString()"
+                    },
+                    "pointsAwarded": {
+                      ".validate": "newData.isBoolean()"
+                    },
+                    "$other": {
+                      ".validate": false
+                    }
+                  }
+                },
+                "$other": {
+                  ".validate": false
+                }
+              }
+            },
+            "$other": {
+              ".validate": false
+            }
           }
         }
       },

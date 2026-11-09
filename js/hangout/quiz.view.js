@@ -9,10 +9,12 @@
   let container = null, ctx = null, stops = [], stopAuth = null, answerStop = null, chat = null;
   let questionTimer = 0, revealTimeout = 0;
   let stopServerTime = null;
+  let observedQuestionKey = null, latestQuestionPublishedAt = "", alertAudioContext = null, alertUnlockContainer = null;
   let answerQuestionKey = "";
   let lastQuizKey = null, scoreTimer = 0, panel = "quiz", exitFn = () => {};
   let selectedResultId = "";
-  const data = { users: {}, scores: {}, publicResults: {}, quiz: null, log: {}, answer: null, reveal: null, revealError: false, timeExpired: false };
+  let selectedHistoryRoomId = "";
+  const data = { users: {}, scores: {}, publicResults: {}, quizHistory: {}, quiz: null, log: {}, answer: null, reveal: null, revealError: false, timeExpired: false };
 
   const $ = selector => container?.querySelector(selector);
 
@@ -20,11 +22,14 @@
   function mount(el, options) {
     container = el;
     exitFn = options.exit;
+    prepareAlertAudioUnlock();
+    unlockAlertAudio();
     stopAuth = HangoutAuth.onChange(handleAuth);
   }
 
   function unmount() {
     teardown();
+    removeAlertAudioUnlock();
     if (stopAuth) { stopAuth(); stopAuth = null; }
     container = null;
   }
@@ -41,9 +46,10 @@
     answerQuestionKey = "";
     clearTimeout(scoreTimer);
     if (chat) { chat.unmount(); chat = null; }
-    ctx = null; lastQuizKey = null;
-    data.users = {}; data.scores = {}; data.publicResults = {}; data.quiz = null; data.log = {}; data.answer = null;
+    ctx = null; lastQuizKey = null; observedQuestionKey = null; latestQuestionPublishedAt = "";
+    data.users = {}; data.scores = {}; data.publicResults = {}; data.quizHistory = {}; data.quiz = null; data.log = {}; data.answer = null;
     data.reveal = null; data.revealError = false; data.timeExpired = false;
+    selectedHistoryRoomId = "";
     panel = "quiz";
   }
 
@@ -117,12 +123,24 @@
       const button = event.target.closest("[data-nav]");
       if (button) setPanel(button.dataset.nav);
     });
+    $('[data-panel="more"]').addEventListener("click", event => {
+      if (event.target.closest("[data-history-back]")) {
+        selectedHistoryRoomId = "";
+        renderMore();
+        return;
+      }
+      const room = event.target.closest("[data-history-room]");
+      if (room) {
+        selectedHistoryRoomId = room.dataset.historyRoom;
+        renderMore();
+      }
+    });
 
     ctx.users = () => data.users;
     ctx.isQuizAdmin = () => HangoutAdminRepository.isQuizAdmin();
     refreshAdminButton();
     renderQuestion(null);
-    $('[data-panel="more"]').innerHTML = '<div class="hg-empty"><i class="fa-solid fa-ellipsis"></i><br>More features are coming soon.</div>';
+    renderMore();
     chat = HangoutQuizChat.mount($('[data-panel="quiz"]'), ctx);
 
     HangoutRepository.saveOwnProfile(ctx.user).catch(error => {
@@ -130,12 +148,95 @@
       showToast("Could not save your profile. Check your connection.", "error");
     });
     stops.push(
-      HangoutRepository.subscribeQuiz(quiz => { data.quiz = quiz; watchOwnAnswer(quiz); renderQuestion(quiz); }),
+      HangoutRepository.subscribeQuiz(quiz => {
+        const cleanQuiz = HangoutService.cleanQuiz(quiz);
+        const questionKey = cleanQuiz.roomId && cleanQuiz.questionId ? `${cleanQuiz.roomId}/${cleanQuiz.questionId}` : "";
+        const publishedAt = String(cleanQuiz.publishedAt || "");
+        const isFirstPublication = publishedAt && (!latestQuestionPublishedAt || publishedAt > latestQuestionPublishedAt);
+        if (observedQuestionKey !== null && questionKey && questionKey !== observedQuestionKey
+          && cleanQuiz.status === "live" && isFirstPublication) {
+          playNewQuestionAlert();
+        }
+        if (isFirstPublication) latestQuestionPublishedAt = publishedAt;
+        observedQuestionKey = questionKey;
+        data.quiz = quiz;
+        watchOwnAnswer(quiz);
+        renderQuestion(quiz);
+      }),
       HangoutRepository.subscribeUsers(users => { data.users = users; chat?.refreshAvatars(); scheduleScoreRender(); }),
       HangoutRepository.subscribeScores(scores => { data.scores = scores; scheduleScoreRender(); }),
       HangoutRepository.subscribePublicResults(results => { data.publicResults = results; scheduleScoreRender(); }),
+      HangoutRepository.subscribeOwnQuizHistory(ctx.user.uid, history => {
+        data.quizHistory = history;
+        if (panel === "more") renderMore();
+      }),
       HangoutRepository.subscribeScoreLog(ctx.user.uid, log => { data.log = log; if (panel === "profile") renderProfile(); })
     );
+  }
+
+  function prepareAlertAudioUnlock() {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext || !container) return;
+    alertUnlockContainer = container;
+    container.addEventListener("pointerdown", unlockAlertAudio);
+    container.addEventListener("keydown", unlockAlertAudio);
+  }
+
+  function removeAlertAudioUnlock() {
+    if (!alertUnlockContainer) return;
+    alertUnlockContainer.removeEventListener("pointerdown", unlockAlertAudio);
+    alertUnlockContainer.removeEventListener("keydown", unlockAlertAudio);
+    alertUnlockContainer = null;
+  }
+
+  function unlockAlertAudio() {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    try {
+      if (!alertAudioContext) alertAudioContext = new AudioContext();
+      if (alertAudioContext.state === "suspended") {
+        alertAudioContext.resume().then(() => {
+          if (alertAudioContext?.state === "running") removeAlertAudioUnlock();
+        }).catch(error => console.warn("Quiz question alert audio could not be enabled:", error));
+      } else if (alertAudioContext.state === "running") removeAlertAudioUnlock();
+    } catch (error) {
+      console.warn("Quiz question alert audio could not be enabled:", error);
+    }
+  }
+
+  function playNewQuestionAlert() {
+    if (!alertAudioContext || alertAudioContext.state !== "running") {
+      console.warn("Quiz question alert was not played because audio is not enabled in this browser session.");
+      return;
+    }
+    try {
+      const context = alertAudioContext;
+      const start = context.currentTime + 0.03;
+      const master = context.createGain();
+      master.gain.setValueAtTime(0.035, start);
+      master.gain.setValueAtTime(0.035, start + 4.65);
+      master.gain.exponentialRampToValueAtTime(0.0001, start + 4.95);
+      master.connect(context.destination);
+      [659.25, 783.99, 987.77, 783.99, 987.77, 1174.66].forEach((frequency, index) => {
+        const noteStart = start + index * 0.8;
+        const noteEnd = noteStart + 0.62;
+        const oscillator = context.createOscillator();
+        const envelope = context.createGain();
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(frequency, noteStart);
+        envelope.gain.setValueAtTime(0.0001, noteStart);
+        envelope.gain.exponentialRampToValueAtTime(0.8, noteStart + 0.035);
+        envelope.gain.exponentialRampToValueAtTime(0.0001, noteEnd);
+        oscillator.connect(envelope);
+        envelope.connect(master);
+        oscillator.start(noteStart);
+        oscillator.stop(noteEnd + 0.01);
+      });
+      master.gain.setValueAtTime(0, start + 5);
+      window.setTimeout(() => master.disconnect(), 5200);
+    } catch (error) {
+      console.warn("Quiz question alert could not be played:", error);
+    }
   }
 
   function refreshAdminButton() {
@@ -150,6 +251,7 @@
     refreshAdminButton();
     if (name === "quiz") chat?.onShow();
     if (name === "score") renderScore();
+    if (name === "more") renderMore();
     if (name === "profile") renderProfile();
   }
 
@@ -259,7 +361,8 @@
         const answer = await HangoutAdminRepository.submitAnswer(quiz, ctx.user, value);
         data.answer = answer;
         renderQuestion(quiz);
-        if (quiz.type === "short") showToast("Answer submitted for manual evaluation.", "success");
+        if (!answer.historySaved) showToast("Answer submitted. Quiz history will sync after this question closes.", "warning");
+        else if (quiz.type === "short") showToast("Answer submitted for manual evaluation.", "success");
         else if (answer.autoPointsAwarded) showToast(`Correct answer! ${quiz.points} points added.`, "success");
         else showToast("Answer submitted.", "success");
       } catch (error) {
@@ -302,6 +405,105 @@
     const seconds = Math.ceil(Math.max(0, milliseconds) / 1000);
     return `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
   };
+
+  // ---------- personal quiz history ----------
+  function renderMore() {
+    const host = $('[data-panel="more"]');
+    if (!host || !ctx) return;
+    const rooms = Object.entries(data.quizHistory || {})
+      .filter(([, room]) => room?.questions && Object.keys(room.questions).length)
+      .sort((a, b) => String(b[1]?.summary?.updatedAt || "").localeCompare(String(a[1]?.summary?.updatedAt || "")));
+    const selected = rooms.find(([roomId]) => roomId === selectedHistoryRoomId);
+    if (selected) {
+      const [roomId, room] = selected;
+      const summary = room.summary || {};
+      const questions = Object.entries(room.questions || {})
+        .sort((a, b) => Number(a[1]?.questionNumber) - Number(b[1]?.questionNumber));
+      const pending = Number(summary.pending) || questions.filter(([, question]) => question?.status === "pending").length;
+      const isFinal = summary.isFinal === true;
+      const status = summary.status === "completed" ? "Completed"
+        : summary.status === "evaluationPending" || pending ? "Evaluation Pending"
+          : "In Progress";
+      const score = isFinal ? `${Number(summary.totalScore) || 0} / ${Number(summary.maxScore) || 0}` : pending ? "Pending Evaluation" : "In Progress";
+      const rank = isFinal ? HangoutService.rankLabel(Number(summary.rank) || 0) : pending ? "Pending" : "—";
+      const details = questions.map(([, question]) => {
+        const correct = question.status === "correct";
+        const wrong = question.status === "wrong";
+        const unanswered = question.status === "unanswered";
+        const awarded = Number(question.awardedPoints) || 0;
+        const state = correct ? `Correct · +${awarded || Number(question.questionPoints) || 0}`
+          : wrong ? "Wrong · 0"
+            : unanswered ? "Unanswered · 0"
+              : question.type === "short" ? "Pending Evaluation" : "Awaiting result";
+        return `<article class="hg-history-question">
+          <div class="hg-history-question-head"><strong>Question ${String(Number(question.questionNumber) || 0).padStart(2, "0")}</strong><span class="${correct ? "is-correct" : wrong ? "is-wrong" : ""}">${escapeHTML(state)}</span></div>
+          <p>${escapeHTML(question.questionText || "Question")}</p>
+          <small>Your answer: ${escapeHTML(question.answer || (unanswered ? "No answer" : "—"))}</small>
+          ${question.type === "short" && question.status === "pending"
+            ? '<small class="hg-history-pending">Your submitted answer is awaiting Admin evaluation.</small>'
+            : question.correctAnswer ? `<small>Correct answer: ${escapeHTML(question.correctAnswer)}</small>` : ""}
+          ${question.evaluation?.evaluatedAt ? `<small>Evaluated: ${escapeHTML(formatHistoryDate(question.evaluation.evaluatedAt))}</small>` : ""}
+          ${Object.values(question.evaluationHistory || {}).length
+            ? `<small>Previous evaluations: ${Object.values(question.evaluationHistory).map(item => `${item.result === "correct" ? "Correct" : "Wrong"} · ${Number(item.points) || 0} pts · ${escapeHTML(formatHistoryDate(item.evaluatedAt))}`).join(" | ")}</small>`
+            : ""}
+        </article>`;
+      }).join("");
+      host.innerHTML = `<div class="hg-scroll hg-history">
+        <button type="button" class="hg-history-back" data-history-back><i class="fa-solid fa-arrow-left"></i> My Quiz History</button>
+        <header class="hg-history-title"><h3>${escapeHTML(summary.roomName || questions[0]?.[1]?.roomName || "Quiz Room")}</h3><span>${escapeHTML(formatHistoryMonth(summary.month || questions[0]?.[1]?.roomMonth || ""))} · ${escapeHTML(status)}</span></header>
+        <section class="hg-history-summary">
+          <div><small>Your Score</small><strong>${escapeHTML(score)}</strong></div>
+          <div><small>Your Rank</small><strong>${escapeHTML(rank)}</strong></div>
+          <div><small>Correct Answers</small><strong>${Number(summary.correct) || questions.filter(([, q]) => q.status === "correct").length}</strong></div>
+          <div><small>Wrong Answers</small><strong>${Number(summary.wrong) || questions.filter(([, q]) => q.status === "wrong").length}</strong></div>
+          <div><small>Total Questions</small><strong>${Number(summary.totalQuestions) || questions.length}</strong></div>
+          <div><small>Unanswered</small><strong>${Number(summary.unanswered) || 0}</strong></div>
+          ${pending ? `<div class="hg-history-evaluation"><small>Evaluation</small><strong>${pending} Pending</strong></div>` : ""}
+        </section>
+        <h4 class="hg-section-title">Question-wise Performance</h4>
+        <div class="hg-history-questions">${details || '<div class="hg-empty">No question details are available.</div>'}</div>
+      </div>`;
+      return;
+    }
+
+    selectedHistoryRoomId = "";
+    if (!rooms.length) {
+      host.innerHTML = '<div class="hg-empty"><i class="fa-solid fa-clock-rotate-left"></i><br><strong>My Quiz History</strong><br>You have not participated in any quiz rooms yet.</div>';
+      return;
+    }
+    host.innerHTML = `<div class="hg-scroll hg-history">
+      <header class="hg-history-title"><h3>My Quiz History</h3><span>Quiz rooms you have participated in</span></header>
+      <div class="hg-history-rooms">${rooms.map(([roomId, room]) => {
+        const summary = room.summary || {};
+        const questions = Object.values(room.questions || {});
+        const pending = Number(summary.pending) || questions.filter(question => question.status === "pending").length;
+        const status = summary.status === "completed" ? "Completed"
+          : summary.status === "evaluationPending" || pending ? "Evaluation Pending"
+            : "In Progress";
+        const score = summary.isFinal
+          ? `${Number(summary.totalScore) || 0} / ${Number(summary.maxScore) || 0}`
+          : pending ? "Pending" : "In progress";
+        const firstQuestion = questions[0] || {};
+        return `<button type="button" class="hg-history-room" data-history-room="${escapeHTML(roomId)}">
+          <span class="hg-history-room-main"><strong>${escapeHTML(summary.roomName || firstQuestion.roomName || "Quiz Room")}</strong>
+            <small>${escapeHTML(status)} · ${escapeHTML(formatHistoryMonth(summary.month || firstQuestion.roomMonth || ""))}</small></span>
+          <span class="hg-history-room-score">${escapeHTML(score)}</span><span class="hg-history-view">View Details <i class="fa-solid fa-chevron-right"></i></span>
+        </button>`;
+      }).join("")}</div>
+    </div>`;
+  }
+
+  function formatHistoryMonth(value) {
+    const month = String(value || "").trim();
+    if (!month) return "Month unavailable";
+    const date = /^\d{4}-\d{2}$/.test(month) ? new Date(`${month}-01T00:00:00`) : new Date(month);
+    return Number.isNaN(date.getTime()) ? month : new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(date);
+  }
+
+  function formatHistoryDate(value) {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? String(value || "") : date.toLocaleString();
+  }
 
   // ---------- scoreboard ----------
   function scheduleScoreRender() {
