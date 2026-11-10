@@ -3571,12 +3571,12 @@ body{display:flex;align-items:center;justify-content:center;background:#eef2f1}
 .house-fund-project-card-wrap{position:relative;display:block;width:100%;min-width:0}.house-fund-project-manage{position:absolute;top:9px;right:9px;display:flex;gap:6px}.house-fund-project-manage .house-fund-icon-btn{width:29px;height:29px;font-size:11px}
 .house-fund-editable{padding:0;border:0;background:none;font:inherit;color:inherit;cursor:pointer;border-bottom:1px dashed #a9c6b5}.house-fund-editable:hover{color:#16834d;border-bottom-style:solid}.house-fund-detail-name,.house-fund-project-name{display:inline-flex;align-items:baseline;gap:6px;overflow-wrap:anywhere;text-align:left}.house-fund-detail-name::after{content:"\f044";font-family:"Font Awesome 6 Free";font-weight:900;font-size:.6em;color:#4b9c6d;opacity:.65}.house-fund-detail-name:hover::after{opacity:1}.house-fund-detail-title-text .house-fund-detail-name{font:inherit;color:inherit}.house-fund-dialog-actions{grid-column:1/-1;display:flex;gap:10px}.house-fund-dialog-actions>.house-fund-primary{flex:1}.house-fund-dialog-delete{flex:1;min-height:43px;color:#b3372f;border-color:#f0d4d1}.house-fund-dialog-delete:hover{background:#fdf0ef}.house-fund-donor-amount .house-fund-editable{display:inline-flex;gap:4px;align-items:baseline;border-bottom:1px dashed #a9c6b5}.house-fund-donor-name{font-weight:inherit;overflow-wrap:anywhere;text-align:left}
 @media(max-width:640px){.house-fund-toolbar{align-items:flex-start;flex-direction:column}.house-fund-toolbar>.house-fund-primary{width:100%}.house-fund-project-grid{grid-template-columns:1fr}.house-fund-form,.house-fund-contribution-form{grid-template-columns:1fr;padding:13px}.house-fund-form h3,.house-fund-form .house-fund-form-error,.house-fund-form>button{grid-column:auto}.house-fund-summary{padding:12px 14px;margin:0 0 8px}.house-fund-detail-title-text{font-size:clamp(17px,4vw,19px);line-height:1.2}}
-.house-fund-detail-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 10px;padding:0 1px;position:sticky;top:0;z-index:20;background:rgba(255,255,255,0.94);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid #e3ece6}
-.house-fund-detail-title{min-width:0;flex:1}.house-fund-detail-title .house-fund-eyebrow{display:flex;align-items:center;gap:6px;margin-bottom:4px}.house-fund-detail-title-text{font-size:clamp(18px,4vw,20px);line-height:1.25}
+.house-fund-detail-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 10px;padding:0 max(4px,var(--safe-left,4px)) 0 max(4px,var(--safe-right,4px));position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid #e3ece6}
+.house-fund-detail-title{min-width:0;flex:1}.house-fund-detail-title .house-fund-eyebrow{display:flex;align-items:center;gap:6px;margin-bottom:4px}.house-fund-detail-title-text{font-size:clamp(16px,4.2vw,18px);line-height:1.4}
 .house-fund-detail-actions{display:flex;flex:0 0 auto;align-items:center;gap:8px}.house-fund-closing-pill{display:inline-flex;align-items:center;gap:5px;min-height:30px;padding:5px 9px;border:1px solid #d8ebe0;border-radius:99px;background:#eff8f2;color:#35634a;white-space:nowrap;font-size:10px;font-weight:750}
-.house-fund-add-trigger{width:auto;min-width:auto;flex:0 0 auto;padding:0 14px;height:38px;font-size:14px;font-weight:600;white-space:nowrap;background:#16834d;color:#fff;border:1px solid #16834d;border-radius:10px;cursor:pointer;transition:transform .15s,background .15s;-webkit-tap-highlight-color:transparent;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.house-fund-add-trigger{width:auto;min-width:auto;flex:0 0 auto;flex-shrink:0;padding:0 14px;height:38px;font-size:14px;font-weight:600;white-space:nowrap;background:#16834d;color:#fff;border:1px solid #16834d;border-radius:10px;cursor:pointer;transition:transform .15s,background .15s;-webkit-tap-highlight-color:transparent;display:inline-flex;align-items:center;justify-content:center;gap:6px}
 .house-fund-add-trigger:active{background:#0b8155;transform:scale(0.97)}
-.house-fund-calendar-btn{width:38px;height:38px;min-width:38px;flex:0 0 38px;place-items:center;padding:0;border:1px solid #d8ebe0;border-radius:10px;background:#fff;color:#35634a;font-size:14px;cursor:pointer;transition:transform .15s,background .15s;-webkit-tap-highlight-color:transparent}
+.house-fund-calendar-btn{width:38px;height:38px;min-width:38px;flex:0 0 38px;flex-shrink:0;place-items:center;padding:0;border:1px solid #d8ebe0;border-radius:10px;background:#fff;color:#35634a;font-size:14px;cursor:pointer;transition:transform .15s,background .15s;-webkit-tap-highlight-color:transparent}
 .house-fund-calendar-btn:active{background:#eff8f2;transform:scale(0.97)}
 .house-fund-summary{margin:0 0 10px;padding:14px 16px;border:0;border-radius:16px;background:linear-gradient(115deg,#0b8155 0%,#126d5c 48%,#174c55 100%);box-shadow:0 8px 20px rgba(17,103,76,.17)}
 .house-fund-summary-metric{display:grid;min-width:0;gap:4px}.house-fund-summary-metric:last-child{text-align:right}.house-fund-summary-metric span{color:rgba(255,255,255,.82);font-size:11px;font-weight:700}.house-fund-summary-metric strong{color:#fff;font-size:clamp(21px,4vw,29px);line-height:1.1;overflow-wrap:anywhere}.house-fund-summary-metric small{color:rgba(255,255,255,.72);font-size:10px}.house-fund-summary-divider{width:1px;height:44px;background:rgba(255,255,255,.3)}
@@ -3609,14 +3609,14 @@ body{display:flex;align-items:center;justify-content:center;background:#eef2f1}
 .house-fund-detail-title-text .house-fund-detail-name{font:inherit;color:inherit;display:-webkit-box;-webkit-line-clamp:2;overflow:hidden;border:none}
 .house-fund-detail-title-text strong{font:inherit;color:inherit}
 @media(max-width:640px){.collections-page-card.house-fund-detail-active{padding:12px}.house-fund-detail-heading{gap:7px}.house-fund-detail-title-text{font-size:clamp(17px,4vw,19px);line-height:1.2}.house-fund-closing-pill{min-height:27px;padding:4px 7px}.house-fund-detail-active .house-fund-donor-card{padding:7px 1px}.house-fund-detail-active .house-fund-donor-identity strong{max-width:55%}.house-fund-detail-active .house-fund-donor-identity span{font-size:10px}.house-fund-detail-active .house-fund-amount{font-size:12px}}
-.house-fund-detail-active .house-fund-summary{padding:14px 16px;margin:0 0 10px}
-.house-fund-summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.house-fund-summary-col{display:flex;flex-direction:column;gap:4px;min-width:0}
+.house-fund-detail-active .house-fund-summary{padding:14px 16px;margin-top:48px;margin-bottom:10px;overflow:visible}
+.house-fund-summary-grid{display:grid;grid-template-columns:1fr 1px 1fr;align-items:stretch;column-gap:0}
+.house-fund-summary-col{display:flex;flex-direction:column;gap:4px;min-width:0;padding-top:2px}
 .house-fund-summary-col-left{text-align:left}
-.house-fund-summary-col-right{text-align:right}
-.house-fund-summary-vdiv{width:1px;background:rgba(255,255,255,0.25);align-self:stretch;min-height:44px;flex:0 0 1px}
+.house-fund-summary-col-right{text-align:right;justify-self:end}
+.house-fund-summary-vdiv{width:1px;background:rgba(255,255,255,0.25);height:100%;flex:0 0 1px}
 .house-fund-summary-hdiv{height:1px;background:rgba(255,255,255,0.25);border:none;margin:0}
-.house-fund-summary-col span{color:rgba(255,255,255,0.85);font-size:11px;font-weight:700;letter-spacing:.02em}
+.house-fund-summary-col span{color:rgba(255,255,255,0.85);font-size:12px;font-weight:700;line-height:1.4}
 .house-fund-summary-col strong{color:#fff;font-size:clamp(20px,6vw,28px);line-height:1.05;white-space:nowrap;font-variant-numeric:tabular-nums}
 .house-fund-summary-col small{color:rgba(255,255,255,0.75);font-size:10px}
 .house-fund-summary-total-row{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding-top:8px;margin-top:6px;border-top:1px solid rgba(255,255,255,0.25)}
@@ -3624,7 +3624,7 @@ body{display:flex;align-items:center;justify-content:center;background:#eef2f1}
 .house-fund-summary-total-right{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:2px}
 .house-fund-summary-total-right strong{color:#fff;font-size:clamp(22px,7vw,32px);line-height:1.05;white-space:nowrap;font-variant-numeric:tabular-nums}
 .house-fund-summary-total-right small{color:rgba(255,255,255,0.75);font-size:10px}
-@media(max-width:640px){.house-fund-summary-grid{gap:10px}.house-fund-summary-vdiv{min-height:38px}.house-fund-summary-col strong{font-size:clamp(18px,5vw,24px)}.house-fund-summary-total-right strong{font-size:clamp(20px,6vw,28px)}}
+@media(max-width:640px){.house-fund-summary-grid{column-gap:0}.house-fund-summary-vdiv{height:100%;min-height:0}.house-fund-summary-col strong{font-size:clamp(18px,5vw,24px)}.house-fund-summary-total-right strong{font-size:clamp(20px,6vw,28px)}}
 .house-fund-detail-active .house-fund-donor-card{gap:clamp(9px,2.5vw,15px);padding:10px 3px}
 .house-fund-detail-active .house-fund-rank{width:30px;height:30px;flex-basis:30px;font-size:12px}
 .house-fund-detail-active .house-fund-donor-identity strong{font-size:15px}
@@ -3710,18 +3710,23 @@ body,.house-fund-editable,button,input,select,label,.house-fund-detail-title-tex
 .house-fund-detail-active .house-fund-donor-amount{min-width:78px;text-align:right}
 .house-fund-detail-active .house-fund-donor-amount i{margin-right:4px}
 
-/* ===== Dialogs as bottom sheets on mobile ===== */
-@media(max-width:640px){
-  .house-fund-dialog{position:fixed!important;bottom:env(safe-area-inset-bottom);left:0;right:0;width:100%!important;max-width:none!important;max-height:88vh!important;margin:0!important;border-radius:16px 16px 0 0!important;border:0!important;display:flex!important;flex-direction:column;overflow:hidden}
-  .house-fund-dialog::backdrop{display:none}
-  .house-fund-dialog .house-fund-dialog-heading{border-bottom:1px solid #e3ece6;padding-bottom:8px;margin-bottom:10px}
-  .house-fund-dialog .house-fund-dialog-heading::before{content:"";display:block;width:34px;height:5px;border-radius:3px;background:#c9d6ce;margin:0 auto 8px}
-  .house-fund-dialog .house-fund-form{padding:16px 16px 24px}
-  .house-fund-dialog .house-fund-form-error,.house-fund-dialog .house-fund-form>button[type="submit"]{grid-column:1/-1}
-}
-@media(max-width:640px) and (max-height:700px){
-  .house-fund-dialog{max-height:82vh!important}
-}
+/* ===== Bottom sheet overlay & sheet ===== */
+.house-fund-modal-overlay{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+.house-fund-modal-sheet{position:fixed;bottom:0;left:0;right:0;z-index:10000;max-height:90vh;overflow-y:auto;border-radius:20px 20px 0 0;background:#fff;padding-bottom:calc(16px + env(safe-area-inset-bottom));box-shadow:0 -20px 40px rgba(15,45,30,.25);animation:sheetSlideUp .25s ease-out}
+@keyframes sheetSlideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.house-fund-modal-header{position:sticky;top:0;z-index:1;background:#fff;padding:16px 16px 12px;border-bottom:1px solid #e3ece6;display:flex;flex-direction:column;gap:8px}
+.house-fund-modal-drag-handle{width:34px;height:5px;border-radius:3px;background:#c9d6ce;margin:0 auto}
+.house-fund-modal-header-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.house-fund-modal-campaign{color:#687a70;font-size:13px;line-height:1.4;white-space:normal}
+.house-fund-modal-title{flex:1;min-width:0;margin:0;font-size:clamp(16px,4vw,19px);font-weight:700;color:#174c37;line-height:1.4;overflow-wrap:anywhere}
+.house-fund-modal-close{width:40px;height:40px;min-width:40px;min-height:40px;flex:0 0 40px;place-items:center;padding:0;border:0;border-radius:50%;background:#f0f5f2;color:#315b43;font-size:18px;cursor:pointer;z-index:2;pointer-events:auto;transition:transform .15s,background .15s;-webkit-tap-highlight-color:transparent}
+.house-fund-modal-close:active{background:#e3ece6;transform:scale(0.97)}
+.house-fund-modal-sheet .house-fund-form{padding:16px 16px 24px;display:flex;flex-direction:column;gap:12px}
+.house-fund-modal-sheet .house-fund-form label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#174c37;font-weight:600}
+.house-fund-modal-sheet .house-fund-form label:first-child{padding-top:8px}
+.house-fund-modal-sheet .house-fund-form input,.house-fund-modal-sheet .house-fund-form select{padding:10px 12px;border:1px solid #d8ebe0;border-radius:10px;background:#fff;color:#174c37;font:inherit;font-size:14px}
+.house-fund-modal-sheet .house-fund-form-error{color:#b3372f;font-size:12px;min-height:16px}
+.house-fund-modal-sheet .house-fund-primary{margin-top:8px}
 
 /* ===== Detail page padding & header gap ===== */
 .collections-page-card.house-fund-detail-active{padding:12px max(12px,var(--safe-left,12px)) 14px max(12px,var(--safe-right,12px))}
