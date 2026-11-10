@@ -133,17 +133,18 @@
 @keyframes hg-pulse{50%{opacity:.25}}
 
 /* ---------- Scoreboard ---------- */
-.hg-score{flex:1; min-height:0; display:flex; flex-direction:column}
-.hg-score-head{padding:12px 14px 8px}
-.hg-score-head small{display:block; color:var(--hg-muted); letter-spacing:.12em; font-size:10.5px; font-weight:700}
-.hg-score-head h3{margin:0; font-size:17px}
-.hg-yourpos{margin:0 12px 8px; padding:7px 12px; border-radius:12px; background:var(--hg-blue); color:#fff; font-weight:700; font-size:13px}
-.hg-score-list{flex:1; min-height:0; overflow-y:auto; margin:0; padding:0 12px 12px; list-style:none; display:flex; flex-direction:column; gap:8px}
-.hg-row{display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:14px; background:#fff; border:1px solid var(--hg-line)}
+.hg-score{flex:0 1 auto; min-height:0; max-height:100%; overflow-y:auto; padding:12px; border:1px solid var(--hg-line); border-radius:16px; background:linear-gradient(145deg,#fff 0%,var(--hg-soft-2) 100%); box-shadow:0 3px 12px rgba(31,45,61,.06)}
+.hg-score-head{padding:0 2px 8px}
+.hg-score-head small{display:block; color:var(--hg-muted); letter-spacing:.12em; font-size:10px; font-weight:700; line-height:1.3}
+.hg-score-head h3{margin:2px 0 0; font-size:17px; line-height:1.25}
+.hg-score-head p{margin:4px 0 0; color:var(--hg-muted); font-size:12px; line-height:1.3}
+.hg-yourpos{margin:0 0 8px; padding:7px 10px; border-radius:10px; background:var(--hg-blue); color:#fff; font-weight:700; font-size:12px}
+.hg-score-list{flex:0 0 auto; min-height:0; overflow:visible; margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:6px}
+.hg-row{display:flex; align-items:center; justify-content:space-between; gap:9px; min-width:0; padding:8px 10px; border-radius:12px; background:#fff; border:1px solid var(--hg-line); box-shadow:0 2px 5px rgba(31,45,61,.04)}
 .hg-row .hg-rank{flex:0 0 38px; text-align:center; font-weight:800; color:var(--hg-muted)}
 .hg-row .hg-rank.is-medal{font-size:22px}
 .hg-row .hg-name{flex:1; min-width:0; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.hg-row .hg-pts{font-weight:800; color:var(--hg-blue-dark)}
+.hg-row .hg-pts{flex:0 0 auto; margin-left:auto; font-weight:800; color:var(--hg-blue-dark)}
 .hg-row.rank-1{background:linear-gradient(90deg,#fff8dc,#fff); border-color:#f1d98a}
 .hg-row.rank-2{background:linear-gradient(90deg,#f1f4f8,#fff); border-color:#cfd7e2}
 .hg-row.rank-3{background:linear-gradient(90deg,#fdeede,#fff); border-color:#e9c29a}
