@@ -575,7 +575,6 @@
     }
 
     const rows = HangoutService.buildCumulativeLeaderboard(data.publicResults);
-    const me = rows.find(row => row.uid === ctx.user.uid);
     const list = rows.map(row => {
       const rank = Number(row.rank) || 0;
       const medal = HangoutService.medalFor(rank);
@@ -591,7 +590,6 @@
       <div class="hg-score-head"><small>ALL PUBLISHED QUIZZES</small><h3>Total Quiz Scores</h3>
         <p>${publishedResults.length} quiz${publishedResults.length === 1 ? "" : "zes"} included</p>
       </div>
-      ${me ? `<div class="hg-yourpos">Your Position: ${escapeHTML(HangoutService.rankLabel(me.rank))} · ${me.points} pts</div>` : ""}
       ${list ? `<ol class="hg-score-list">${list}</ol>` : '<div class="hg-empty">No participants have been recorded in published quizzes.</div>'}
     </div>`;
   }

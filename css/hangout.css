@@ -134,11 +134,10 @@
 
 /* ---------- Scoreboard ---------- */
 .hg-score{flex:0 1 auto; min-height:0; max-height:100%; overflow-y:auto; padding:12px; border:1px solid var(--hg-line); border-radius:16px; background:linear-gradient(145deg,#fff 0%,var(--hg-soft-2) 100%); box-shadow:0 3px 12px rgba(31,45,61,.06)}
-.hg-score-head{padding:0 2px 8px}
-.hg-score-head small{display:block; color:var(--hg-muted); letter-spacing:.12em; font-size:10px; font-weight:700; line-height:1.3}
+.hg-score-head{display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:end; padding:0 2px 8px}
+.hg-score-head small{grid-column:1/-1; display:block; color:var(--hg-muted); letter-spacing:.12em; font-size:10px; font-weight:700; line-height:1.3}
 .hg-score-head h3{margin:2px 0 0; font-size:17px; line-height:1.25}
-.hg-score-head p{margin:4px 0 0; color:var(--hg-muted); font-size:12px; line-height:1.3}
-.hg-yourpos{margin:0 0 8px; padding:7px 10px; border-radius:10px; background:var(--hg-blue); color:#fff; font-weight:700; font-size:12px}
+.hg-score-head p{margin:0 0 1px; color:var(--hg-muted); font-size:12px; line-height:1.3; text-align:right}
 .hg-score-list{flex:0 0 auto; min-height:0; overflow:visible; margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:6px}
 .hg-row{display:flex; align-items:center; justify-content:space-between; gap:9px; min-width:0; padding:8px 10px; border-radius:12px; background:#fff; border:1px solid var(--hg-line); box-shadow:0 2px 5px rgba(31,45,61,.04)}
 .hg-row .hg-rank{flex:0 0 38px; text-align:center; font-weight:800; color:var(--hg-muted)}
@@ -148,7 +147,7 @@
 .hg-row.rank-1{background:linear-gradient(90deg,#fff8dc,#fff); border-color:#f1d98a}
 .hg-row.rank-2{background:linear-gradient(90deg,#f1f4f8,#fff); border-color:#cfd7e2}
 .hg-row.rank-3{background:linear-gradient(90deg,#fdeede,#fff); border-color:#e9c29a}
-.hg-row.is-you{box-shadow:0 0 0 2px var(--hg-blue) inset}
+.hg-row.is-you{border-color:#b9d5f7; background:#fafdff; box-shadow:0 0 0 1px #dcecff inset}
 .hg-you-tag{margin-left:6px; padding:1px 7px; border-radius:999px; background:var(--hg-blue); color:#fff; font-size:10px; vertical-align:middle}
 .hg-empty{margin:auto; padding:20px; color:var(--hg-muted); text-align:center}
 
