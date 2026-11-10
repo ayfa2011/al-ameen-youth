@@ -105,18 +105,24 @@ function houseFundProjectDialog(project) {
 
 function houseFundDonorDialog(record) {
   document.getElementById("houseFundDonorDialog")?.remove();
-  document.body.insertAdjacentHTML("beforeend", `<dialog id="houseFundDonorDialog" class="house-fund-dialog"><form class="house-fund-form" data-fund-form="donor-edit" data-record-id="${escapeHTML(record.id)}"><div class="house-fund-dialog-heading"><div><h3>Edit Donor</h3><p class="house-fund-eyebrow">${escapeHTML(record.name || "")}</p></div><button type="button" class="house-fund-dialog-close" data-fund-action="close-donor-form" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div><label>Donor Name<input name="name" maxlength="120" value="${escapeHTML(record.name || "")}" required></label><label>Place<input name="place" maxlength="120" value="${escapeHTML(record.place || "")}"></label><label>Amount (₹)<input name="amount" type="number" min="1" max="1000000000" step="1" inputmode="numeric" value="${escapeHTML(String(record.amount || ""))}" required></label><p class="house-fund-form-error" aria-live="polite"></p><div class="house-fund-dialog-actions"><button type="button" class="house-fund-secondary house-fund-dialog-delete" data-fund-action="delete-donor" data-record-id="${escapeHTML(record.id)}"><i class="fa-solid fa-trash"></i> Delete</button><button type="submit" class="house-fund-primary"><i class="fa-solid fa-check"></i> Save Changes</button></div></form></dialog>`);
+  document.body.insertAdjacentHTML("beforeend", `<dialog id="houseFundDonorDialog" class="house-fund-dialog"><form class="house-fund-form" data-fund-form="donor-edit" data-record-id="${escapeHTML(record.id)}"><div class="house-fund-dialog-heading"><div><h3>Edit Donor</h3><p class="house-fund-eyebrow">${escapeHTML(record.name || "")}</p></div><button type="button" class="house-fund-dialog-close" data-fund-action="close-donor-form" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div><label>Donor Name<input name="name" maxlength="120" value="${escapeHTML(record.name || "")}" required></label><label>Place<input name="place" maxlength="120" value="${escapeHTML(record.place || "")}"></label><label>Amount (₹)<input name="amount" type="number" min="1" max="1000000000" step="1" inputmode="numeric" value="${escapeHTML(String(record.amount || ""))}" required></label><label>Contributor Type<select name="contributorType" required><option value="member" ${record.contributorType === "member" ? "selected" : ""}>Al-Ameen Member</option><option value="supporter" ${record.contributorType === "supporter" ? "selected" : ""}>Supporter / Well-Wisher</option></select></label><p class="house-fund-form-error" aria-live="polite"></p><div class="house-fund-dialog-actions"><button type="button" class="house-fund-secondary house-fund-dialog-delete" data-fund-action="delete-donor" data-record-id="${escapeHTML(record.id)}"><i class="fa-solid fa-trash"></i> Delete</button><button type="submit" class="house-fund-primary"><i class="fa-solid fa-check"></i> Save Changes</button></div></form></dialog>`);
   document.getElementById("houseFundDonorDialog").showModal();
 }
 
 function openHouseFundContributionSheet() {
+  const overlay = document.getElementById("houseFundContributionOverlay");
+  const sheet = document.getElementById("houseFundContributionSheet");
+  if (overlay) overlay.style.display = "block";
+  if (sheet) sheet.style.display = "block";
   document.body.style.overflow = "hidden";
   document.documentElement.style.pointerEvents = "none";
 }
 
 function closeHouseFundSheet() {
-  document.getElementById("houseFundContributionOverlay")?.remove();
-  document.getElementById("houseFundContributionSheet")?.remove();
+  const overlay = document.getElementById("houseFundContributionOverlay");
+  const sheet = document.getElementById("houseFundContributionSheet");
+  if (overlay) overlay.style.display = "none";
+  if (sheet) sheet.style.display = "none";
   document.body.style.overflow = "";
   document.documentElement.style.pointerEvents = "";
 }
@@ -257,7 +263,7 @@ document.addEventListener("submit", async event => {
       const recordId = form.dataset.recordId;
       const existing = houseFundContributions.find(item => item.id === recordId);
       if (!existing) throw new Error("Record not found.");
-      const updated = HouseFundService.createContribution({ name: values.name, place: values.place, amount: values.amount, contributorType: existing.contributorType, status: existing.status });
+      const updated = HouseFundService.createContribution({ name: values.name, place: values.place, amount: values.amount, contributorType: values.contributorType, status: existing.status });
       await HouseFundRepository.updateContribution(houseFundCurrentProject.id, recordId, updated, { action: "houseFund.contribution.update", path: `houseConstructionFundContributions/${houseFundCurrentProject.id}` });
       const index = houseFundContributions.findIndex(item => item.id === recordId);
       if (index >= 0) houseFundContributions[index] = { ...updated, id: recordId };
