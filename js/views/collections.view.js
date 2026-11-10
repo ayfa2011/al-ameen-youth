@@ -48,9 +48,7 @@ function renderHouseFundProjects() {
       const projectName = escapeHTML(project.projectName || project.title || "Fund Project");
       const subtitle = project.closingDate ? `Closes ${escapeHTML(houseFundDate(project.closingDate))}` : "Closing date not set";
       const id = escapeHTML(project.id);
-      const titleMarkup = canEdit
-        ? `<button type="button" class="house-fund-project-name" data-fund-action="edit-project" data-project-id="${id}" title="Tap to edit project name">${projectName}</button>`
-        : `<strong class="house-fund-project-title">${projectName}</strong>`;
+      const titleMarkup = `<strong class="house-fund-project-title">${projectName}</strong>`;
       return `<div class="house-fund-project-card-wrap"><div class="house-fund-project-card"><button type="button" class="house-fund-project-open" data-fund-action="open-project" data-project-id="${id}" aria-label="Open ${projectName}"></button><span class="house-fund-project-icon" aria-hidden="true"><i class="fa-solid fa-house-chimney"></i></span><span class="house-fund-project-copy"><span class="house-fund-project-name-row">${titleMarkup}</span><small>${subtitle}</small></span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></div></div>`;
     }).join("") : '<div class="house-fund-empty"><i class="fa-solid fa-house-chimney"></i><strong>ಯಾವುದೇ project ಇನ್ನೂ ಇಲ್ಲ</strong><span>ಮೇಲಿನ “New Project” ಬಳಸಿ ಮೊದಲ ಯೋಜನೆ ಆರಂಭಿಸಿ.</span></div>'}</div>
   `;
@@ -88,7 +86,7 @@ function renderHouseFundProjectDetail() {
     <section class="house-fund-summary" aria-label="Fund summary"><div class="house-fund-summary-metric"><span>Total Collected</span><strong>${houseFundMoney(totals.collected)}</strong><small>${houseFundContributions.filter(item => item.status === "paid").length} paid</small></div><span class="house-fund-summary-divider" aria-hidden="true"></span><div class="house-fund-summary-metric"><span>Total Promise</span><strong>${houseFundMoney(totals.pledged)}</strong><small>${houseFundContributions.filter(item => item.status === "pledged").length} Promise</small></div><span class="house-fund-summary-divider" aria-hidden="true"></span><div class="house-fund-summary-metric house-fund-summary-total"><span>Total Amount</span><strong>${houseFundMoney(totals.collected + totals.pledged)}</strong><small>${houseFundContributions.length} entries</small></div></section>
     ${canEdit ? `<dialog id="houseFundContributionDialog" class="house-fund-dialog" data-fund-action="dismiss-contribution-form"><form class="house-fund-form house-fund-contribution-form" data-fund-form="contribution"><div class="house-fund-dialog-heading"><div><p class="house-fund-eyebrow">${escapeHTML(project.projectName || "Fund Project")}</p><h3>Add Contribution</h3></div><button type="button" class="house-fund-dialog-close" data-fund-action="close-contribution-form" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div><label>Name<input name="name" maxlength="120" required></label><label>Place<input name="place" maxlength="120" placeholder="Place / town"></label><label>Amount (₹)<input name="amount" type="number" min="1" max="1000000000" step="1" inputmode="numeric" required></label><label>Contributor Type<select name="contributorType" required><option value="member">Al-Ameen Member</option><option value="supporter">Supporter / Well-Wisher</option></select></label><label>Status<select name="status" required><option value="paid">Paid</option><option value="pledged">Promise</option></select></label><p class="house-fund-form-error" aria-live="polite"></p><button type="submit" class="house-fund-primary"><i class="fa-solid fa-plus"></i> Save Contribution</button></form></dialog>` : ""}
     <section class="house-fund-list-section"><div class="house-fund-list-heading"><h3>Contributors</h3><span>${rows.length} records</span></div><div class="house-fund-filters" role="group" aria-label="Filter contributions">${filters.map(([id, label]) => `<button type="button" class="house-fund-filter ${houseFundFilter === id ? "active" : ""}" data-fund-action="filter" data-filter="${id}" aria-pressed="${houseFundFilter === id}">${label}</button>`).join("")}</div>
-      <div class="house-fund-donor-list">${rows.length ? rows.map((item, index) => `<article class="house-fund-donor-card"><span class="house-fund-rank">${index + 1}</span><div class="house-fund-donor-main"><div class="house-fund-donor-identity">${canEdit ? `<button type="button" class="house-fund-editable house-fund-donor-name" data-fund-action="edit-donor-name" data-record-id="${escapeHTML(item.id)}" title="Tap to edit name">${escapeHTML(item.name || "—")}</button>` : `<strong>${escapeHTML(item.name || "—")}</strong>`}${item.place ? `<span>${escapeHTML(item.place)}</span>` : ""}</div><div class="house-fund-badges"><span class="house-fund-donor-tag ${item.contributorType === "member" ? "member" : "supporter"}"><i></i>${item.contributorType === "member" ? "Member" : "Supporter"}</span><span class="house-fund-donor-tag ${item.status === "paid" ? "paid" : "promise"}"><i></i>${item.status === "paid" ? "Paid" : "Promise"}</span></div></div><strong class="house-fund-donor-amount">${item.status === "paid" ? '<i class="fa-solid fa-circle-check" aria-label="Paid"></i>' : ""}${canEdit ? `<button type="button" class="house-fund-editable house-fund-donor-amount-btn" data-fund-action="edit-donor-amount" data-record-id="${escapeHTML(item.id)}" title="Tap to edit amount"><span>${houseFundMoney(item.amount)}</span></button>` : `<span>${houseFundMoney(item.amount)}</span>`}${canEdit ? `<button type="button" class="house-fund-editable house-fund-donor-delete-btn" data-fund-action="delete-donor" data-record-id="${escapeHTML(item.id)}" title="Delete entry"><i class="fa-solid fa-trash"></i></button>` : ""}</strong></article>`).join("") : '<div class="house-fund-empty">No records match this filter.</div>'}</div>
+      <div class="house-fund-donor-list">${rows.length ? rows.map((item, index) => `<article class="house-fund-donor-card"><span class="house-fund-rank">${index + 1}</span><div class="house-fund-donor-main"><div class="house-fund-donor-identity">${canEdit ? `<button type="button" class="house-fund-editable house-fund-donor-name" data-fund-action="edit-donor" data-record-id="${escapeHTML(item.id)}" title="Edit donor">${escapeHTML(item.name || "—")}</button>` : `<strong>${escapeHTML(item.name || "—")}</strong>`}${item.place ? `<span>${escapeHTML(item.place)}</span>` : ""}</div><div class="house-fund-badges"><span class="house-fund-donor-tag ${item.contributorType === "member" ? "member" : "supporter"}"><i></i>${item.contributorType === "member" ? "Member" : "Supporter"}</span><span class="house-fund-donor-tag ${item.status === "paid" ? "paid" : "promise"}"><i></i>${item.status === "paid" ? "Paid" : "Promise"}</span></div></div><strong class="house-fund-donor-amount">${item.status === "paid" ? '<i class="fa-solid fa-circle-check" aria-label="Paid"></i>' : ""}${houseFundMoney(item.amount)}</strong></article>`).join("") : '<div class="house-fund-empty">No records match this filter.</div>'}</div>
     </section><button type="button" class="house-fund-whatsapp" data-fund-action="share-whatsapp"><i class="fa-brands fa-whatsapp"></i> Share Summary to WhatsApp</button>
   `;
 }
@@ -105,12 +103,9 @@ function houseFundProjectDialog(project) {
   document.getElementById("houseFundProjectDialog").showModal();
 }
 
-function houseFundDonorDialog(record, field) {
-  const editingName = field === "name";
+function houseFundDonorDialog(record) {
   document.getElementById("houseFundDonorDialog")?.remove();
-  document.body.insertAdjacentHTML("beforeend", `<dialog id="houseFundDonorDialog" class="house-fund-dialog"><form class="house-fund-form" data-fund-form="donor-edit" data-edit-field="${field}" data-record-id="${escapeHTML(record.id)}"><div class="house-fund-dialog-heading"><div><h3>Edit ${editingName ? "Name" : "Amount"}</h3><p class="house-fund-eyebrow">${escapeHTML(record.name || "")}</p></div><button type="button" class="house-fund-dialog-close" data-fund-action="close-donor-form" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>${editingName
-    ? `<label>Donor Name<input name="name" maxlength="120" value="${escapeHTML(record.name || "")}" required></label><label>Place<input name="place" maxlength="120" value="${escapeHTML(record.place || "")}"></label>`
-    : `<label>Amount (₹)<input name="amount" type="number" min="1" max="1000000000" step="1" inputmode="numeric" value="${escapeHTML(String(record.amount || ""))}" required></label>`}<p class="house-fund-form-error" aria-live="polite"></p><button type="submit" class="house-fund-primary">Save Changes</button></form></dialog>`);
+  document.body.insertAdjacentHTML("beforeend", `<dialog id="houseFundDonorDialog" class="house-fund-dialog"><form class="house-fund-form" data-fund-form="donor-edit" data-record-id="${escapeHTML(record.id)}"><div class="house-fund-dialog-heading"><div><h3>Edit Donor</h3><p class="house-fund-eyebrow">${escapeHTML(record.name || "")}</p></div><button type="button" class="house-fund-dialog-close" data-fund-action="close-donor-form" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div><label>Donor Name<input name="name" maxlength="120" value="${escapeHTML(record.name || "")}" required></label><label>Place<input name="place" maxlength="120" value="${escapeHTML(record.place || "")}"></label><label>Amount (₹)<input name="amount" type="number" min="1" max="1000000000" step="1" inputmode="numeric" value="${escapeHTML(String(record.amount || ""))}" required></label><p class="house-fund-form-error" aria-live="polite"></p><div class="house-fund-dialog-actions"><button type="button" class="house-fund-secondary house-fund-dialog-delete" data-fund-action="delete-donor" data-record-id="${escapeHTML(record.id)}"><i class="fa-solid fa-trash"></i> Delete</button><button type="submit" class="house-fund-primary"><i class="fa-solid fa-check"></i> Save Changes</button></div></form></dialog>`);
   document.getElementById("houseFundDonorDialog").showModal();
 }
 
@@ -141,10 +136,10 @@ document.addEventListener("click", event => {
     if (project) houseFundProjectDialog(project);
     return;
   }
-  if (action === "edit-donor-name" || action === "edit-donor-amount") {
+  if (action === "edit-donor") {
     if (!houseFundCanEdit()) return;
     const record = houseFundContributions.find(item => item.id === button.dataset.recordId);
-    if (record) houseFundDonorDialog(record, action === "edit-donor-name" ? "name" : "amount");
+    if (record) houseFundDonorDialog(record);
     return;
   }
   if (action === "delete-donor") {
@@ -241,13 +236,7 @@ document.addEventListener("submit", async event => {
       const recordId = form.dataset.recordId;
       const existing = houseFundContributions.find(item => item.id === recordId);
       if (!existing) throw new Error("Record not found.");
-      const field = form.dataset.editField;
-      let updated;
-      if (field === "name") {
-        updated = HouseFundService.createContribution({ name: values.name, place: values.place, amount: existing.amount, contributorType: existing.contributorType, status: existing.status });
-      } else {
-        updated = HouseFundService.createContribution({ name: existing.name, place: existing.place, amount: values.amount, contributorType: existing.contributorType, status: existing.status });
-      }
+      const updated = HouseFundService.createContribution({ name: values.name, place: values.place, amount: values.amount, contributorType: existing.contributorType, status: existing.status });
       await HouseFundRepository.updateContribution(houseFundCurrentProject.id, recordId, updated, { action: "houseFund.contribution.update", path: `houseConstructionFundContributions/${houseFundCurrentProject.id}` });
       const index = houseFundContributions.findIndex(item => item.id === recordId);
       if (index >= 0) houseFundContributions[index] = { ...updated, id: recordId };

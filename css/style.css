@@ -3562,9 +3562,9 @@ body{display:flex;align-items:center;justify-content:center;background:#eef2f1}
 .house-fund-filter{flex:0 0 auto;min-height:34px;padding:6px 10px;border:1px solid #dfe9e3;border-radius:99px;background:#fff;color:#52675a;font:inherit;font-size:11px;font-weight:700;cursor:pointer}
 .house-fund-filter.active{border-color:#16834d;background:#16834d;color:#fff}
 .house-fund-donor-list{display:grid;gap:8px}
-.house-fund-donor-card{display:flex;align-items:center;gap:10px;min-width:0;padding:12px;border:1px solid #e2ebe5;border-radius:12px;background:#fff}
+.house-fund-donor-card{display:flex;align-items:flex-start;gap:10px;min-width:0;padding:12px;border:1px solid #e2ebe5;border-radius:12px;background:#fff}
 .house-fund-rank{display:grid;width:28px;height:28px;flex:0 0 28px;place-items:center;border-radius:50%;background:#eef5f0;color:#315b43;font-size:12px;font-weight:800}
-.house-fund-donor-main{display:grid;min-width:0;flex:1;gap:3px}.house-fund-donor-main>strong{overflow-wrap:anywhere;color:#263c30;font-size:14px}.house-fund-donor-main>span{color:#718177;font-size:11px}
+.house-fund-donor-main{display:flex;flex-direction:column;min-width:0;flex:1;gap:2px}.house-fund-donor-main>strong{overflow-wrap:anywhere;color:#263c30;font-size:14px}.house-fund-donor-main>span{color:#718177;font-size:11px}
 .house-fund-badges{display:flex;flex-wrap:wrap;gap:5px;margin-top:2px}.house-fund-type,.house-fund-status{padding:3px 7px;border-radius:99px;font-size:10px;font-weight:750}.house-fund-type.member{background:#eaf2ff;color:#295a9b}.house-fund-type.supporter{background:#f2edff;color:#6b4ab0}.house-fund-status.paid{background:#e9f7ed;color:#16834d}.house-fund-status.pledged{background:#fff3df;color:#a26000}
 .house-fund-amount{flex:0 0 auto;color:#174c37;font-size:14px}.house-fund-whatsapp{width:100%;margin-top:15px;background:#16834d;color:#fff}
 .house-fund-icon-btn{display:inline-grid;width:34px;height:34px;min-height:34px;place-items:center;padding:0;border:1px solid #d8ebe0;border-radius:10px;background:#fff;color:#35634a;font-size:13px;cursor:pointer}.house-fund-icon-btn:hover{background:#eff8f2}.house-fund-icon-btn.danger{color:#b3372f;border-color:#f0d4d1}.house-fund-icon-btn.danger:hover{background:#fdf0ef}
@@ -3626,7 +3626,7 @@ body{display:flex;align-items:center;justify-content:center;background:#eef2f1}
 
 /* Minimal contributor list: compact rows, one text line each, no pills. */
 .house-fund-detail-active .house-fund-donor-list{gap:0;border-top:1px solid #e6ede8}
-.house-fund-detail-active .house-fund-donor-card{align-items:center;gap:8px;min-height:0;padding:6px 2px;border:0;border-bottom:1px solid #eef3f0;border-radius:0;background:transparent}
+.house-fund-detail-active .house-fund-donor-card{align-items:flex-start;gap:8px;min-height:0;padding:6px 2px;border:0;border-bottom:1px solid #eef3f0;border-radius:0;background:transparent}
 .house-fund-detail-active .house-fund-donor-card:hover{background:#f7faf8}
 .house-fund-detail-active .house-fund-rank{width:17px;height:auto;flex-basis:17px;border-radius:0;background:none;color:#9aaba1;font-size:11px;font-weight:600;font-variant-numeric:tabular-nums}
 .house-fund-detail-active .house-fund-donor-main{gap:0}
