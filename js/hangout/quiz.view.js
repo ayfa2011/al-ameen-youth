@@ -8,6 +8,7 @@
 (() => {
   let container = null, ctx = null, stops = [], stopAuth = null, answerStop = null, chat = null;
   let questionTimer = 0, revealTimeout = 0, scheduleTimer = 0;
+  let screenshotGuardRoot = null, screenshotGuardTimer = 0;
   let stopServerTime = null;
   let observedQuestionKey = null, latestQuestionPublishedAt = "", alertAudioContext = null, alertUnlockContainer = null;
   let answerQuestionKey = "";
@@ -35,6 +36,14 @@
   }
 
   function teardown() {
+    if (container) {
+      ["copy", "cut", "contextmenu", "selectstart"].forEach(type => container.removeEventListener(type, protectQuestionText));
+    }
+    window.removeEventListener("keydown", guardPrintScreen, true);
+    clearTimeout(screenshotGuardTimer);
+    screenshotGuardTimer = 0;
+    screenshotGuardRoot?.classList.remove("is-screenshot-guard");
+    screenshotGuardRoot = null;
     stops.forEach(stop => { try { stop(); } catch (error) { /* already stopped */ } });
     stops = [];
     if (answerStop) { answerStop(); answerStop = null; }
@@ -117,6 +126,8 @@
         </nav>
       </div>`;
 
+    ["copy", "cut", "contextmenu", "selectstart"].forEach(type => container.addEventListener(type, protectQuestionText));
+    window.addEventListener("keydown", guardPrintScreen, true);
     container.querySelector('[data-act="exit"]').addEventListener("click", () => exitFn());
     container.querySelector('[data-act="admin"]').addEventListener("click", () => HangoutQuizAdmin.open({
       users: () => data.users, scores: () => data.scores, quiz: () => data.quiz
@@ -188,6 +199,25 @@
     scheduleTimer = window.setInterval(() => {
       if (!["live", "paused", "revealed"].includes(HangoutService.cleanQuiz(data.quiz).status)) renderQuestion(data.quiz);
     }, 1000);
+  }
+
+  function protectQuestionText(event) {
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target?.closest(".hg-question") || target.closest("input, textarea, [contenteditable='true']")) return;
+    event.preventDefault();
+  }
+
+  function guardPrintScreen(event) {
+    if ((event.key !== "PrintScreen" && event.keyCode !== 44) || !$("#hgQuestion")) return;
+    screenshotGuardRoot = container.closest(".hg-root");
+    if (!screenshotGuardRoot) return;
+    screenshotGuardRoot.classList.add("is-screenshot-guard");
+    clearTimeout(screenshotGuardTimer);
+    screenshotGuardTimer = window.setTimeout(() => {
+      screenshotGuardRoot?.classList.remove("is-screenshot-guard");
+      screenshotGuardRoot = null;
+      screenshotGuardTimer = 0;
+    }, 1500);
   }
 
   function prepareAlertAudioUnlock() {
