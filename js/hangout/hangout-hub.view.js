@@ -52,7 +52,12 @@
           <h2>Hangout</h2>
         </header>
         <div class="hg-hub-body"><div class="hg-hub-grid">
-          ${sections.map(s => `<button type="button" class="hg-hub-card" data-section="${escapeHTML(s.id)}"><i class="fa-solid ${escapeHTML(s.icon)}"></i><span>${escapeHTML(s.label)}</span></button>`).join("")}
+          ${sections.map(s => s.id === "quiz"
+            ? `<button type="button" class="hg-hub-card is-quiz" data-section="${escapeHTML(s.id)}">
+                <img class="hg-quiz-card-image" src="assets/images/online-quiz-icon.png" alt="">
+                <span class="hg-quiz-card-label">${escapeHTML(s.label)}</span>
+              </button>`
+            : `<button type="button" class="hg-hub-card" data-section="${escapeHTML(s.id)}"><i class="fa-solid ${escapeHTML(s.icon)}"></i><span>${escapeHTML(s.label)}</span></button>`).join("")}
         </div></div>
       </div>`;
   }
