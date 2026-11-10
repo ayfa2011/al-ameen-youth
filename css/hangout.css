@@ -112,7 +112,8 @@
 /* ---------- Chat ---------- */
 .hg-chat-list{flex:1; min-height:0; overflow-y:auto; padding:6px; display:flex; flex-direction:column; gap:3px; overscroll-behavior:contain}
 .hg-chat-empty{margin:auto; color:var(--hg-muted); text-align:center}
-.hg-msg{display:flex; align-self:flex-start; width:fit-content; gap:4px; align-items:flex-end; max-width:92%}
+.hg-msg{display:flex; align-self:flex-start; width:fit-content; gap:4px; align-items:flex-end; max-width:92%; touch-action:pan-y}
+.hg-msg.is-swiping{transition:transform 120ms ease-out}
 .hg-msg.is-own{align-self:flex-end; flex-direction:row-reverse}
 .hg-avatar{flex:0 0 22px; width:22px; height:22px; border-radius:50%; overflow:hidden; display:grid; place-items:center; background:var(--hg-blue); color:#fff; font-size:10px; font-weight:700}
 .hg-avatar img{width:100%; height:100%; object-fit:cover; display:block}
@@ -121,6 +122,9 @@
 .hg-msg-meta{display:flex; align-items:center; gap:4px; min-width:0; margin-bottom:1px; white-space:nowrap; line-height:1.15}
 .hg-msg-name{overflow:hidden; text-overflow:ellipsis; color:var(--hg-blue-dark); font-size:11px; font-weight:700}
 .hg-msg-text{white-space:pre-wrap; line-height:1.3}
+.hg-reply-quote{display:grid; gap:1px; margin:1px 0 3px; padding:2px 5px; border-left:2px solid var(--hg-blue); border-radius:2px; background:rgba(47,123,229,.07); font-size:11px}
+.hg-reply-quote strong{overflow:hidden; color:var(--hg-blue-dark); text-overflow:ellipsis; white-space:nowrap}
+.hg-reply-quote span{overflow:hidden; color:var(--hg-muted); text-overflow:ellipsis; white-space:nowrap}
 .hg-msg-time{flex:0 0 auto; margin-left:auto; color:var(--hg-muted); font-size:10px}
 .hg-bubble.is-emoji{padding:2px 5px}
 .hg-bubble.is-emoji .hg-msg-text{font-size:20px; line-height:1.1}
@@ -135,6 +139,12 @@
 .hg-emoji-panel{display:grid; grid-template-columns:repeat(8,1fr); gap:2px; padding:8px; border-top:1px solid var(--hg-line); background:#fff; max-height:150px; overflow-y:auto}
 .hg-emoji-panel button{border:0; background:none; font-size:22px; padding:3px; border-radius:8px; cursor:pointer}
 .hg-emoji-panel button:active{background:var(--hg-soft)}
+.hg-reply-preview{display:flex; align-items:center; gap:8px; padding:6px 8px; border-top:1px solid var(--hg-line); background:#fff}
+.hg-reply-preview>div{display:grid; flex:1; min-width:0; gap:1px; padding-left:7px; border-left:2px solid var(--hg-blue)}
+.hg-reply-preview strong,.hg-reply-preview span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.hg-reply-preview strong{color:var(--hg-blue-dark); font-size:12px}
+.hg-reply-preview span{color:var(--hg-muted); font-size:11px}
+.hg-reply-preview .hg-icon-btn{width:30px; height:30px; font-size:13px}
 .hg-composer{display:flex; align-items:center; gap:7px; padding:8px; border-top:1px solid var(--hg-line); background:#fff}
 .hg-composer input{flex:1; min-width:0; padding:10px 14px; border:1px solid var(--hg-line); border-radius:999px; background:var(--hg-soft-2); font:inherit; color:inherit; outline:none}
 .hg-composer input:focus{border-color:var(--hg-blue)}
@@ -347,5 +357,6 @@
 }
 @media(prefers-reduced-motion:reduce){
   .hg-shell.hg-section-enter,.hg-panel.is-entering{animation:none}
+  .hg-msg.is-swiping{transition:none}
   .hg-root .hg-rec-dot,.hg-root .fa-spin{animation:none}
 }

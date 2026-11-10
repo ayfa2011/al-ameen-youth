@@ -4,10 +4,16 @@ window.HangoutQuizChat = (() => {
   const LOAD_LAST = 60;
   const VOICE_TYPES = ["audio/webm;codecs=opus", "audio/mp4", "audio/webm", "audio/ogg;codecs=opus"];
   const EMOJI_ONLY = /^(?:\p{Extended_Pictographic}|\p{Emoji_Presentation}|\uFE0F|\u200D|\s)+$/u;
+  const REPLY_PREFIX = /^↪ ([^\n]{1,50})\n([^\n]{1,100})\n\n([\s\S]*)$/;
+  const MAX_REPLY_QUOTE = 100;
 
   function mount(panel, ctx) {
     panel.innerHTML = `
       <div class="hg-chat-list" data-role="list"><div class="hg-chat-empty" data-role="empty">No messages yet.<br>Say hi 👋</div></div>
+      <div class="hg-reply-preview" data-role="replyPreview" hidden>
+        <div><strong data-role="replyName"></strong><span data-role="replyText"></span></div>
+        <button type="button" class="hg-icon-btn" data-act="cancelReply" aria-label="Cancel reply"><i class="fa-solid fa-xmark"></i></button>
+      </div>
       <div class="hg-emoji-panel" data-role="emoji" hidden>${HangoutService.EMOJIS.map(e => `<button type="button" data-emoji="${e}" aria-label="Emoji">${e}</button>`).join("")}</div>
       <div class="hg-recorder" data-role="recorder" hidden>
         <span class="hg-rec-dot"></span><span class="hg-rec-time" data-role="recTime">0:00</span>
@@ -23,22 +29,64 @@ window.HangoutQuizChat = (() => {
     const $ = role => panel.querySelector(`[data-role="${role}"]`);
     const list = $("list"), input = $("input"), actionBtn = panel.querySelector('[data-act="action"]');
     let stick = true, buffer = [], raf = 0, audio = null, playingId = "", sending = false, rec = null;
+    let replyTarget = null, swipe = null;
     const voiceCache = new Map();
 
     list.addEventListener("scroll", () => { stick = list.scrollHeight - list.scrollTop - list.clientHeight < 80; });
     const toBottom = () => { list.scrollTop = list.scrollHeight; };
 
     // ---------- rendering ----------
+    function parseReply(text) {
+      const match = REPLY_PREFIX.exec(String(text || ""));
+      return match ? { name: match[1], text: match[2], body: match[3] } : null;
+    }
+
+    function quoteForMessage(message) {
+      if (message.voice) return "Voice message";
+      const text = parseReply(message.text)?.body || String(message.text || "");
+      const excerpt = text.replace(/\s+/g, " ").trim();
+      return excerpt.length > MAX_REPLY_QUOTE ? `${excerpt.slice(0, MAX_REPLY_QUOTE - 1)}…` : excerpt;
+    }
+
+    function replyPrefix(target) {
+      return `↪ ${String(target.name || "Player").replace(/[\r\n]/g, " ").slice(0, 50)}\n${String(target.text || "Message").replace(/[\r\n]/g, " ").slice(0, MAX_REPLY_QUOTE)}\n\n`;
+    }
+
+    function updateReplyPreview() {
+      const preview = $("replyPreview");
+      preview.hidden = !replyTarget;
+      input.setAttribute("aria-label", replyTarget ? `Replying to ${replyTarget.name}` : "Message");
+      if (replyTarget) {
+        $("replyName").textContent = `Replying to ${replyTarget.name}`;
+        $("replyText").textContent = replyTarget.text;
+      }
+    }
+
+    function startReply(row) {
+      if (!row || row.classList.contains("is-removed")) return;
+      const message = messages.get(row.dataset.id);
+      if (!message) return;
+      const author = ctx.users()[message.uid];
+      replyTarget = {
+        id: row.dataset.id,
+        name: author?.name || message.name || "Player",
+        text: quoteForMessage(message)
+      };
+      updateReplyPreview();
+      input.focus();
+    }
+
     function messageHTML(id, m) {
       const own = m.uid === ctx.user.uid;
       const author = ctx.users()[m.uid];
       const name = author?.name || m.name || "Player";
       const removed = m.deleted === true;
       const emojiOnly = !removed && !m.voice && EMOJI_ONLY.test(String(m.text || "").trim());
+      const reply = !removed && !m.voice ? parseReply(m.text) : null;
       let body;
       if (removed) body = '<span class="hg-msg-text">Message removed by admin</span>';
       else if (m.voice) body = `<div class="hg-voice"><button type="button" class="hg-voice-play" data-act="play" data-id="${escapeHTML(id)}" aria-label="Play voice message"><i class="fa-solid fa-play"></i></button><div class="hg-voice-bar"><span></span></div><span class="hg-voice-dur">${HangoutService.formatDuration(m.voiceDur)}</span></div>`;
-      else body = `<span class="hg-msg-text">${escapeHTML(m.text)}</span>`;
+      else body = `${reply ? `<div class="hg-reply-quote"><strong>${escapeHTML(reply.name)}</strong><span>${escapeHTML(reply.text)}</span></div>` : ""}<span class="hg-msg-text">${escapeHTML(reply?.body ?? m.text)}</span>`;
       const hide = ctx.isQuizAdmin() && !removed ? `<button type="button" class="hg-msg-del" data-act="hide" data-id="${escapeHTML(id)}">Hide</button>` : "";
       return `<div class="hg-msg ${own ? "is-own" : ""} ${removed ? "is-removed" : ""}" data-id="${escapeHTML(id)}" data-uid="${escapeHTML(m.uid)}">
         ${HangoutUI.avatar(author?.photo, name, m.uid)}
@@ -57,20 +105,36 @@ window.HangoutQuizChat = (() => {
       const wasStuck = stick;
       const html = items.map(item => item.html).join("");
       list.insertAdjacentHTML("beforeend", html);
+      items.forEach(item => messages.set(item.id, item.message));
       if (wasStuck || items.some(item => item.own)) { toBottom(); stick = true; }
     }
 
+    const messages = new Map();
     const handlers = {
       added(id, m) {
         if (!m || list.querySelector(`[data-id="${CSS.escape(id)}"]`)) return;
-        buffer.push({ html: messageHTML(id, m), own: m.uid === ctx.user.uid });
+        buffer.push({ id, message: m, html: messageHTML(id, m), own: m.uid === ctx.user.uid });
         if (!raf) raf = requestAnimationFrame(flush);
       },
       changed(id, m) {
         const el = list.querySelector(`[data-id="${CSS.escape(id)}"]`);
-        if (el && m) el.outerHTML = messageHTML(id, m);
+        if (el && m) {
+          messages.set(id, m);
+          el.outerHTML = messageHTML(id, m);
+          if (replyTarget?.id === id && m.deleted) {
+            replyTarget = null;
+            updateReplyPreview();
+          }
+        }
       },
-      removed(id) { list.querySelector(`[data-id="${CSS.escape(id)}"]`)?.remove(); }
+      removed(id) {
+        list.querySelector(`[data-id="${CSS.escape(id)}"]`)?.remove();
+        messages.delete(id);
+        if (replyTarget?.id === id) {
+          replyTarget = null;
+          updateReplyPreview();
+        }
+      }
     };
     const stopChat = HangoutRepository.subscribeChat(LOAD_LAST, handlers);
 
@@ -84,14 +148,79 @@ window.HangoutQuizChat = (() => {
     input.addEventListener("keydown", event => { if (event.key === "Enter" && !event.isComposing) { event.preventDefault(); void sendText(); } });
 
     async function sendText() {
-      const text = input.value.trim();
-      if (!text || sending) return;
+      const body = input.value.trim();
+      if (!body || sending) return;
+      const prefix = replyTarget ? replyPrefix(replyTarget) : "";
+      const availableLength = HangoutService.MAX_TEXT - prefix.length;
+      if (body.length > availableLength) {
+        showToast("Shorten the reply to fit the message limit.", "warning");
+        return;
+      }
+      const text = `${prefix}${body}`;
+      const replyId = replyTarget?.id;
       sending = true;
       input.value = ""; syncActionButton();
-      try { await HangoutRepository.sendText(HangoutRepository.newMessageKey(), { uid: ctx.user.uid, name: ctx.user.name, text: text.slice(0, HangoutService.MAX_TEXT) }); }
-      catch (error) { console.error("Hangout message failed:", error); input.value = text; syncActionButton(); showToast("Message could not be sent. Try again.", "error"); }
+      try {
+        await HangoutRepository.sendText(HangoutRepository.newMessageKey(), {
+          uid: ctx.user.uid, name: ctx.user.name, text: text.slice(0, HangoutService.MAX_TEXT)
+        });
+        if (replyTarget?.id === replyId) {
+          replyTarget = null;
+          updateReplyPreview();
+        }
+      }
+      catch (error) {
+        console.error("Hangout message failed:", error);
+        input.value = body; syncActionButton();
+        showToast("Message could not be sent. Try again.", "error");
+      }
       finally { sending = false; }
     }
+
+    list.addEventListener("pointerdown", event => {
+      if (event.pointerType === "mouse" || event.button !== 0 || event.target.closest("button,a")) return;
+      const row = event.target.closest(".hg-msg");
+      if (!row || row.classList.contains("is-removed")) return;
+      swipe = { row, pointerId: event.pointerId, x: event.clientX, y: event.clientY, dx: 0 };
+    });
+    list.addEventListener("pointermove", event => {
+      if (!swipe || event.pointerId !== swipe.pointerId) return;
+      const dx = event.clientX - swipe.x, dy = event.clientY - swipe.y;
+      if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 8) {
+        const row = swipe.row;
+        swipe = null;
+        row.style.transform = "";
+        window.setTimeout(() => row.classList.remove("is-swiping"), 150);
+        return;
+      }
+      const towardCenter = swipe.row.classList.contains("is-own") ? dx < 0 : dx > 0;
+      swipe.dx = towardCenter ? Math.max(-56, Math.min(56, dx)) : 0;
+      if (swipe.dx) {
+        swipe.row.classList.add("is-swiping");
+        swipe.row.style.transform = `translateX(${swipe.dx}px)`;
+      }
+    });
+    const finishSwipe = event => {
+      if (!swipe || event.pointerId !== swipe.pointerId) return;
+      const { row, dx } = swipe;
+      swipe = null;
+      row.style.transform = "";
+      window.setTimeout(() => row.classList.remove("is-swiping"), 150);
+      if (Math.abs(dx) >= 48) startReply(row);
+    };
+    const cancelSwipe = event => {
+      if (!swipe || event.pointerId !== swipe.pointerId) return;
+      const { row } = swipe;
+      swipe = null;
+      row.style.transform = "";
+      window.setTimeout(() => row.classList.remove("is-swiping"), 150);
+    };
+    window.addEventListener("pointerup", finishSwipe);
+    window.addEventListener("pointercancel", cancelSwipe);
+    panel.querySelector('[data-act="cancelReply"]').addEventListener("click", () => {
+      replyTarget = null;
+      updateReplyPreview();
+    });
 
     // ---------- emoji ----------
     panel.querySelector('[data-act="emoji"]').addEventListener("click", () => { $("emoji").hidden = !$("emoji").hidden; });
@@ -203,6 +332,13 @@ window.HangoutQuizChat = (() => {
       },
       unmount() {
         stopChat();
+        window.removeEventListener("pointerup", finishSwipe);
+        window.removeEventListener("pointercancel", cancelSwipe);
+        if (swipe) {
+          swipe.row.style.transform = "";
+          swipe.row.classList.remove("is-swiping");
+          swipe = null;
+        }
         if (raf) cancelAnimationFrame(raf);
         if (rec) { rec.send = false; try { rec.recorder.state !== "inactive" ? rec.recorder.stop() : finishRecording(rec); } catch (error) { /* ignore */ } }
         stopPlayback();
