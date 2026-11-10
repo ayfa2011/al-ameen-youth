@@ -4,6 +4,7 @@ window.HangoutAuth = (() => {
   let started = false, resolved = false;
   let mainSessionResolved = false, hangoutSessionResolved = false;
   let mainProfile = null, hangoutProfile = null;
+  let resolutionTimer = 0;
   const listeners = new Set();
 
   function toProfile(user) {
@@ -23,6 +24,12 @@ window.HangoutAuth = (() => {
     listeners.forEach(fn => fn(profile));
   }
 
+  function updateResolution() {
+    resolved = mainSessionResolved && hangoutSessionResolved;
+    if (resolved) clearTimeout(resolutionTimer);
+    notify();
+  }
+
   function start() {
     if (started) return;
     started = true;
@@ -33,6 +40,13 @@ window.HangoutAuth = (() => {
       notify();
       return;
     }
+
+    resolutionTimer = window.setTimeout(() => {
+      if (resolved) return;
+      mainSessionResolved = true;
+      hangoutSessionResolved = true;
+      updateResolution();
+    }, 12000);
 
     mainAuth.onAuthStateChanged(async user => {
       mainProfile = null;
@@ -50,8 +64,7 @@ window.HangoutAuth = (() => {
         }
       }
       mainSessionResolved = true;
-      resolved = mainSessionResolved && hangoutSessionResolved;
-      notify();
+      updateResolution();
     });
 
     hangoutAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
@@ -61,8 +74,7 @@ window.HangoutAuth = (() => {
         hangoutAuth.onAuthStateChanged(user => {
           hangoutProfile = toProfile(user);
           hangoutSessionResolved = true;
-          resolved = mainSessionResolved && hangoutSessionResolved;
-          notify();
+          updateResolution();
         });
       });
   }

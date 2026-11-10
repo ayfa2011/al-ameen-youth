@@ -965,22 +965,32 @@ window.HangoutAdminRepository = (() => {
           });
         } catch (error) {
           if (error?.code === "PERMISSION_DENIED") return { ...value, autoPointsAwarded: false };
-          throw new Error("Your answer was saved, but the score could not be updated.");
+          const syncError = new Error("Your answer was saved, but points could not be fully synchronized. Tap Retry to try again.");
+          syncError.code = "SCORE_SYNC_PENDING";
+          throw syncError;
         }
         if (result.committed) {
           autoPointsAwarded = true;
         } else if (result.snapshot.child(`autoAwards/${awardId}`).exists()) {
           autoPointsAwarded = true;
         } else {
-          throw new Error("Your answer was saved, but the score could not be updated.");
+          const syncError = new Error("Your answer was saved, but points could not be fully synchronized. Tap Retry to try again.");
+          syncError.code = "SCORE_SYNC_PENDING";
+          throw syncError;
         }
         if (autoPointsAwarded) {
-          await this.awardRoomQuestionPoints(user.uid, quiz.roomId, quiz.questionId, Number(quiz.points || 0));
-          await db.ref(`hangout/scoreLog/${user.uid}/${awardId}`).set({
-            points: Number(quiz.points || 0),
-            at: timestamp,
-            note: `Question #${quiz.questionNumber} correct answer`
-          });
+          try {
+            await this.awardRoomQuestionPoints(user.uid, quiz.roomId, quiz.questionId, Number(quiz.points || 0));
+            await db.ref(`hangout/scoreLog/${user.uid}/${awardId}`).set({
+              points: Number(quiz.points || 0),
+              at: timestamp,
+              note: `Question #${quiz.questionNumber} correct answer`
+            });
+          } catch (error) {
+            const syncError = new Error("Your answer was saved, but points could not be fully synchronized. Tap Retry to try again.");
+            syncError.code = "SCORE_SYNC_PENDING";
+            throw syncError;
+          }
         }
         return { ...value, autoPointsAwarded, historySaved };
       }

@@ -14,24 +14,29 @@
 .hg-root{
   position:fixed; inset:0; z-index:9000; display:flex; justify-content:center; align-items:stretch;
   background:var(--hg-bg); color:var(--hg-text);
-  padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0);
+  padding:0 env(safe-area-inset-right,0px) 0 env(safe-area-inset-left,0px);
+  overscroll-behavior:contain; touch-action:manipulation; -webkit-tap-highlight-color:transparent;
 }
 .hg-root[hidden]{display:none}
 .hg-root.is-screenshot-guard::after{position:fixed;inset:0;z-index:99999;background:#fff;content:"";pointer-events:none}
 .hg-root *,.hg-modal *{box-sizing:border-box}
+.hg-root *{overscroll-behavior:contain}
+.hg-root button,.hg-root .hg-nav{-webkit-user-select:none;user-select:none}
 .hg-root button,.hg-modal button,.hg-modal input,.hg-modal textarea,.hg-modal select{font-family:inherit}
 .hg-root [hidden],.hg-modal [hidden]{display:none !important}
 
 /* One centred column: full screen on phones, rounded card on desktop */
 .hg-shell{width:100%; max-width:560px; height:100%; display:flex; flex-direction:column; background:var(--hg-card); overflow:hidden}
+.hg-shell.hg-section-enter{animation:hg-section-enter 140ms ease-out both}
+@keyframes hg-section-enter{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 @media (min-width:700px){
-  .hg-root{padding:16px 0}
+  .hg-root{padding:16px env(safe-area-inset-right,0px) 16px env(safe-area-inset-left,0px)}
   .hg-shell{border-radius:22px; box-shadow:0 14px 50px rgba(31,45,61,.16); max-height:880px; align-self:center}
 }
 
 /* ---------- Hub ---------- */
 .hg-hub{flex:1; display:flex; flex-direction:column; min-height:0}
-.hg-topbar{display:flex; align-items:center; gap:10px; padding:12px 14px; border-bottom:1px solid var(--hg-line); background:var(--hg-card)}
+.hg-topbar{display:flex; align-items:center; gap:10px; padding:calc(12px + env(safe-area-inset-top,0px)) 14px 12px; border-bottom:1px solid var(--hg-line); background:var(--hg-card)}
 .hg-topbar h2{margin:0; font-size:18px; flex:1}
 .hg-icon-btn{display:grid; place-items:center; width:38px; height:38px; border:0; border-radius:12px; background:var(--hg-soft); color:var(--hg-blue-dark); font-size:16px; cursor:pointer}
 .hg-icon-btn:active{transform:scale(.95)}
@@ -44,11 +49,14 @@
 .hg-hub-grid:has(.hg-hub-card.is-quiz){grid-template-columns:minmax(0,1fr)}
 .hg-hub-card.is-quiz{min-height:120px;gap:8px;padding:12px}
 .hg-quiz-card-image{display:block;width:min(100%,64px);aspect-ratio:1;object-fit:contain;border-radius:12px}
+.hg-hub-card .hg-quiz-card-fallback{display:grid;place-items:center;width:64px;height:64px;font-size:32px}
 .hg-quiz-card-label{font-size:14px;font-weight:600;line-height:1.3}
 .hg-hub-card.is-quiz:focus-visible{outline:3px solid var(--hg-blue);outline-offset:3px}
 
 /* ---------- Login gate ---------- */
 .hg-login{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:28px 22px; text-align:center; background:var(--hg-bg)}
+.hg-auth-loading{flex:1;display:flex;align-items:center;justify-content:center;gap:10px;color:var(--hg-muted);font-size:14px}
+.hg-auth-loading i{color:var(--hg-blue);font-size:20px}
 .hg-login-card{width:100%; max-width:360px; padding:28px 22px; border-radius:22px; background:var(--hg-card); box-shadow:0 6px 24px rgba(31,45,61,.1)}
 .hg-login-card i.hg-login-icon{font-size:38px; color:var(--hg-blue); margin-bottom:10px}
 .hg-login-card h3{margin:0 0 6px; font-size:20px}
@@ -61,7 +69,7 @@
 
 /* ---------- Quiz screen ---------- */
 .hg-quiz{flex:1; display:flex; flex-direction:column; min-height:0}
-.hg-qheader{display:flex; align-items:center; gap:10px; padding:11px 14px; border-bottom:1px solid var(--hg-line); background:var(--hg-card)}
+.hg-qheader{display:flex; align-items:center; gap:10px; padding:calc(11px + env(safe-area-inset-top,0px)) 14px 11px; border-bottom:1px solid var(--hg-line); background:var(--hg-card)}
 .hg-qheader strong{font-size:17px; white-space:nowrap}
 .hg-month{flex:1; min-width:0; color:var(--hg-muted); font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .hg-exit{padding:6px 14px; border:0; border-radius:999px; background:var(--hg-red); color:#fff; font-size:12px; font-weight:700; letter-spacing:.04em; cursor:pointer}
@@ -91,12 +99,15 @@
 /* Changing area: only this part swaps between Chat / Score / More / Profile */
 .hg-body{flex:1; min-height:0; position:relative; margin:10px 12px 0}
 .hg-panel{position:absolute; inset:0; display:flex; flex-direction:column; min-height:0; overflow:hidden; border-radius:18px; background:var(--hg-soft-2); border:1px solid var(--hg-line)}
+.hg-panel.is-entering{animation:hg-panel-enter 140ms ease-out both}
+@keyframes hg-panel-enter{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 
 /* Bottom navigation */
-.hg-nav{display:grid; grid-template-columns:repeat(4,1fr); gap:4px; padding:8px 10px 10px; background:var(--hg-card)}
+.hg-nav{display:grid; grid-template-columns:repeat(4,1fr); gap:4px; padding:8px 10px calc(10px + env(safe-area-inset-bottom,0px)); background:var(--hg-card)}
 .hg-nav button{display:flex; flex-direction:column; align-items:center; gap:3px; padding:7px 4px; border:0; border-radius:14px; background:transparent; color:#7fa6d8; font-size:11px; font-weight:600; cursor:pointer}
 .hg-nav button i{font-size:19px}
 .hg-nav button.is-active{background:var(--hg-blue); color:#fff}
+.hg-root button:not(.hg-icon-btn):not(.hg-hub-card):active,.hg-root .hg-answer-option:active{transform:scale(.98);opacity:.88}
 
 /* ---------- Chat ---------- */
 .hg-chat-list{flex:1; min-height:0; overflow-y:auto; padding:6px; display:flex; flex-direction:column; gap:3px; overscroll-behavior:contain}
@@ -316,11 +327,11 @@
 @media(max-width:700px){.hg-room-score-layout{grid-template-columns:1fr}}
 @media(max-width:540px){
   .hg-root{--hg-question-h:clamp(280px,36dvh,320px)}
-  .hg-qheader{gap:7px; padding:8px 10px}
+  .hg-qheader{gap:7px; padding:calc(8px + env(safe-area-inset-top,0px)) 10px 8px}
   .hg-qheader strong{font-size:16px}
   .hg-question{margin:4px 8px 0; padding:7px; border-radius:14px}
   .hg-body{margin:7px 8px 0}
-  .hg-nav{gap:2px; padding:5px 8px 7px}
+  .hg-nav{gap:2px; padding:5px 8px calc(7px + env(safe-area-inset-bottom,0px))}
   .hg-nav button{gap:2px; padding:6px 3px}
   .hg-modal{padding:6px}
   .hg-sheet{max-height:96dvh; padding:12px}
@@ -333,4 +344,8 @@
   .hg-score-admin-head label{flex:1 1 100%}
   .hg-score-admin-head select{width:100%}
   .hg-score-admin-head .hg-btn{flex:1}
+}
+@media(prefers-reduced-motion:reduce){
+  .hg-shell.hg-section-enter,.hg-panel.is-entering{animation:none}
+  .hg-root .hg-rec-dot,.hg-root .fa-spin{animation:none}
 }

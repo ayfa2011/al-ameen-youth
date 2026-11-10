@@ -35,6 +35,12 @@
       if (!(img instanceof HTMLImageElement)) return;
       const avatar = img.closest(".hg-avatar");
       if (avatar) avatar.textContent = avatar.dataset.initial || "?";
+      else if (img.matches(".hg-quiz-card-image")) {
+        const fallback = document.createElement("i");
+        fallback.className = "fa-solid fa-circle-question hg-quiz-card-fallback";
+        fallback.setAttribute("aria-hidden", "true");
+        img.replaceWith(fallback);
+      }
       else if (img.closest(".hg-question")) img.remove();
     }, true);
   }
@@ -54,7 +60,7 @@
         <div class="hg-hub-body"><div class="hg-hub-grid">
           ${sections.map(s => s.id === "quiz"
             ? `<button type="button" class="hg-hub-card is-quiz" data-section="${escapeHTML(s.id)}">
-                <img class="hg-quiz-card-image" src="assets/images/online-quiz-icon.png" alt="">
+                  <img class="hg-quiz-card-image" src="assets/images/online-quiz-icon.png" alt="" width="64" height="64">
                 <span class="hg-quiz-card-label">${escapeHTML(s.label)}</span>
               </button>`
             : `<button type="button" class="hg-hub-card" data-section="${escapeHTML(s.id)}"><i class="fa-solid ${escapeHTML(s.icon)}"></i><span>${escapeHTML(s.label)}</span></button>`).join("")}
@@ -69,11 +75,20 @@
     leaveSection();
     shell.innerHTML = "";
     openSection = section;
-    section.mount(shell, { exit: () => history.back() });
+    shell.classList.add("hg-section-enter");
+    window.setTimeout(() => shell?.classList.remove("hg-section-enter"), 150);
+    section.mount(shell, {
+      exit: () => history.go(-((Number(history.state?.hangoutTabDepth) || 0) + 1))
+    });
   }
 
   function showState(state) {
-    if (state?.hangout && state.hangout !== "hub") renderSection(state.hangout);
+    if (state?.hangout && state.hangout !== "hub") {
+      const section = sections.find(item => item.id === state.hangout);
+      if (section && openSection === section && typeof section.onHistoryState === "function") {
+        section.onHistoryState(state.hangoutTab || "quiz");
+      } else renderSection(state.hangout);
+    }
     else renderHub();
   }
 
@@ -102,6 +117,10 @@
     if (!root || !root.contains(event.target)) return;
     const card = event.target.closest("[data-section]");
     if (card) {
+      if (!HangoutFirebase.isAvailable()) {
+        showToast(HangoutFirebase.unavailableMessage(), "error");
+        return;
+      }
       history.pushState({ hangout: card.dataset.section }, "", url());
       renderSection(card.dataset.section);
       return;
