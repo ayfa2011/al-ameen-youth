@@ -344,10 +344,14 @@
     }
     const roomQuestion = quiz.questionId && ["live", "paused", "revealed", "completed"].includes(quiz.status);
     const liveQuestion = quiz.status === "live" && quiz.questionId;
+    const showTimer = ["live", "paused"].includes(quiz.status) && quiz.timeLimit;
     const roomTitle = quiz.roomName || quiz.title || "Online Quiz";
-    const questionHeader = roomQuestion
-      ? `<div class="hg-question-header"><strong class="hg-question-room" title="${escapeHTML(roomTitle)}">${escapeHTML(roomTitle)}</strong><div class="hg-question-badges"><span>Question #${quiz.questionNumber}</span><span>${quiz.points} Points</span></div></div>`
+    const timer = showTimer
+      ? `<div class="hg-player-timer ${quiz.status === "paused" ? "is-paused" : ""}"><strong data-player-countdown>${formatPlayerCountdown(quiz.status === "paused" ? quiz.remainingMs || 0 : remainingQuestionTime(quiz))}</strong></div>`
       : "";
+    const questionHeader = roomQuestion
+      ? `<div class="hg-question-header"><strong class="hg-question-room" title="${escapeHTML(roomTitle)}">${escapeHTML(roomTitle)}</strong><div class="hg-question-badges"><span>Question #${quiz.questionNumber}</span><span>${quiz.points} Points</span></div>${timer}</div>`
+      : timer ? `<div class="hg-question-header is-timer-only">${timer}</div>` : "";
     const questionTitle = quiz.title && (!roomQuestion || quiz.title !== roomTitle) ? `<h3>${escapeHTML(quiz.title)}</h3>` : "";
     const submitted = roomQuestion && data.answer;
     const evaluation = submitted?.evaluation;
@@ -375,8 +379,7 @@
         || (reveal.correctAnswer === "true" ? "True" : reveal.correctAnswer === "false" ? "False" : reveal.correctAnswer);
       response += `<div class="hg-answer-reveal"><strong>Correct answer:</strong> ${escapeHTML(correctText || "Manual evaluation")} ${quiz.points ? `<span>+${quiz.points} points</span>` : ""}${reveal.explanation ? `<p><strong>Explanation:</strong> ${escapeHTML(reveal.explanation)}</p>` : ""}</div>`;
     }
-    const showTimer = ["live", "paused"].includes(quiz.status) && quiz.timeLimit;
-    area.innerHTML = `${questionHeader}${showTimer ? `<div class="hg-player-timer ${quiz.status === "paused" ? "is-paused" : ""}">Time <strong data-player-countdown>${formatPlayerCountdown(quiz.status === "paused" ? quiz.remainingMs || 0 : remainingQuestionTime(quiz))}</strong></div>` : ""}${questionTitle}${quiz.text ? `<p>${escapeHTML(quiz.text)}</p>` : ""}${quiz.imageUrl ? `<img src="${escapeHTML(quiz.imageUrl)}" alt="Quiz question image" referrerpolicy="no-referrer">` : ""}${quiz.audioUrl ? `<audio controls preload="metadata" src="${escapeHTML(quiz.audioUrl)}">Your browser does not support audio.</audio>` : ""}${response}`;
+    area.innerHTML = `${questionHeader}${questionTitle}${quiz.text ? `<p>${escapeHTML(quiz.text)}</p>` : ""}${quiz.imageUrl ? `<img src="${escapeHTML(quiz.imageUrl)}" alt="Quiz question image" referrerpolicy="no-referrer">` : ""}${quiz.audioUrl ? `<audio controls preload="metadata" src="${escapeHTML(quiz.audioUrl)}">Your browser does not support audio.</audio>` : ""}${response}`;
     const form = area.querySelector("[data-answer-form]");
     if (form) form.addEventListener("submit", async event => {
       event.preventDefault();

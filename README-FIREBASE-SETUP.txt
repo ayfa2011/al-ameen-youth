@@ -9,6 +9,16 @@ Enable Google as a sign-in provider in Firebase Console -> Authentication ->
 Sign-in method for Member login. Add each production and local/staging website
 host under Authentication -> Settings -> Authorized domains.
 
+The production Member login also offers Google Identity Services One Tap when
+available. Its Web OAuth client ID is configured separately as
+PRODUCTION_GOOGLE_IDENTITY_CLIENT_ID in js/firebase-config.js; ensure the
+website HTTPS origin is listed under that OAuth client’s Authorized JavaScript
+origins. For local staging, set AYFA_GOOGLE_IDENTITY_CLIENT_ID in the ignored
+js/firebase-config.local.js and authorize its local/staging origin. One Tap
+credentials are exchanged through Firebase Authentication before using the
+same Apps Script role-token flow as the standard Google sign-in button. If GIS
+is unavailable or dismissed, the standard button remains available.
+
 Members sign in with any Google account and have read-only access. Admin &
 Incharges continue to sign in using the shared password stored in the Apps
 Script property OFFICIAL_LOGIN_PASSWORD; anyone with this password can edit

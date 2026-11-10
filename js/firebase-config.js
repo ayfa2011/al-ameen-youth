@@ -14,10 +14,14 @@ const PRODUCTION_FIREBASE_CONFIG = {
   measurementId: "G-F68JPE5G0V"
 };
 
+const PRODUCTION_GOOGLE_IDENTITY_CLIENT_ID = "457022225177-fist7u8q5qvmmtethp9ni4pnf8l95lrm.apps.googleusercontent.com";
 const IS_LOCAL_DEV_HOST = ["localhost", "127.0.0.1", "::1"].includes(location.hostname);
 const LOCAL_FIREBASE_CONFIG = IS_LOCAL_DEV_HOST ? window.AYFA_FIREBASE_CONFIG : null;
 const LOCAL_APPS_SCRIPT_URL = IS_LOCAL_DEV_HOST ? String(window.AYFA_SCRIPT_URL || "") : "";
 const firebaseConfig = IS_LOCAL_DEV_HOST ? LOCAL_FIREBASE_CONFIG : PRODUCTION_FIREBASE_CONFIG;
+window.googleIdentityClientId = IS_LOCAL_DEV_HOST
+  ? String(window.AYFA_GOOGLE_IDENTITY_CLIENT_ID || "")
+  : PRODUCTION_GOOGLE_IDENTITY_CLIENT_ID;
 
 // Fail closed during local development. Without a separate staging Firebase
 // project and matching Apps Script token issuer, never connect local code to
@@ -37,9 +41,9 @@ if (IS_LOCAL_DEV_HOST && (!firebaseConfig?.projectId || firebaseConfig.projectId
   window.firebaseDb = firebase.database();
   window.firebaseAuth = firebase.auth();
 
-// Persistent email/password authentication is required before the app can
-// read protected data. Role grants are stored in protected Realtime Database
-// rules and cannot be changed by website users.
+// Persistent authentication is required before the app can read protected
+// data. Role grants are stored in protected Realtime Database rules and
+// cannot be changed by website users.
   window.firebaseReady = window.firebaseAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
     .then(() => true)
     .catch((error) => {

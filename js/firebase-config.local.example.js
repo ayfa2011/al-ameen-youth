@@ -11,6 +11,9 @@ window.AYFA_FIREBASE_CONFIG = {
   appId: "STAGING_APP_ID"
 };
 
+// Optional Google Identity Services Web client ID for staging One Tap.
+window.AYFA_GOOGLE_IDENTITY_CLIENT_ID = "STAGING_WEB_CLIENT_ID.apps.googleusercontent.com";
+
 // This must be a staging Apps Script deployment that issues custom tokens
 // for the same staging Firebase project above.
 window.AYFA_SCRIPT_URL = "STAGING_APPS_SCRIPT_EXEC_URL";

@@ -9,8 +9,11 @@ let authLoginInProgress = false;
 let selectedLoginRole = "";
 let authScreenNotice = "";
 const GOOGLE_ROLE_PENDING_KEY = "ayfaPendingGoogleLoginRole";
+const GOOGLE_ONE_TAP_ATTEMPT_KEY = "ayfaGoogleOneTapAttempted";
 const MAX_PROFILE_PHOTO_BYTES = 512 * 1024;
 const MAX_PROFILE_PHOTO_SOURCE_BYTES = 15 * 1024 * 1024;
+let googleIdentityScriptPromise = null;
+let googleOneTapInitialized = false;
 
 function currentUserRole() {
   return isRoleAuthenticated() ? ayfaAuthContext.role : "";
@@ -92,6 +95,7 @@ function showAuthScreen(role = "", message = "") {
   const passwordInput = document.getElementById("authPassword");
   const loginButton = document.getElementById("loginBtn");
   selectedLoginRole = role === "member" || role === "official" ? role : "";
+  if (selectedLoginRole) cancelGoogleOneTap();
   if (error) error.textContent = selectedLoginRole ? message : "";
   const screenMessage = document.getElementById("authScreenMessage");
   if (screenMessage) screenMessage.textContent = message || (selectedLoginRole === "official" ? "Enter the Admin & Incharges password." : selectedLoginRole === "member" ? "Choose a Google account to continue." : "");
@@ -119,6 +123,89 @@ function selectLoginRole(role) {
   if (role === "member" || role === "official") {
     authScreenNotice = "";
     showAuthScreen(role);
+  }
+}
+
+function loadGoogleIdentityServices() {
+  if (window.google?.accounts?.id) return Promise.resolve();
+  if (googleIdentityScriptPromise) return googleIdentityScriptPromise;
+  googleIdentityScriptPromise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => window.google?.accounts?.id
+      ? resolve()
+      : reject(new Error("Google Identity Services did not initialize."));
+    script.onerror = () => reject(new Error("Google Identity Services could not be loaded."));
+    document.head.appendChild(script);
+  });
+  return googleIdentityScriptPromise;
+}
+
+function cancelGoogleOneTap() {
+  if (googleOneTapInitialized) window.google?.accounts?.id?.cancel();
+}
+
+function startGoogleOneTap() {
+  const isAllowedIdentityOrigin = location.protocol === "https:"
+    || (location.protocol === "http:" && ["localhost", "127.0.0.1", "::1"].includes(location.hostname));
+  if (!isAllowedIdentityOrigin || !window.firebaseAuth || !SCRIPT_URL || !window.googleIdentityClientId
+    || window.firebaseAuth.currentUser || authLoginInProgress
+    || selectedLoginRole === "official"
+    || sessionStorage.getItem(GOOGLE_ONE_TAP_ATTEMPT_KEY)) return;
+
+  sessionStorage.setItem(GOOGLE_ONE_TAP_ATTEMPT_KEY, "1");
+  void loadGoogleIdentityServices().then(() => {
+    if (window.firebaseAuth.currentUser || authLoginInProgress || selectedLoginRole === "official") return;
+    window.google.accounts.id.initialize({
+      client_id: window.googleIdentityClientId,
+      callback: handleGoogleOneTapCredential,
+      auto_select: false,
+      cancel_on_tap_outside: true,
+      use_fedcm_for_prompt: true
+    });
+    googleOneTapInitialized = true;
+    window.google.accounts.id.prompt();
+  }).catch(error => {
+    console.warn("Google One Tap could not be started; the sign-in button remains available:", error);
+  });
+}
+
+async function handleGoogleOneTapCredential(response) {
+  if (!response?.credential || authLoginInProgress || window.firebaseAuth?.currentUser) return;
+  authLoginInProgress = true;
+  showAuthScreen("member");
+  const button = document.getElementById("loginBtn");
+  const backButton = document.querySelector("#roleLoginForm .auth-back-button");
+  if (button) {
+    button.disabled = true;
+    button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Signing in…</span>';
+  }
+  if (backButton) backButton.disabled = true;
+  try {
+    await window.firebaseReady;
+    if (selectedLoginRole !== "member" || window.firebaseAuth?.currentUser) return;
+    const googleCredential = firebase.auth.GoogleAuthProvider.credential(response.credential);
+    const result = await window.firebaseAuth.signInWithCredential(googleCredential);
+    sessionStorage.setItem(GOOGLE_ROLE_PENDING_KEY, "member");
+    await completeGoogleRoleLogin("member", result.user);
+  } catch (loginError) {
+    console.error("Google One Tap sign-in failed:", loginError);
+    await window.firebaseAuth?.signOut().catch(signOutError => console.error("Temporary Google session cleanup failed:", signOutError));
+    sessionStorage.removeItem(GOOGLE_ROLE_PENDING_KEY);
+    authScreenNotice = authErrorMessage(loginError);
+    showAuthScreen("member", authScreenNotice);
+    document.getElementById("authRoleHint")?.classList.remove("hidden");
+  } finally {
+    authLoginInProgress = false;
+    if (backButton) backButton.disabled = false;
+    if (button && !isRoleAuthenticated()) {
+      button.disabled = false;
+      button.innerHTML = selectedLoginRole === "official"
+        ? '<i class="fa-solid fa-lock"></i><span>Login</span>'
+        : '<i class="fa-brands fa-google"></i><span>Continue with Google</span>';
+    }
   }
 }
 
@@ -469,6 +556,7 @@ async function restoreRoleSession(user) {
     refreshSupervisorUI();
     showAuthScreen("", authScreenNotice);
     authScreenNotice = "";
+    startGoogleOneTap();
     return;
   }
   try {
