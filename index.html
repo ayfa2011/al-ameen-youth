@@ -106,7 +106,10 @@
       </div>
       <strong id="appPageTitle" class="app-page-title hidden">ಅಲ್ ಅಮೀನ್ ಯೂತ್ ಫೆಡರೇಶನ್</strong>
 
-      <button type="button" class="header-logout" data-view-event="click" data-view-handler="manualRoleLogout" aria-label="Logout"><i class="fa-solid fa-arrow-right-from-bracket"></i><span>Logout</span></button>
+      <button type="button" class="header-profile-button" id="headerProfileButton" data-view-event="click" data-view-handler="openProfilePage" aria-label="Open profile" title="Profile" hidden>
+        <img id="headerProfilePhoto" class="hidden" alt="">
+        <span id="headerProfileFallback" aria-hidden="true"><i class="fa-solid fa-user"></i></span>
+      </button>
 
     </header>
 
@@ -348,7 +351,6 @@
       <div class="more-page-card">
         <header class="more-page-heading"><div><span><i class="fa-solid fa-ellipsis"></i> MENU</span><h2 id="moreTitle">More</h2><p>Choose an option.</p></div></header>
         <div class="more-page-actions">
-          <button type="button" class="grid-card more-page-action" data-view-event="click" data-view-handler="openProfilePage"><i class="fa-solid fa-user-pen card-icon"></i><span>Profile</span></button>
           <button type="button" class="grid-card more-page-action" data-view-event="click" data-view-handler="openExcelExportPage"><i class="fa-solid fa-file-excel card-icon"></i><span>Export Excel</span></button>
           <button type="button" class="grid-card more-page-action" data-view-event="click" data-view-handler="openCollectionsPage"><i class="fa-solid fa-layer-group card-icon"></i><span>Collection</span></button>
         </div>
@@ -374,7 +376,8 @@
           <p id="profileSaveStatus" class="profile-save-status" aria-live="polite"></p>
           <button id="saveProfileButton" type="submit" class="profile-save-button"><i class="fa-solid fa-floppy-disk"></i> Save profile</button>
         </form>
-        <button type="button" class="more-page-back" data-view-event="click" data-view-handler="openMorePage"><i class="fa-solid fa-arrow-left"></i> Back to More</button>
+        <button type="button" class="profile-logout-button" data-view-event="click" data-view-handler="manualRoleLogout"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</button>
+        <button type="button" class="more-page-back" data-view-event="click" data-view-handler="showDashboard"><i class="fa-solid fa-arrow-left"></i> Back to Dashboard</button>
       </div>
     </section>
 

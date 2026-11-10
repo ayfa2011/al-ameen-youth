@@ -224,8 +224,36 @@ async function resolveFirebaseRole(user) {
   return { role, expiresAt: null };
 }
 
+function renderHeaderProfileButton() {
+  const button = document.getElementById("headerProfileButton");
+  const image = document.getElementById("headerProfilePhoto");
+  const fallback = document.getElementById("headerProfileFallback");
+  const user = ayfaAuthContext.user;
+  if (!button || !image || !fallback) return;
+  button.hidden = !user;
+  if (!user) return;
+
+  const label = user.displayName || user.email || "Profile";
+  button.setAttribute("aria-label", `Open profile for ${label}`);
+  button.title = `Profile: ${label}`;
+  const showFallback = () => {
+    image.hidden = true;
+    image.removeAttribute("src");
+    fallback.hidden = false;
+  };
+  image.onerror = showFallback;
+  if (user.photoURL) {
+    image.src = user.photoURL;
+    image.hidden = false;
+    fallback.hidden = true;
+  } else {
+    showFallback();
+  }
+}
+
 async function activateRoleSession(user, resolved) {
   ayfaAuthContext = { user, role: resolved.role, expiresAt: resolved.expiresAt, ready: true };
+  renderHeaderProfileButton();
   authScreenNotice = "";
   clearTimeout(authExpiryTimer);
   clearTimeout(authWarningTimer);
@@ -492,6 +520,7 @@ async function handleProfilePhotoSelection(event) {
     await storageRef.put(blob, { contentType: "image/jpeg", cacheControl: "public,max-age=3600" });
     const photoURL = await storageRef.getDownloadURL();
     await ayfaAuthContext.user.updateProfile({ photoURL });
+    renderHeaderProfileButton();
     renderProfilePage();
     if (status) status.textContent = "Profile photo saved.";
   } catch (error) {
@@ -540,6 +569,7 @@ async function saveProfileChanges(event) {
   if (status) status.textContent = "Saving…";
   try {
     await ayfaAuthContext.user.updateProfile({ displayName });
+    renderHeaderProfileButton();
     renderProfilePage();
     if (status) status.textContent = "Profile updated.";
   } catch (error) {
@@ -633,6 +663,7 @@ function applyRolePermissions() {
 }
 
 function refreshSupervisorUI() {
+  renderHeaderProfileButton();
   document.querySelectorAll("[data-supervisor-login]").forEach(element => { element.innerHTML = supervisorButtonHTML(); });
   applyRolePermissions();
   if (typeof renderAgendas === "function") try { renderAgendas(); } catch (_) {}

@@ -1364,6 +1364,11 @@ body {
 }
 
 .header-logout{flex:0 0 auto;margin-left:auto;display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:34px;padding:6px 9px;border:0;border-radius:9px;background:#edf6f0;color:#175b3e;font:inherit;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
+.header-profile-button{display:grid;flex:0 0 42px;width:42px;height:42px;margin-left:auto;place-items:center;overflow:hidden;padding:0;border:1px solid #dce8e0;border-radius:50%;background:#edf6f0;color:#175b3e;font-size:18px;cursor:pointer}
+.header-profile-button:hover,.header-profile-button:focus-visible{box-shadow:0 0 0 3px rgba(22,131,77,.16);outline:none}
+.header-profile-button img{width:100%;height:100%;object-fit:cover}
+.header-profile-button>span{display:grid;width:100%;height:100%;place-items:center}
+.header-profile-button[hidden]{display:none!important}
 .inner-page-header{justify-content:flex-start;min-height:38px;padding:4px 0 10px!important}
 .inner-page-header .btn-back{min-height:30px;padding:5px 9px;border:0;border-radius:8px;background:#edf4ef;color:#24543b;font-size:12px}
 .agenda-toolbar-actions{display:flex;align-items:center;gap:7px}.agenda-import-button{min-height:36px;padding:0 9px;border:1px solid #dbe6df;border-radius:8px;background:#f6faf7;color:#355d46;font:inherit;font-size:11px;font-weight:600;cursor:pointer}.agenda-import-button[hidden]{display:none}
@@ -2306,6 +2311,7 @@ html[data-auth-role="member"] .program-report-submit{display:none!important}
 .profile-save-status{min-height:18px;margin:4px 0 0;color:#52665a;font-size:12px}
 .profile-save-button{display:inline-flex;min-height:44px;align-items:center;justify-content:center;gap:8px;padding:9px 14px;border:0;border-radius:10px;background:#16834d;color:#fff;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
 .profile-save-button:disabled{opacity:.65;cursor:wait}
+.profile-logout-button{display:inline-flex;width:100%;min-height:42px;align-items:center;justify-content:center;gap:8px;margin-top:12px;padding:9px 14px;border:1px solid #e8caca;border-radius:10px;background:#fff7f7;color:#a52c2c;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
 @media(max-width:640px){.profile-page-card{margin:0;padding:16px;border-radius:15px}}
 .auth-session-bar{position:relative;z-index:2}
 html[data-auth-role="member"] #tabMarkBtn,
@@ -2451,6 +2457,7 @@ body{display:flex;align-items:center;justify-content:center;background:#eef2f1}
 .app-top-bar-uniform .app-back-button{flex:0 0 auto;min-height:40px;min-width:40px;font-size:18px}
 .app-top-bar-uniform .header-brand-image{height:auto!important;max-height:96px!important;width:auto!important;max-width:min(calc(100% - 90px),420px)!important;flex:0 1 auto!important;object-fit:contain!important;object-position:left center!important}
 .app-top-bar-uniform .header-logout{justify-self:end}
+.app-top-bar-uniform .header-profile-button{justify-self:end}
 
 .annual-activity-reports{margin-bottom:4px;padding:18px}
 .annual-activity-heading{margin-bottom:14px}
