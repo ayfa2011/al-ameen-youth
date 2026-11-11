@@ -1,7 +1,7 @@
 // Bump this name when deploying asset changes; activation replaces the old shell cache.
 // This is required in addition to ?v= query bumps on index.html: once a same-origin
 // script is cached below, bumping its ?v= alone is not enough to evict it.
-const CACHE_NAME = "alameen-shell-v27-hangout-chat-replies";
+const CACHE_NAME = "alameen-shell-v28-hangout-chat-replies";
 const APP_SHELL = [
   "./", "./index.html", "./manifest.json", "./css/style.css",
   "./assets/icons/icon-192.png", "./assets/icons/icon-512.png", "./assets/icons/apple-touch-icon.png",
@@ -25,7 +25,9 @@ self.addEventListener("install", event => {
 });
 
 self.addEventListener("activate", event => {
-  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)))).then(() => self.clients.claim()));
+  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)))).then(() => self.clients.claim()).then(() => {
+    self.clients.matchAll().then(clients => clients.forEach(client => client.postMessage({ type: "SW_UPDATE", reload: true })));
+  }));
 });
 
 self.addEventListener("fetch", event => {
@@ -43,11 +45,11 @@ self.addEventListener("fetch", event => {
     }).catch(() => caches.match("./index.html")));
     return;
   }
-  event.respondWith(caches.match(request).then(cached => cached || fetch(request).then(response => {
+  event.respondWith(fetch(request).then(response => {
     if (response.ok) {
       const copy = response.clone();
       event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.put(request, copy)).catch(() => {}));
     }
     return response;
-  })));
+  }).catch(() => caches.match(request)));
 });

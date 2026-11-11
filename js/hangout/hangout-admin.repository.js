@@ -9,7 +9,7 @@ window.HangoutAdminRepository = (() => {
   function isQuizAdmin() {
     const user = window.firebaseAuth?.currentUser;
     return typeof currentUserRole === "function"
-      && currentUserRole() === "member"
+      && currentUserRole() !== ""
       && QUIZ_ADMIN_EMAILS.includes(String(user?.email || "").toLowerCase());
   }
 
