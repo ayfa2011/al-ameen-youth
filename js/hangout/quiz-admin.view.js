@@ -188,9 +188,9 @@ window.HangoutQuizAdmin = (() => {
         savedOptions.forEach(([id, text], index) => {
           const input = questionForm.elements[`option${index + 1}`];
           if (input) input.value = text;
-          const radio = questionForm.querySelector(`[name="correctAnswer"][value="${CSS.escape(id)}"]`);
-          if (radio) radio.checked = true;
         });
+        const correctRadio = questionForm.querySelector(`[name="correctAnswer"][value="${CSS.escape(editingQuestion.correctAnswer || "option1")}"]`);
+        if (correctRadio) correctRadio.checked = true;
       } else {
         const radio = questionForm.querySelector(`[name="correctAnswer"][value="${CSS.escape(editingQuestion.correctAnswer || "true")}"]`);
         if (radio) radio.checked = true;
