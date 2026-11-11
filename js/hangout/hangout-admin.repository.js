@@ -86,12 +86,13 @@ window.HangoutAdminRepository = (() => {
         .filter(roomId => !historyBackfills.has(roomId));
       roomsNeedingBackfill.forEach(roomId => historyBackfills.add(roomId));
       if (roomsNeedingBackfill.length) {
-        Promise.all(roomsNeedingBackfill.map(roomId => this.refreshPlayerQuizHistory(roomId)))
-          .catch(error => {
-            roomsNeedingBackfill.forEach(roomId => historyBackfills.delete(roomId));
-            console.error("Existing quiz history could not be backfilled:", error);
-            showToast("Existing quiz history could not be synced. Check database rules and retry.", "error");
-          });
+        const results = await Promise.allSettled(roomsNeedingBackfill.map(roomId => this.refreshPlayerQuizHistory(roomId)));
+        results.forEach((result, i) => {
+          if (result.status === "rejected") {
+            historyBackfills.delete(roomsNeedingBackfill[i]);
+            console.error("History backfill failed for", roomsNeedingBackfill[i], result.reason);
+          }
+        });
       }
       const publishedRoomsNeedingBackfill = Object.entries(publishedResults)
         .filter(([roomId, result]) => result?.published && rooms[roomId]?.status === "completed"
@@ -486,6 +487,15 @@ window.HangoutAdminRepository = (() => {
       if (published && room.status !== "completed") {
         throw new Error("End the quiz before publishing its final results.");
       }
+      if (published) {
+        const scores = scoresSnap.val() || {};
+        const answers = answersSnap.val() || {};
+        const participants = new Set([
+          ...Object.keys(scores),
+          ...Object.values(answers).flatMap(questionAnswers => Object.keys(questionAnswers || {}))
+        ]);
+        if (!participants.size) throw new Error("No participants to publish results for.");
+      }
       const publicResult = published ? (() => {
         const scores = scoresSnap.val() || {};
         const users = usersSnap.val() || {};
@@ -710,8 +720,8 @@ window.HangoutAdminRepository = (() => {
       const updates = {};
       rows.forEach(row => {
         const base = `hangout/playerQuizHistory/${row.uid}/${roomId}`;
-        row.earned.forEach(item => {
-          updates[`${base}/questions/${item.questionId}`] = item;
+        row.earned.forEach(({ questionId, ...item }) => {
+          updates[`${base}/questions/${questionId}`] = item;
         });
         updates[`${base}/summary`] = row.summary;
       });
