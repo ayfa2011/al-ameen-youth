@@ -14,9 +14,11 @@
   let observedQuestionKey = null, latestQuestionPublishedAt = "", alertAudioContext = null, alertUnlockContainer = null;
   let answerQuestionKey = "", answerTimerKey = "", answerDraftKey = "", answerSyncKey = "";
   let answerDraft = null, answerSubmissionKey = "";
-  let lastQuizKey = null, scoreTimer = 0, panel = "quiz", exitFn = () => {};
-  let selectedResultId = "";
-  let selectedHistoryRoomId = "";
+let lastQuizKey = null, scoreTimer = 0, panel = "quiz", exitFn = () => {};
+let selectedResultId = "";
+let selectedHistoryRoomId = "";
+let scoreTab = "overall";
+let selectedPreviousRoomId = "";
   const data = { users: {}, scores: {}, publicResults: {}, quizHistory: {}, quizHistoryLoaded: false, quizHistoryError: null, quiz: null, nextQuiz: null, log: {}, answer: null, reveal: null, revealError: false, timeExpired: false, scoreSyncPending: false };
 
   const $ = selector => container?.querySelector(selector);
@@ -785,15 +787,54 @@
   function renderScore() {
     const host = $('[data-panel="score"]');
     if (!host || !ctx) return;
-    const publishedResults = Object.entries(data.publicResults || {})
-      .filter(([, result]) => result?.published && result.rows && typeof result.rows === "object")
-      .sort((a, b) => String(b[1].updatedAt || "").localeCompare(String(a[1].updatedAt || "")));
-    if (!publishedResults.length) {
-      host.innerHTML = '<div class="hg-score"><div class="hg-score-head"><small>RANKING</small><h3>All Quiz Scores</h3></div><div class="hg-empty">Quiz results have not been published yet.</div></div>';
-      return;
-    }
+    const quiz = HangoutService.cleanQuiz(data.quiz);
+    const isActive = ["live", "paused", "revealed"].includes(quiz.status);
+    if (scoreTab === "active" && !isActive) scoreTab = "overall";
 
-    const rows = HangoutService.buildCumulativeLeaderboard(data.publicResults);
+    const tabs = [];
+    if (isActive) tabs.push("active");
+    tabs.push("overall", "previous");
+
+    const tabHtml = tabs.map(t => {
+      const label = t === "active" ? "Active Quiz" : t === "overall" ? "Over All" : "Previous";
+      const active = scoreTab === t ? "is-active" : "";
+      return `<button type="button" data-score-tab="${t}" class="hg-tab ${active}">${escapeHTML(label)}</button>`;
+    }).join("");
+
+    host.innerHTML = `<div class="hg-score">
+      <div class="hg-tabs">${tabHtml}</div>
+      <div class="hg-score-head"><h3>${scoreTab === "active" ? (quiz.roomName || "Active Quiz") : scoreTab === "overall" ? "Over All" : "Previous Quiz Scores"}</h3></div>
+      <div class="hg-score-body" data-score-body></div>
+    </div>`;
+
+    host.querySelectorAll('[data-score-tab]').forEach(btn => {
+      btn.addEventListener("click", () => {
+        scoreTab = btn.dataset.scoreTab;
+        if (scoreTab === "previous") selectedPreviousRoomId = "";
+        renderScore();
+      });
+    });
+
+    renderScoreBody();
+  }
+
+  function renderScoreBody() {
+    const host = $('[data-panel="score"]');
+    const body = host.querySelector('[data-score-body]');
+    const quiz = HangoutService.cleanQuiz(data.quiz);
+    if (scoreTab === "active") renderActiveQuiz(body, quiz);
+    else if (scoreTab === "overall") renderOverall(body);
+    else renderPrevious(body, quiz);
+  }
+
+  function renderActiveQuiz(host, quiz) {
+    const roomId = quiz.roomId;
+    const result = data.publicResults[roomId];
+    const rows = result?.rows ? Object.values(result.rows) : [];
+    rows.sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
+    rows.forEach((row, index) => {
+      row.rank = index > 0 && row.points === rows[index - 1].points ? rows[index - 1].rank : index + 1;
+    });
     const list = rows.map(row => {
       const rank = Number(row.rank) || 0;
       const medal = HangoutService.medalFor(rank);
@@ -805,12 +846,89 @@
         <span class="hg-name">${escapeHTML(row.name)}${own ? '<span class="hg-you-tag">You</span>' : ""}</span>
         <span class="hg-pts">${row.points}</span></li>`;
     }).join("");
-    host.innerHTML = `<div class="hg-score">
-      <div class="hg-score-head"><small>ALL PUBLISHED QUIZZES</small><h3>Total Quiz Scores</h3>
-        <p>${publishedResults.length} quiz${publishedResults.length === 1 ? "" : "zes"} included</p>
-      </div>
-      ${list ? `<ol class="hg-score-list">${list}</ol>` : '<div class="hg-empty">No participants have been recorded in published quizzes.</div>'}
+    host.innerHTML = `<div class="hg-scroll">
+      <div class="hg-score-head"><h3>${escapeHTML(quiz.roomName || "Active Quiz")} · Active</h3><p>${rows.length} participant${rows.length === 1 ? "" : "s"}</p></div>
+      ${list ? `<ol class="hg-score-list">${list}</ol>` : '<div class="hg-empty">No scores recorded for the active quiz yet.</div>'}
     </div>`;
+  }
+
+  function renderOverall(host) {
+    const rows = HangoutService.buildLeaderboard(data.users || {}, data.scores || {});
+    const list = rows.map(row => {
+      const rank = Number(row.rank) || 0;
+      const medal = HangoutService.medalFor(rank);
+      const own = row.uid === ctx.user.uid;
+      const profile = data.users[row.uid] || {};
+      return `<li class="hg-row ${rank <= 3 ? `rank-${rank}` : ""} ${own ? "is-you" : ""}">
+        <span class="hg-rank ${medal ? "is-medal" : ""}">${medal || escapeHTML(HangoutService.rankLabel(rank))}</span>
+        ${HangoutUI.avatar(profile.photo, row.name, row.uid)}
+        <span class="hg-name">${escapeHTML(row.name)}${own ? '<span class="hg-you-tag">You</span>' : ""}</span>
+        <span class="hg-pts">${row.points}</span></li>`;
+    }).join("");
+    host.innerHTML = `<div class="hg-scroll">
+      <div class="hg-score-head"><h3>Over All</h3><p>${rows.length} member${rows.length === 1 ? "" : "s"} · total points across all quizzes</p></div>
+      ${list ? `<ol class="hg-score-list">${list}</ol>` : '<div class="hg-empty">No members found.</div>'}
+    </div>`;
+  }
+
+  function renderPrevious(host, quiz) {
+    if (selectedPreviousRoomId) {
+      renderPreviousQuiz(host, selectedPreviousRoomId);
+      return;
+    }
+    const published = Object.entries(data.publicResults || {})
+      .filter(([, result]) => result?.published && result.rows && typeof result.rows === "object")
+      .sort((a, b) => String(b[1].updatedAt || "").localeCompare(String(a[1].updatedAt || "")));
+    const list = published.map(([roomId, result]) => {
+      const rows = Array.isArray(result.rows) ? result.rows : Object.values(result.rows);
+      const total = rows.reduce((sum, r) => sum + (Number(r.points) || 0), 0);
+      const top = rows.length ? [...rows].sort((a, b) => b.points - a.points)[0] : null;
+      return `<li class="hg-row" data-previous-room="${escapeHTML(roomId)}">
+        <div class="hg-name-wrap"><strong>${escapeHTML(result.roomName || "Quiz Room")}</strong><small>${rows.length} participant${rows.length === 1 ? "" : "s"} · ${total} total pts</small></div>
+        ${top ? `<span class="hg-pts">${escapeHTML(top.name)}: ${top.points}</span>` : ""}
+      </li>`;
+    }).join("");
+    host.innerHTML = `<div class="hg-scroll">
+      <div class="hg-score-head"><h3>Previous</h3><p>Tap a quiz to see its separate scoreboard</p></div>
+      ${list ? `<ol class="hg-score-list">${list}</ol>` : '<div class="hg-empty">No published quizzes yet.</div>'}
+    </div>`;
+    host.querySelectorAll('[data-previous-room]').forEach(btn => {
+      btn.addEventListener("click", () => {
+        selectedPreviousRoomId = btn.dataset.previousRoom;
+        renderScore();
+      });
+    });
+  }
+
+  function renderPreviousQuiz(host, roomId) {
+    const result = data.publicResults[roomId];
+    const rows = result?.rows ? Object.values(result.rows) : [];
+    rows.sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
+    rows.forEach((row, index) => {
+      row.rank = index > 0 && row.points === rows[index - 1].points ? rows[index - 1].rank : index + 1;
+    });
+    const list = rows.map(row => {
+      const rank = Number(row.rank) || 0;
+      const medal = HangoutService.medalFor(rank);
+      const own = row.uid === ctx.user.uid;
+      const profile = data.users[row.uid] || {};
+      return `<li class="hg-row ${rank <= 3 ? `rank-${rank}` : ""} ${own ? "is-you" : ""}">
+        <span class="hg-rank ${medal ? "is-medal" : ""}">${medal || escapeHTML(HangoutService.rankLabel(rank))}</span>
+        ${HangoutUI.avatar(profile.photo, row.name, row.uid)}
+        <span class="hg-name">${escapeHTML(row.name)}${own ? '<span class="hg-you-tag">You</span>' : ""}</span>
+        <span class="hg-pts">${row.points}</span></li>`;
+    }).join("");
+    host.innerHTML = `<div class="hg-scroll">
+      <div class="hg-score-head" style="display:flex;align-items:center;gap:8px;">
+        <button type="button" data-act="prev-back" class="hg-outline-btn" style="padding:6px 10px;font-size:13px"><i class="fa-solid fa-chevron-left"></i> Back</button>
+        <div><h3 style="margin:0 0 2px">${escapeHTML(result?.roomName || "Quiz Room")}</h3><small style="display:block">Separate scoreboard · ${rows.length} participant${rows.length === 1 ? "" : "s"}</small></div>
+      </div>
+      ${list ? `<ol class="hg-score-list">${list}</ol>` : '<div class="hg-empty">No scores recorded for this quiz.</div>'}
+    </div>`;
+    host.querySelector('[data-act="prev-back"]').addEventListener("click", () => {
+      selectedPreviousRoomId = "";
+      renderScore();
+    });
   }
 
   // ---------- profile ----------

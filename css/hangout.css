@@ -173,6 +173,9 @@
 .hg-row.is-you{border-color:#b9d5f7; background:#fafdff; box-shadow:0 0 0 1px #dcecff inset}
 .hg-you-tag{margin-left:6px; padding:1px 7px; border-radius:999px; background:var(--hg-blue); color:#fff; font-size:10px; vertical-align:middle}
 .hg-empty{margin:auto; padding:20px; color:var(--hg-muted); text-align:center}
+.hg-name-wrap{flex:1;min-width:0}
+.hg-name-wrap strong{display:block;font-size:15px;line-height:1.2}
+.hg-name-wrap small{color:var(--hg-muted);font-size:11px;line-height:1.3}
 
 /* ---------- More / Profile ---------- */
 .hg-scroll{flex:1; min-height:0; overflow-y:auto; padding:14px}
