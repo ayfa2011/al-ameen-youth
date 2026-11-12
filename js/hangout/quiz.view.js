@@ -803,7 +803,7 @@ let selectedPreviousRoomId = "";
 
     host.innerHTML = `<div class="hg-score">
       <div class="hg-tabs">${tabHtml}</div>
-      <div class="hg-score-body" data-score-body style="display:flex;flex-direction:column;flex:1;min-height:0"></div>
+      <div class="hg-score-body" data-score-body style="padding-top:8px"></div>
     </div>`;
 
     host.querySelectorAll('[data-score-tab]').forEach(btn => {
@@ -836,7 +836,7 @@ let selectedPreviousRoomId = "";
     });
     const list = rows.map(row => {
       const rank = Number(row.rank) || 0;
-      const medal = HangoutService.medalFor(rank);
+      const medal = rank <= 3 ? HangoutService.medalFor(rank) : "";
       const own = row.uid === ctx.user.uid;
       const profile = data.users[row.uid] || {};
       return `<li class="hg-row ${rank <= 3 ? `rank-${rank}` : ""} ${own ? "is-you" : ""}">
@@ -846,7 +846,7 @@ let selectedPreviousRoomId = "";
         <span class="hg-pts">${row.points}</span></li>`;
     }).join("");
     host.innerHTML = `<div class="hg-score-head"><h3>${escapeHTML(quiz.roomName || "Active Quiz")} · Active</h3><p>${rows.length} participant${rows.length === 1 ? "" : "s"}</p></div>
-      ${list ? `<ol class="hg-score-list" style="flex:1;overflow-y:auto;min-height:0">${list}</ol>` : '<div class="hg-empty" style="padding:20px;color:var(--hg-muted);text-align:center">No scores recorded for the active quiz yet.</div>'}`;
+      ${list ? `<ol class="hg-score-list">${list}</ol>` : '<div class="hg-empty" style="padding:20px;color:var(--hg-muted);text-align:center">No scores recorded for the active quiz yet.</div>'}`;
   }
 
   function renderOverall(host) {
@@ -863,7 +863,7 @@ let selectedPreviousRoomId = "";
         <span class="hg-pts">${row.points}</span></li>`;
     }).join("");
     host.innerHTML = `<div class="hg-score-head"><h3>Over All</h3><p>${rows.length} member${rows.length === 1 ? "" : "s"} · total points across all quizzes</p></div>
-      ${list ? `<ol class="hg-score-list" style="flex:1;overflow-y:auto;min-height:0">${list}</ol>` : '<div class="hg-empty" style="padding:20px;color:var(--hg-muted);text-align:center">No members found.</div>'}`;
+      ${list ? `<ol class="hg-score-list">${list}</ol>` : '<div class="hg-empty" style="padding:20px;color:var(--hg-muted);text-align:center">No members found.</div>'}`;
   }
 
   function renderPrevious(host, quiz) {
@@ -883,7 +883,7 @@ let selectedPreviousRoomId = "";
         ${top ? `<span class="hg-pts">${escapeHTML(top.name)}: ${top.points}</span>` : ""}
       </li>`;
     }).join("");
-    host.innerHTML = `${list ? `<ol class="hg-score-list" style="flex:1;overflow-y:auto;min-height:0">${list}</ol>` : '<div class="hg-empty" style="padding:20px;color:var(--hg-muted);text-align:center">No published quizzes yet.</div>'}`;
+    host.innerHTML = `${list ? `<ol class="hg-score-list">${list}</ol>` : '<div class="hg-empty" style="padding:20px;color:var(--hg-muted);text-align:center">No published quizzes yet.</div>'}`;
     host.querySelectorAll('[data-previous-room]').forEach(btn => {
       btn.addEventListener("click", () => {
         selectedPreviousRoomId = btn.dataset.previousRoom;
@@ -901,7 +901,7 @@ let selectedPreviousRoomId = "";
     });
     const list = rows.map(row => {
       const rank = Number(row.rank) || 0;
-      const medal = HangoutService.medalFor(rank);
+      const medal = rank <= 3 ? HangoutService.medalFor(rank) : "";
       const own = row.uid === ctx.user.uid;
       const profile = data.users[row.uid] || {};
       return `<li class="hg-row ${rank <= 3 ? `rank-${rank}` : ""} ${own ? "is-you" : ""}">
@@ -911,10 +911,10 @@ let selectedPreviousRoomId = "";
         <span class="hg-pts">${row.points}</span></li>`;
     }).join("");
     host.innerHTML = `<div class="hg-score-head" style="display:flex;align-items:center;gap:8px;">
-        <button type="button" data-act="prev-back" class="hg-outline-btn" style="padding:5px 8px;font-size:12px"><i class="fa-solid fa-chevron-left"></i></button>
+        <button type="button" data-act="prev-back" style="padding:2px 6px;font-size:11px;border:1px solid var(--hg-line);border-radius:8px;background:#fff;color:var(--hg-text);cursor:pointer"><i class="fa-solid fa-chevron-left" style="font-size:12px"></i></button>
         <div><h3 style="margin:0 0 2px">${escapeHTML(result?.roomName || "Quiz Room")}</h3><small style="display:block">Separate scoreboard · ${rows.length} participant${rows.length === 1 ? "" : "s"}</small></div>
       </div>
-      ${list ? `<ol class="hg-score-list" style="flex:1;overflow-y:auto;min-height:0">${list}</ol>` : '<div class="hg-empty" style="padding:20px;color:var(--hg-muted);text-align:center">No scores recorded for this quiz.</div>'}`;
+      ${list ? `<ol class="hg-score-list">${list}</ol>` : '<div class="hg-empty" style="padding:20px;color:var(--hg-muted);text-align:center">No scores recorded for this quiz.</div>'}`;
     host.querySelector('[data-act="prev-back"]').addEventListener("click", () => {
       selectedPreviousRoomId = "";
       renderScore();
