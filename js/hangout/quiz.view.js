@@ -7,7 +7,7 @@
 // from HangoutAuth. Chat is in quiz-chat.view.js, admin in quiz-admin.view.js.
 (() => {
   let container = null, ctx = null, stops = [], stopAuth = null, answerStop = null, chat = null;
-  let questionTimer = 0, revealTimeout = 0, scheduleTimer = 0, authLoadingTimer = 0;
+  let questionTimer = 0, revealTimeout = 0, scheduleTimer = 0, authLoadingTimer = 0, gapTimer = 0;
   let screenshotGuardRoot = null, screenshotGuardTimer = 0;
   let stopServerTime = null;
   let screenWakeLock = null, screenWakeLockRequest = 0, screenWakeLockPending = false;
@@ -63,8 +63,10 @@ let selectedPreviousRoomId = "";
     if (stopServerTime) { stopServerTime(); stopServerTime = null; }
     clearInterval(questionTimer);
     clearInterval(scheduleTimer);
+    clearInterval(gapTimer);
     questionTimer = 0;
     scheduleTimer = 0;
+    gapTimer = 0;
     clearTimeout(revealTimeout);
     revealTimeout = 0;
     answerQuestionKey = ""; answerTimerKey = ""; answerDraftKey = ""; answerSyncKey = ""; answerDraft = null; answerSubmissionKey = "";
@@ -479,7 +481,7 @@ let selectedPreviousRoomId = "";
     const quiz = HangoutService.cleanQuiz(raw);
     const nextStartsAt = Number(data.nextQuiz?.startsAt) || 0;
     const nextCountdown = nextStartsAt ? Math.max(0, Math.ceil((nextStartsAt - HangoutFirebase.now()) / 1000)) : null;
-    const key = JSON.stringify([quiz, data.answer, data.reveal, data.timeExpired, data.revealError, data.nextQuiz, nextCountdown]);
+    const key = JSON.stringify([quiz, data.answer, data.reveal, data.timeExpired, data.revealError, data.nextQuiz, nextCountdown, gapRemaining]);
     const month = $("#hgMonth");
     if (month) month.textContent = quiz.monthLabel ? formatHistoryMonth(quiz.monthLabel) : HangoutService.monthLabel();
     if (key === lastQuizKey) return;
@@ -506,9 +508,15 @@ let selectedPreviousRoomId = "";
     const timer = showTimer
       ? `<div class="hg-player-timer ${quiz.status === "paused" ? "is-paused" : ""}"><strong data-player-countdown>${formatPlayerCountdown(quiz.status === "paused" ? quiz.remainingMs || 0 : remainingQuestionTime(quiz))}</strong></div>`
       : "";
+    const gapRemaining = quiz.status === "revealed" && quiz.nextPublishAt
+      ? Math.max(0, Math.ceil((quiz.nextPublishAt - HangoutFirebase.now()) / 1000))
+      : null;
+    const gapTimerHtml = gapRemaining != null && gapRemaining > 0
+      ? `<div class="hg-player-gap-timer"><i class="fa-solid fa-clock"></i> Next Question will appear in <strong>${gapRemaining}</strong> sec</div>`
+      : "";
     const questionHeader = roomQuestion
-      ? `<div class="hg-question-header"><strong class="hg-question-room" title="${escapeHTML(roomTitle)}">${escapeHTML(roomTitle)}</strong><div class="hg-question-badges"><span>Question #${quiz.questionNumber}</span><span>${quiz.points} Points</span></div>${timer}</div>`
-      : timer ? `<div class="hg-question-header is-timer-only">${timer}</div>` : "";
+      ? `<div class="hg-question-header">${gapTimerHtml}<strong class="hg-question-room" title="${escapeHTML(roomTitle)}">${escapeHTML(roomTitle)}</strong><div class="hg-question-badges"><span>Question #${quiz.questionNumber}</span><span>${quiz.points} Points</span></div>${timer}</div>`
+      : (gapTimerHtml || timer) ? `<div class="hg-question-header is-timer-only">${gapTimerHtml}${timer}</div>` : "";
     const questionTitle = quiz.title && (!roomQuestion || quiz.title !== roomTitle) ? `<h3>${escapeHTML(quiz.title)}</h3>` : "";
     const submitted = roomQuestion && data.answer;
     const evaluation = submitted?.evaluation;
@@ -647,6 +655,13 @@ let selectedPreviousRoomId = "";
       lastQuizKey = null;
       startQuestionTimer(quiz);
     });
+    // Auto-publish gap countdown: refresh every second while waiting for the next question.
+    if (gapRemaining && gapRemaining > 0) {
+      if (!gapTimer) gapTimer = setInterval(() => { renderQuestion(data.quiz); }, 1000);
+    } else {
+      clearInterval(gapTimer);
+      gapTimer = 0;
+    }
     area.scrollTop = 0;
   }
 

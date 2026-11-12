@@ -307,6 +307,7 @@ window.HangoutAdminRepository = (() => {
         [`hangout/answerKeys/${roomId}/${questionId}`]: { correctAnswer: question.correctAnswer || "", updatedAt: timestamp },
         [`hangout/rooms/${roomId}/questions/${questionId}/publishedAt`]: question.publishedAt || timestamp,
         "hangout/quiz": payload,
+        ["hangout/quiz/nextPublishAt"]: null,
         [`hangout/rooms/${roomId}/status`]: "live",
         [`hangout/rooms/${roomId}/updatedAt`]: timestamp
       };
@@ -358,6 +359,34 @@ window.HangoutAdminRepository = (() => {
     async getCurrentQuiz() {
       requireQuizAdmin();
       return (await (await database()).ref("hangout/quiz").once("value")).val();
+    },
+
+    async getAutoPublish(roomId) {
+      requireQuizAdmin();
+      const snap = await (await database()).ref(`hangout/rooms/${roomId}/autoPublish`).once("value");
+      return snap.val() || null;
+    },
+
+    async setAutoPublish(roomId, config) {
+      requireQuizAdmin();
+      const ts = now();
+      await (await database()).ref(`hangout/rooms/${roomId}/autoPublish`).set({ ...config, updatedAt: ts });
+      return config;
+    },
+
+    async clearAutoPublish(roomId) {
+      requireQuizAdmin();
+      await (await database()).ref(`hangout/rooms/${roomId}/autoPublish`).remove();
+    },
+
+    async setNextPublishAt(roomId, timestamp) {
+      requireQuizAdmin();
+      await (await database()).ref(`hangout/rooms/${roomId}/nextPublishAt`).set(timestamp);
+    },
+
+    async clearNextPublishAt(roomId) {
+      requireQuizAdmin();
+      await (await database()).ref(`hangout/rooms/${roomId}/nextPublishAt`).remove();
     },
 
     async getRoomScoreData(roomId) {

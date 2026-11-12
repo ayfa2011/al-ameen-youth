@@ -328,6 +328,15 @@ window.HangoutQuizAdmin = (() => {
       }
       const { room, participants } = await HangoutAdminRepository.getControlRoomData(state.controlRoomId);
       if (!host.isConnected) return;
+      // Sync auto-publish state persisted in Firebase (survives panel close / tab switch).
+      const savedAutoPublish = room.autoPublish || null;
+      if (savedAutoPublish) {
+        state.autoPublish.active = Boolean(savedAutoPublish.active);
+        state.autoPublish.paused = Boolean(savedAutoPublish.paused);
+        state.autoPublish.currentIndex = Number(savedAutoPublish.currentIndex) || 0;
+        state.autoPublish.startFrom = Number(savedAutoPublish.startFrom) || 1;
+        state.autoPublish.gapSeconds = Number(savedAutoPublish.gapSeconds) || 10;
+      }
       const questions = Object.entries(room.questions || {}).filter(([, question]) => !question?.deleted)
         .sort((a, b) => Number(a[1]?.questionNumber) - Number(b[1]?.questionNumber));
       const active = activeQuiz?.roomId === state.controlRoomId ? activeQuiz : null;
@@ -418,6 +427,9 @@ window.HangoutQuizAdmin = (() => {
           await publishAt(idx);
           state.autoPublish.currentIndex = idx + 1;
           state.autoPublish.lastRevealedQuestionId = "";
+          await HangoutAdminRepository.clearNextPublishAt(state.controlRoomId);
+          const db = HangoutFirebase.db();
+          if (db) await db.ref("hangout/quiz").child("nextPublishAt").remove();
         } catch (error) {
           console.error("Auto publish failed:", error);
           stopAutoPublish();
@@ -425,19 +437,13 @@ window.HangoutQuizAdmin = (() => {
         }
       }
 
-      function startAutoGap() {
+      async function startAutoGap() {
         state.autoPublish.gapEndTime = Date.now() + state.autoPublish.gapSeconds * 1000;
+        await HangoutAdminRepository.setNextPublishAt(state.controlRoomId, state.autoPublish.gapEndTime);
+        const db = HangoutFirebase.db();
+        if (db) await db.ref("hangout/quiz").child("nextPublishAt").set(state.autoPublish.gapEndTime);
         clearInterval(state.autoPublish.gapTimerId);
-        state.autoPublish.gapTimerId = setInterval(() => {
-          autoGapDisplay();
-          if (Math.ceil((state.autoPublish.gapEndTime - Date.now()) / 1000) <= 0) {
-            clearInterval(state.autoPublish.gapTimerId);
-            state.autoPublish.gapTimerId = 0;
-            if (state.autoPublish.active && !state.autoPublish.paused) {
-              autoPublishNext();
-            }
-          }
-        }, 1000);
+        state.autoPublish.gapTimerId = 0;
         autoGapDisplay();
       }
 
@@ -447,8 +453,10 @@ window.HangoutQuizAdmin = (() => {
         clearInterval(state.autoPublish.gapTimerId);
         state.autoPublish.gapTimerId = 0;
         autoGapDisplay();
+        HangoutAdminRepository.clearAutoPublish(state.controlRoomId).catch(() => {});
+        const db = HangoutFirebase.db();
+        if (db) db.ref("hangout/quiz").child("nextPublishAt").remove().catch(() => {});
       }
-
       host.querySelectorAll("[data-control]").forEach(button => button.addEventListener("click", async () => {
         button.disabled = true;
         try {
@@ -496,9 +504,17 @@ window.HangoutQuizAdmin = (() => {
               state.autoPublish.active = true;
               state.autoPublish.paused = false;
               state.autoPublish.currentIndex = state.autoPublish.startFrom - 1;
+              await HangoutAdminRepository.setAutoPublish(state.controlRoomId, {
+                active: true,
+                paused: false,
+                currentIndex: state.autoPublish.currentIndex,
+                startFrom: state.autoPublish.startFrom,
+                gapSeconds: state.autoPublish.gapSeconds
+              });
               if (active && active.status === "revealed" && active.questionId) {
                 state.autoPublish.lastRevealedQuestionId = active.questionId;
-                startAutoGap();
+                await startAutoGap();
+                await renderQuizControl(host, state, source);
               } else {
                 await autoPublishNext();
               }
@@ -507,6 +523,9 @@ window.HangoutQuizAdmin = (() => {
               state.autoPublish.paused = true;
               clearInterval(state.autoPublish.gapTimerId);
               state.autoPublish.gapTimerId = 0;
+              await HangoutAdminRepository.clearNextPublishAt(state.controlRoomId);
+              const db = HangoutFirebase.db();
+              if (db) await db.ref("hangout/quiz").child("nextPublishAt").remove();
               autoGapDisplay();
               showToast("Auto publish paused.", "success");
               break;
@@ -544,6 +563,11 @@ window.HangoutQuizAdmin = (() => {
             try {
               await HangoutAdminRepository.revealQuestion(latest.roomId, latest.questionId);
               await renderQuizControl(host, state, source);
+              // Auto-publish: start the 10-second gap once the answer is revealed.
+              if (state.autoPublish.active && !state.autoPublish.paused) {
+                await startAutoGap();
+                await renderQuizControl(host, state, source);
+              }
             } catch (error) {
               console.error("Timed quiz answer reveal failed:", error);
               showToast(error.message || "Time ended, but the answer could not be revealed.", "error");
@@ -552,14 +576,14 @@ window.HangoutQuizAdmin = (() => {
           }
         }
 
-        // Auto-publish: start the 10-second gap only after the current question is revealed.
+        // Auto-publish: publish the next question when the gap ends.
         if (latest && latest.roomId === state.controlRoomId
-          && latest.status === "revealed"
+          && latest.nextPublishAt
           && state.autoPublish.active && !state.autoPublish.paused
           && !state.autoPublish.gapTimerId
-          && state.autoPublish.lastRevealedQuestionId !== latest.questionId) {
-          state.autoPublish.lastRevealedQuestionId = latest.questionId;
-          startAutoGap();
+          && Date.now() >= Number(latest.nextPublishAt)) {
+          state.autoPublish.lastRevealedQuestionId = latest.questionId || "";
+          await autoPublishNext();
         }
       }, 500);
     } catch (error) {
@@ -581,7 +605,7 @@ window.HangoutQuizAdmin = (() => {
     const seconds = Math.ceil(Math.max(0, milliseconds) / 1000);
     return `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
   };
-  const quizControlKey = quiz => JSON.stringify([quiz?.roomId, quiz?.questionId, quiz?.status, quiz?.startedAt, quiz?.remainingMs]);
+  const quizControlKey = quiz => JSON.stringify([quiz?.roomId, quiz?.questionId, quiz?.status, quiz?.startedAt, quiz?.remainingMs, quiz?.nextPublishAt]);
 
   async function renderEvaluations(host, state) {
     host.innerHTML = '<div class="hg-empty">Loading answers…</div>';

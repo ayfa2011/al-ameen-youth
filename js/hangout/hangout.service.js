@@ -56,6 +56,7 @@ window.HangoutService = (() => {
       questionId: String(quiz.questionId || ""),
       questionNumber: Number(quiz.questionNumber) || 0,
       publishedAt: String(quiz.publishedAt || ""),
+      nextPublishAt: quiz.nextPublishAt == null || !Number.isFinite(Number(quiz.nextPublishAt)) ? null : Number(quiz.nextPublishAt),
       type: ["mcq", "trueFalse", "short"].includes(quiz.type) ? quiz.type : "",
       options: Object.entries(quiz.options || {}).map(([id, option]) => ({
         id: String(option?.id || id).slice(0, 80),

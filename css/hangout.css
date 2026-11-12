@@ -293,6 +293,9 @@
 .hg-player-timer strong{font-variant-numeric:tabular-nums; font-size:12px}
 .hg-control-countdown{font-variant-numeric:tabular-nums; font-size:14px}
 .hg-player-timer.is-paused{color:var(--hg-muted)}
+.hg-player-gap-timer{margin:0 0 8px 0; padding:8px 11px; border-radius:10px; background:#fff3cd; color:#7a5c00; font-size:12px; font-weight:700; text-align:center; border:1px solid #e2d38a}
+.hg-player-gap-timer i{margin-right:6px}
+.hg-player-gap-timer strong{color:#5c4300}
 .hg-control-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin:4px 0 12px}
 .hg-control-head h4{margin:0}
 .hg-control-head p{margin:3px 0 0; color:var(--hg-muted); font-size:12px}
