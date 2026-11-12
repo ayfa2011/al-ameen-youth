@@ -360,34 +360,6 @@ window.HangoutAdminRepository = (() => {
       return (await (await database()).ref("hangout/quiz").once("value")).val();
     },
 
-    async getAutoPublish(roomId) {
-      requireQuizAdmin();
-      const quiz = await (await database()).ref("hangout/quiz").once("value");
-      const val = quiz.val() || {};
-      return val.autoPublish || null;
-    },
-
-    async setAutoPublish(roomId, config) {
-      requireQuizAdmin();
-      const ts = now();
-      await (await database()).ref("hangout/quiz").update({ autoPublish: { ...config, updatedAt: ts } });
-      return config;
-    },
-
-    async clearAutoPublish(roomId) {
-      requireQuizAdmin();
-      await (await database()).ref("hangout/quiz").child("autoPublish").remove();
-    },
-
-    async setNextPublishAt(roomId, timestamp) {
-      requireQuizAdmin();
-      await (await database()).ref("hangout/quiz").child("nextPublishAt").set(timestamp);
-    },
-
-    async clearNextPublishAt(roomId) {
-      requireQuizAdmin();
-      await (await database()).ref("hangout/quiz").child("nextPublishAt").remove();
-    },
 
     async getRoomScoreData(roomId) {
       requireQuizAdmin();
@@ -939,11 +911,13 @@ window.HangoutAdminRepository = (() => {
     async submitAnswer(quiz, user, answer) {
       const db = await database();
       const answerRef = db.ref(`hangout/answers/${quiz.roomId}/${quiz.questionId}/${user.uid}`);
+      const isCorrect = String(answer).trim() === String(quiz.correctAnswer || "").trim();
+      const questionPoints = isCorrect ? Number(quiz.points) : 0;
       const value = {
         uid: user.uid,
         playerName: String(user.name || "Player").slice(0, 80),
         answer: String(answer).slice(0, 1000),
-        questionPoints: Number(quiz.points) || 0,
+        questionPoints,
         submittedAt: now()
       };
       try {
@@ -965,7 +939,7 @@ window.HangoutAdminRepository = (() => {
             questionNumber: Number(quiz.questionNumber) || 0,
             questionText: String(quiz.text || "").slice(0, 4000),
             type: quiz.type || "mcq",
-            questionPoints: Number(quiz.points) || 0,
+            questionPoints,
             options,
             answer: value.answer,
             submittedAt: value.submittedAt,

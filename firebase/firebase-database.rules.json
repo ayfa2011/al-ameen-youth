@@ -246,6 +246,12 @@
         "updatedAt": {
           ".validate": "newData.isString()"
         },
+        "autoPublish": {
+          ".validate": "newData.isObject() && newData.hasChildren(['active', 'paused', 'currentIndex', 'startFrom', 'gapSeconds']) && newData.child('active').isBoolean() && newData.child('paused').isBoolean() && newData.child('currentIndex').isNumber() && newData.child('currentIndex').val() >= 0 && newData.child('startFrom').isNumber() && newData.child('startFrom').val() >= 1 && newData.child('gapSeconds').isNumber() && newData.child('gapSeconds').val() >= 1"
+        },
+        "nextPublishAt": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
         "$other": {
           ".validate": false
         }
@@ -391,7 +397,7 @@
           "$questionId": {
             "$uid": {
               ".read": "auth != null && auth.uid == $uid",
-              ".write": "auth != null && auth.uid == $uid && !data.exists() && root.child('hangout/quiz/status').val() == 'live' && root.child('hangout/quiz/roomId').val() == $roomId && root.child('hangout/quiz/questionId').val() == $questionId && newData.child('questionPoints').val() == root.child('hangout/quiz/points').val() && now < root.child('hangout/quiz/startedAt').val() + (root.child('hangout/quiz/remainingMs').val() == null ? root.child('hangout/quiz/timeLimit').val() * 1000 : root.child('hangout/quiz/remainingMs').val())",
+              ".write": "auth != null && auth.uid == $uid && !data.exists() && root.child('hangout/quiz/status').val() == 'live' && root.child('hangout/quiz/roomId').val() == $roomId && root.child('hangout/quiz/questionId').val() == $questionId && newData.child('questionPoints').val() == (newData.child('answer').val() == root.child('hangout/answerKeys').child($roomId).child($questionId).child('correctAnswer').val() ? root.child('hangout/quiz/points').val() : 0) && now < root.child('hangout/quiz/startedAt').val() + (root.child('hangout/quiz/remainingMs').val() == null ? root.child('hangout/quiz/timeLimit').val() * 1000 : root.child('hangout/quiz/remainingMs').val())",
               ".validate": "newData.hasChildren(['uid', 'playerName', 'answer', 'questionPoints', 'submittedAt']) && newData.child('uid').val() == $uid && newData.child('playerName').isString() && newData.child('playerName').val().length <= 80 && newData.child('answer').isString() && newData.child('answer').val().length >= 1 && newData.child('answer').val().length <= 1000 && newData.child('questionPoints').isNumber() && newData.child('questionPoints').val() >= 0 && newData.child('submittedAt').isString()",
               "uid": {
                 ".validate": "newData.isString() && newData.val() == $uid"
