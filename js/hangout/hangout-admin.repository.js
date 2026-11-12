@@ -307,7 +307,6 @@ window.HangoutAdminRepository = (() => {
         [`hangout/answerKeys/${roomId}/${questionId}`]: { correctAnswer: question.correctAnswer || "", updatedAt: timestamp },
         [`hangout/rooms/${roomId}/questions/${questionId}/publishedAt`]: question.publishedAt || timestamp,
         "hangout/quiz": payload,
-        ["hangout/quiz/nextPublishAt"]: null,
         [`hangout/rooms/${roomId}/status`]: "live",
         [`hangout/rooms/${roomId}/updatedAt`]: timestamp
       };
