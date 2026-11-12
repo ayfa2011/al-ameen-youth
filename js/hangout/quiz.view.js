@@ -481,6 +481,9 @@ let selectedPreviousRoomId = "";
     const quiz = HangoutService.cleanQuiz(raw);
     const nextStartsAt = Number(data.nextQuiz?.startsAt) || 0;
     const nextCountdown = nextStartsAt ? Math.max(0, Math.ceil((nextStartsAt - HangoutFirebase.now()) / 1000)) : null;
+    const gapRemaining = quiz.status === "revealed" && quiz.nextPublishAt
+      ? Math.max(0, Math.ceil((quiz.nextPublishAt - HangoutFirebase.now()) / 1000))
+      : null;
     const key = JSON.stringify([quiz, data.answer, data.reveal, data.timeExpired, data.revealError, data.nextQuiz, nextCountdown, gapRemaining]);
     const month = $("#hgMonth");
     if (month) month.textContent = quiz.monthLabel ? formatHistoryMonth(quiz.monthLabel) : HangoutService.monthLabel();
@@ -508,9 +511,6 @@ let selectedPreviousRoomId = "";
     const timer = showTimer
       ? `<div class="hg-player-timer ${quiz.status === "paused" ? "is-paused" : ""}"><strong data-player-countdown>${formatPlayerCountdown(quiz.status === "paused" ? quiz.remainingMs || 0 : remainingQuestionTime(quiz))}</strong></div>`
       : "";
-    const gapRemaining = quiz.status === "revealed" && quiz.nextPublishAt
-      ? Math.max(0, Math.ceil((quiz.nextPublishAt - HangoutFirebase.now()) / 1000))
-      : null;
     const gapTimerHtml = gapRemaining != null && gapRemaining > 0
       ? `<div class="hg-player-gap-timer"><i class="fa-solid fa-clock"></i> Next Question will appear in <strong>${gapRemaining}</strong> sec</div>`
       : "";
