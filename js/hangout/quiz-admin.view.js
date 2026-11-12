@@ -103,8 +103,8 @@ window.HangoutQuizAdmin = (() => {
     const activeQuiz = await HangoutAdminRepository.getCurrentQuiz();
     clearInterval(state.roomAutoTimer);
     state.roomAutoTimer = 0;
-    // Sync auto-publish state persisted in Firebase (survives closing/reopening the room).
-    const savedAutoPublish = room.autoPublish || null;
+    // Sync auto-publish state persisted in Firebase under hangout/quiz (survives closing/reopening the room).
+    const savedAutoPublish = (activeQuiz && activeQuiz.autoPublish) || null;
     if (savedAutoPublish) {
       state.autoPublish.active = Boolean(savedAutoPublish.active);
       state.autoPublish.paused = Boolean(savedAutoPublish.paused);
@@ -139,13 +139,13 @@ window.HangoutQuizAdmin = (() => {
       </article>`).join("")}</div>` : '<div class="hg-empty">No questions in this room yet.</div>'} 
       ${questions.length ? `<div class="hg-auto-publish-room">
         <h4>Auto Publish</h4>
-        <label>Start From<select name="roomAutoStartFrom">${questions.map(([, q], i) => `<option value="${i + 1}" ${i + 1 === (room.autoPublish?.startFrom || state.autoPublish.startFrom) ? "selected" : ""}>#${String(q.questionNumber || i + 1).padStart(2, "0")}</option>`).join("")}</select></label>
+        <label>Start From<select name="roomAutoStartFrom">${questions.map(([, q], i) => `<option value="${i + 1}" ${i + 1 === ((activeQuiz?.autoPublish?.startFrom) || state.autoPublish.startFrom) ? "selected" : ""}>#${String(q.questionNumber || i + 1).padStart(2, "0")}</option>`).join("")}</select></label>
         <div class="hg-auto-actions">
-          <button type="button" class="hg-btn" data-room-auto="start" ${!questions.length || (room.autoPublish && room.autoPublish.active) ? "disabled" : ""}>Auto Start</button>
-          <button type="button" class="hg-btn is-light" data-room-auto="pause" ${!(room.autoPublish && room.autoPublish.active) || (room.autoPublish && room.autoPublish.paused) ? "disabled" : ""}>Pause Auto</button>
-          <button type="button" class="hg-btn is-light" data-room-auto="resume" ${!(room.autoPublish && room.autoPublish.active) || !(room.autoPublish && room.autoPublish.paused) ? "disabled" : ""}>Resume Auto</button>
+          <button type="button" class="hg-btn" data-room-auto="start" ${!questions.length || (activeQuiz?.autoPublish?.active) ? "disabled" : ""}>Auto Start</button>
+          <button type="button" class="hg-btn is-light" data-room-auto="pause" ${!(activeQuiz?.autoPublish?.active) || (activeQuiz?.autoPublish?.paused) ? "disabled" : ""}>Pause Auto</button>
+          <button type="button" class="hg-btn is-light" data-room-auto="resume" ${!(activeQuiz?.autoPublish?.active) || !(activeQuiz?.autoPublish?.paused) ? "disabled" : ""}>Resume Auto</button>
         </div>
-        <div class="hg-room-auto-gap" data-room-auto-gap>${(room.autoPublish && room.autoPublish.active && !room.autoPublish.paused && room.autoPublish.gapEndTime) ? `Next Question will appear in <strong>${Math.max(0, Math.ceil((room.autoPublish.gapEndTime - Date.now()) / 1000))}</strong> sec` : ""}</div>
+        <div class="hg-room-auto-gap" data-room-auto-gap>${((activeQuiz?.autoPublish && activeQuiz.autoPublish.active && !activeQuiz.autoPublish.paused && activeQuiz.autoPublish.gapEndTime) || (state.autoPublish.active && !state.autoPublish.paused && state.autoPublish.gapEndTime)) ? `Next Question will appear in <strong>${Math.max(0, Math.ceil(((activeQuiz?.autoPublish?.gapEndTime || state.autoPublish.gapEndTime) - Date.now()) / 1000))}</strong> sec` : ""}</div>
       </div>` : ''}</div>`;
 
     host.querySelector('[data-act="back-rooms"]').addEventListener("click", () => { state.roomId = ""; renderRooms(host, state); });
