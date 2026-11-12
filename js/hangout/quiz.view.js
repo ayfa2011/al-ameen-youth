@@ -17,6 +17,7 @@
 let lastQuizKey = null, scoreTimer = 0, panel = "quiz", exitFn = () => {};
 let selectedResultId = "";
 let selectedHistoryRoomId = "";
+let selectedHistoryPlayerId = "";
 let scoreTab = "overall";
 let selectedPreviousRoomId = "";
   const data = { users: {}, scores: {}, publicResults: {}, quizHistory: {}, quizHistoryLoaded: false, quizHistoryError: null, quiz: null, nextQuiz: null, log: {}, answer: null, reveal: null, revealError: false, timeExpired: false, scoreSyncPending: false };
@@ -51,6 +52,7 @@ let selectedPreviousRoomId = "";
       ["copy", "cut", "contextmenu", "selectstart"].forEach(type => container.removeEventListener(type, protectQuestionText));
     }
     window.removeEventListener("keydown", guardPrintScreen, true);
+    window.removeEventListener("resize", onResizeQuiz);
     clearTimeout(screenshotGuardTimer);
     screenshotGuardTimer = 0;
     screenshotGuardRoot?.classList.remove("is-screenshot-guard");
@@ -145,6 +147,7 @@ let selectedPreviousRoomId = "";
 
     ["copy", "cut", "contextmenu", "selectstart"].forEach(type => container.addEventListener(type, protectQuestionText));
     window.addEventListener("keydown", guardPrintScreen, true);
+    window.addEventListener("resize", onResizeQuiz);
     container.querySelector('[data-act="exit"]').addEventListener("click", () => exitFn());
     container.querySelector('[data-act="admin"]').addEventListener("click", () => HangoutQuizAdmin.open({
       users: () => data.users, scores: () => data.scores, quiz: () => data.quiz
@@ -526,7 +529,17 @@ let selectedPreviousRoomId = "";
     if (reveal) {
       const correctText = quiz.options.find(option => option.id === reveal.correctAnswer)?.text
         || (reveal.correctAnswer === "true" ? "True" : reveal.correctAnswer === "false" ? "False" : reveal.correctAnswer);
-      response += `<div class="hg-answer-reveal"><strong>Correct answer:</strong> ${escapeHTML(correctText || "Manual evaluation")} ${quiz.points ? `<span>+${quiz.points} points</span>` : ""}${reveal.explanation ? `<p><strong>Explanation:</strong> ${escapeHTML(reveal.explanation)}</p>` : ""}</div>`;
+      let userAnswerText = "";
+      if (submitted && data.answer?.answer) {
+        if (quiz.type === "short") {
+          userAnswerText = String(data.answer.answer);
+        } else {
+          const userOpt = quiz.options.find(option => option.id === String(data.answer.answer));
+          userAnswerText = userOpt ? userOpt.text : String(data.answer.answer);
+        }
+      }
+      const showUserAnswer = submitted && userAnswerText && (evaluation?.result === "wrong" || data.timeExpired);
+      response += `<div class="hg-answer-reveal"><strong>Correct answer:</strong> ${escapeHTML(correctText || "Manual evaluation")} ${quiz.points ? `<span>+${quiz.points} points</span>` : ""}${reveal.explanation ? `<p><strong>Explanation:</strong> ${escapeHTML(reveal.explanation)}</p>` : ""}${showUserAnswer ? `<p><strong>Your answer:</strong> ${escapeHTML(userAnswerText)}</p>` : ""}</div>`;
     }
     const currentAnswerIdentity = quiz.roomId && quiz.questionId ? answerIdentity(quiz) : "";
     const currentForm = area.querySelector("[data-answer-form]");
@@ -536,7 +549,8 @@ let selectedPreviousRoomId = "";
         ? { text: currentForm.elements.answer.value }
         : { option: currentForm.querySelector('[name="hgAnswer"]:checked')?.value || "" };
     }
-    area.innerHTML = `${questionHeader}${questionTitle}${quiz.text ? `<p>${escapeHTML(quiz.text)}</p>` : ""}${quiz.imageUrl ? `<img src="${escapeHTML(quiz.imageUrl)}" alt="Quiz question image" referrerpolicy="no-referrer">` : ""}${quiz.audioUrl ? `<audio controls preload="metadata" src="${escapeHTML(quiz.audioUrl)}">Your browser does not support audio.</audio>` : ""}${response}`;
+    area.innerHTML = `${questionHeader}${questionTitle}${quiz.text ? `<p class="hg-question-text">${escapeHTML(quiz.text)}</p>` : ""}${quiz.imageUrl ? `<img src="${escapeHTML(quiz.imageUrl)}" alt="Quiz question image" referrerpolicy="no-referrer">` : ""}${quiz.audioUrl ? `<audio controls preload="metadata" src="${escapeHTML(quiz.audioUrl)}">Your browser does not support audio.</audio>` : ""}${response}`;
+    fitQuestionText();
     const form = area.querySelector("[data-answer-form]");
     if (form) {
       if (answerDraftKey === currentAnswerIdentity && answerDraft) {
@@ -631,6 +645,45 @@ let selectedPreviousRoomId = "";
     area.scrollTop = 0;
   }
 
+  function fitQuestionText() {
+    const area = $("#hgQuestion");
+    const el = area.querySelector(".hg-question-text");
+    if (!el) return;
+    const box = area.getBoundingClientRect();
+    const maxW = Math.max(box.width - 32, 180);
+    const maxH = Math.max(box.height - 120, 120);
+    el.style.fontSize = "";
+    el.style.lineHeight = "1.45";
+    el.style.maxWidth = "100%";
+    el.style.overflow = "";
+    el.style.display = "";
+    el.style.webkitLineClamp = "";
+    el.style.webkitBoxOrient = "";
+    const style = window.getComputedStyle(el);
+    const padV = Number(style.paddingTop.slice(0,-2)) + Number(style.paddingBottom.slice(0,-2));
+    const minSize = 16, maxSize = 34;
+    let size = maxSize;
+    el.style.fontSize = size + "px";
+    const measure = () => {
+      const h = el.scrollHeight + padV;
+      const w = el.scrollWidth;
+      return h <= maxH && w <= maxW;
+    };
+    while (size > minSize && !measure()) {
+      size -= 1;
+      el.style.fontSize = size + "px";
+    }
+    if (!measure()) {
+      el.style.fontSize = minSize + "px";
+      el.style.overflow = "hidden";
+      el.style.display = "-webkit-box";
+      el.style.webkitLineClamp = Math.floor(maxH / (minSize * 1.45));
+      el.style.webkitBoxOrient = "vertical";
+    }
+  }
+
+  let onResizeQuiz = () => { if (panel === "quiz") fitQuestionText(); };
+
   async function revealTimedOutAnswer(quiz) {
     const currentQuiz = HangoutService.cleanQuiz(data.quiz);
     if (currentQuiz.roomId !== quiz.roomId || currentQuiz.questionId !== quiz.questionId) return;
@@ -672,7 +725,7 @@ let selectedPreviousRoomId = "";
   }
 
   // ---------- personal quiz history ----------
-  function renderMore() {
+  async function renderMore() {
     const host = $('[data-panel="more"]');
     if (!host || !ctx) return;
     const rooms = Object.entries(data.quizHistory || {})
@@ -682,16 +735,37 @@ let selectedPreviousRoomId = "";
     if (selected) {
       const [roomId, room] = selected;
       const summary = room.summary || {};
-      const questions = Object.entries(room.questions || {})
+      const currentUid = ctx.user.uid;
+      const viewerUid = selectedHistoryPlayerId || currentUid;
+      const isOtherPlayer = viewerUid !== currentUid;
+
+      let playerQuestions = Object.entries(room.questions || {})
         .sort((a, b) => Number(a[1]?.questionNumber) - Number(b[1]?.questionNumber));
-      const pending = Number(summary.pending) || questions.filter(([, question]) => question?.status === "pending").length;
-      const isFinal = summary.isFinal === true;
-      const status = summary.status === "completed" ? "Completed"
-        : summary.status === "evaluationPending" || pending ? "Evaluation Pending"
+      let playerSummary = summary;
+      let playerName = ctx.user.name;
+      let participants = [];
+
+      if (isOtherPlayer) {
+        participants = await HangoutRepository.getRoomParticipants(roomId);
+        const otherHistory = await HangoutRepository.readPlayerRoomHistory(viewerUid, roomId);
+        if (otherHistory?.summary) {
+          playerSummary = otherHistory.summary;
+          playerName = otherHistory.summary.playerName || viewerUid;
+          playerQuestions = Object.entries(otherHistory.questions || {})
+            .sort((a, b) => Number(a[1]?.questionNumber) - Number(b[1]?.questionNumber));
+        } else {
+          playerQuestions = [];
+        }
+      }
+
+      const pending = Number(playerSummary.pending) || playerQuestions.filter(([, question]) => question?.status === "pending").length;
+      const isFinal = playerSummary.isFinal === true;
+      const status = playerSummary.status === "completed" ? "Completed"
+        : playerSummary.status === "evaluationPending" || pending ? "Evaluation Pending"
           : "In Progress";
-      const score = isFinal ? `${Number(summary.totalScore) || 0} / ${Number(summary.maxScore) || 0}` : pending ? "Pending Evaluation" : "In Progress";
-      const rank = isFinal ? HangoutService.rankLabel(Number(summary.rank) || 0) : pending ? "Pending" : "—";
-      const details = questions.map(([, question]) => {
+      const score = isFinal ? `${Number(playerSummary.totalScore) || 0} / ${Number(playerSummary.maxScore) || 0}` : pending ? "Pending Evaluation" : "In Progress";
+      const rank = isFinal ? HangoutService.rankLabel(Number(playerSummary.rank) || 0) : pending ? "Pending" : "—";
+      const details = playerQuestions.map(([, question]) => {
         const correct = question.status === "correct";
         const wrong = question.status === "wrong";
         const unanswered = question.status === "unanswered";
@@ -703,31 +777,48 @@ let selectedPreviousRoomId = "";
         return `<article class="hg-history-question">
           <div class="hg-history-question-head"><strong>Question ${String(Number(question.questionNumber) || 0).padStart(2, "0")}</strong><span class="${correct ? "is-correct" : wrong ? "is-wrong" : ""}">${escapeHTML(state)}</span></div>
           <p>${escapeHTML(question.questionText || "Question")}</p>
-          <small>Your answer: ${escapeHTML(question.answer || (unanswered ? "No answer" : "—"))}</small>
+          <small>Your answer: ${getAnswerText(question, question.answer) || (question.status === "unanswered" ? "No answer" : "—")}</small>
           ${question.type === "short" && question.status === "pending"
             ? '<small class="hg-history-pending">Your submitted answer is awaiting Admin evaluation.</small>'
-            : question.correctAnswer ? `<small>Correct answer: ${escapeHTML(question.correctAnswer)}</small>` : ""}
+            : question.correctAnswer ? `<small>Correct answer: ${getAnswerText(question, question.correctAnswer)}</small>` : ""}
           ${question.evaluation?.evaluatedAt ? `<small>Evaluated: ${escapeHTML(formatHistoryDate(question.evaluation.evaluatedAt))}</small>` : ""}
           ${Object.values(question.evaluationHistory || {}).length
             ? `<small>Previous evaluations: ${Object.values(question.evaluationHistory).map(item => `${item.result === "correct" ? "Correct" : "Wrong"} · ${Number(item.points) || 0} pts · ${escapeHTML(formatHistoryDate(item.evaluatedAt))}`).join(" | ")}</small>`
             : ""}
         </article>`;
       }).join("");
+      const playerOptions = participants.map(uid => {
+        const u = (data.users || {})[uid] || {};
+        const name = u.name || `User ${uid.slice(-6)}`;
+        const selectedOpt = uid === viewerUid ? "selected" : "";
+        return `<option value="${escapeHTML(uid)}" ${selectedOpt}>${escapeHTML(name)}</option>`;
+      }).join("");
+      const playerLabel = playerName || "Player";
       host.innerHTML = `<div class="hg-scroll hg-history">
         <button type="button" class="hg-history-back" data-history-back><i class="fa-solid fa-arrow-left"></i> My Quiz History</button>
-        <header class="hg-history-title"><h3>${escapeHTML(summary.roomName || questions[0]?.[1]?.roomName || "Quiz Room")}</h3><span>${escapeHTML(formatHistoryMonth(summary.month || questions[0]?.[1]?.roomMonth || ""))} · ${escapeHTML(status)}</span></header>
+        <header class="hg-history-title"><h3>${escapeHTML(summary.roomName || playerQuestions[0]?.[1]?.roomName || "Quiz Room")}</h3><span>${escapeHTML(formatHistoryMonth(summary.month || playerQuestions[0]?.[1]?.roomMonth || ""))} · ${escapeHTML(status)}</span></header>
+        ${participants.length > 1 ? `<div class="hg-history-player-select"><label>View Player:</label><select data-history-player>${playerOptions}</select></div>` : ""}
         <section class="hg-history-summary">
-          <div><small>Your Score</small><strong>${escapeHTML(score)}</strong></div>
-          <div><small>Your Rank</small><strong>${escapeHTML(rank)}</strong></div>
-          <div><small>Correct Answers</small><strong>${Number(summary.correct) || questions.filter(([, q]) => q.status === "correct").length}</strong></div>
-          <div><small>Wrong Answers</small><strong>${Number(summary.wrong) || questions.filter(([, q]) => q.status === "wrong").length}</strong></div>
-          <div><small>Total Questions</small><strong>${Number(summary.totalQuestions) || questions.length}</strong></div>
-          <div><small>Unanswered</small><strong>${Number(summary.unanswered) || 0}</strong></div>
+          <div><small>${escapeHTML(playerLabel)} Score</small><strong>${escapeHTML(score)}</strong></div>
+          <div><small>${escapeHTML(playerLabel)} Rank</small><strong>${escapeHTML(rank)}</strong></div>
+          <div><small>Correct Answers</small><strong>${Number(playerSummary.correct) || playerQuestions.filter(([, q]) => q.status === "correct").length}</strong></div>
+          <div><small>Wrong Answers</small><strong>${Number(playerSummary.wrong) || playerQuestions.filter(([, q]) => q.status === "wrong").length}</strong></div>
+          <div><small>Total Questions</small><strong>${Number(playerSummary.totalQuestions) || playerQuestions.length}</strong></div>
+          <div><small>Unanswered</small><strong>${Number(playerSummary.unanswered) || 0}</strong></div>
           ${pending ? `<div class="hg-history-evaluation"><small>Evaluation</small><strong>${pending} Pending</strong></div>` : ""}
         </section>
         <h4 class="hg-section-title">Question-wise Performance</h4>
         <div class="hg-history-questions">${details || '<div class="hg-empty">No question details are available.</div>'}</div>
       </div>`;
+      host.querySelector('[data-history-back]')?.addEventListener("click", () => {
+        selectedHistoryRoomId = "";
+        selectedHistoryPlayerId = "";
+        renderMore();
+      });
+      host.querySelector('[data-history-player]')?.addEventListener("change", event => {
+        selectedHistoryPlayerId = event.target.value;
+        renderMore();
+      });
       return;
     }
 
@@ -764,6 +855,13 @@ let selectedPreviousRoomId = "";
         </button>`;
       }).join("")}</div>
     </div>`;
+    host.querySelectorAll('[data-history-room]').forEach(btn => {
+      btn.addEventListener("click", () => {
+        selectedHistoryRoomId = btn.dataset.historyRoom;
+        selectedHistoryPlayerId = "";
+        renderMore();
+      });
+    });
   }
 
   function formatHistoryMonth(value) {
@@ -776,6 +874,20 @@ let selectedPreviousRoomId = "";
   function formatHistoryDate(value) {
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? String(value || "") : date.toLocaleString();
+  }
+
+  function getAnswerText(question, answerId) {
+    if (!answerId) return "";
+    if (question.type === "short") return String(answerId || "");
+    const options = question.options || {};
+    if (Array.isArray(options)) {
+      const opt = options.find(o => String(o.id) === String(answerId));
+      return opt ? String(opt.text || "") : String(answerId);
+    }
+    if (options && typeof options === "object") {
+      if (String(options[answerId]) !== "undefined") return String(options[answerId] || "");
+    }
+    return String(answerId);
   }
 
   // ---------- scoreboard ----------

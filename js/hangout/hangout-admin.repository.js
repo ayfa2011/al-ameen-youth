@@ -870,7 +870,11 @@ window.HangoutAdminRepository = (() => {
         });
       }
       const published = (await db.ref(`hangout/publicResults/${roomId}/published`).once("value")).val();
-      if (published) await this.setRoomResultsPublished(roomId, true);
+      if (published) {
+        const roomSnap = await db.ref(`hangout/rooms/${roomId}`).once("value");
+        const room = roomSnap.val();
+        if (room?.status === "completed") await this.setRoomResultsPublished(roomId, true);
+      }
       await this.refreshPlayerQuizHistory(roomId);
     },
 

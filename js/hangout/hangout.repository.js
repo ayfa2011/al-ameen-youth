@@ -38,6 +38,19 @@ window.HangoutRepository = (() => {
     subscribeScoreLog: (uid, cb) => listen(ref(`scoreLog/${uid}`).limitToLast(50), "value", snap => cb(snap.val() || {})),
     subscribeOwnQuizHistory: (uid, cb, onError) =>
       listen(ref(`playerQuizHistory/${uid}`), "value", snap => cb(snap.val() || {}), onError),
+    async getRoomParticipants(roomId) {
+      const answersSnap = await ref(`answers/${roomId}`).once("value");
+      const answers = answersSnap.val() || {};
+      const participants = new Set();
+      Object.values(answers).forEach(questionAnswers => {
+        Object.keys(questionAnswers || {}).forEach(uid => participants.add(uid));
+      });
+      return [...participants];
+    },
+    async readPlayerRoomHistory(uid, roomId) {
+      const snap = await ref(`playerQuizHistory/${uid}/${roomId}`).once("value");
+      return snap.val() || null;
+    },
     subscribeOwnAnswer: (roomId, questionId, uid, cb) =>
       listen(ref(`answers/${roomId}/${questionId}/${uid}`), "value", snap => cb(snap.val())),
     async readTimedOutAnswerKey(roomId, questionId) {
