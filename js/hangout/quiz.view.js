@@ -281,19 +281,24 @@ let selectedPreviousRoomId = "";
       const context = alertAudioContext;
       const start = context.currentTime + 0.03;
       const master = context.createGain();
-      master.gain.setValueAtTime(0.035, start);
-      master.gain.setValueAtTime(0.035, start + 4.65);
+      master.gain.setValueAtTime(0.15, start);
+      master.gain.setValueAtTime(0.15, start + 4.65);
       master.gain.exponentialRampToValueAtTime(0.0001, start + 4.95);
       master.connect(context.destination);
-      [659.25, 783.99, 987.77, 783.99, 987.77, 1174.66].forEach((frequency, index) => {
-        const noteStart = start + index * 0.8;
-        const noteEnd = noteStart + 0.62;
+      const notes = [
+        659.25, 783.99, 987.77, 783.99, 987.77, 1174.66,
+        659.25, 783.99, 987.77, 783.99, 987.77, 1174.66,
+        659.25, 783.99, 987.77, 783.99, 987.77, 1174.66
+      ];
+      notes.forEach((frequency, index) => {
+        const noteStart = start + index * 0.27;
+        const noteEnd = noteStart + 0.24;
         const oscillator = context.createOscillator();
         const envelope = context.createGain();
-        oscillator.type = "sine";
+        oscillator.type = "sawtooth";
         oscillator.frequency.setValueAtTime(frequency, noteStart);
         envelope.gain.setValueAtTime(0.0001, noteStart);
-        envelope.gain.exponentialRampToValueAtTime(0.8, noteStart + 0.035);
+        envelope.gain.exponentialRampToValueAtTime(1.0, noteStart + 0.02);
         envelope.gain.exponentialRampToValueAtTime(0.0001, noteEnd);
         oscillator.connect(envelope);
         envelope.connect(master);
