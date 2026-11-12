@@ -321,6 +321,14 @@
 .hg-auto-actions{display:flex; flex-wrap:wrap; gap:7px; margin-bottom:8px}
 .hg-auto-gap{color:var(--hg-red); font-size:13px; font-weight:700}
 .hg-auto-gap strong{color:var(--hg-text)}
+.hg-auto-publish-room{margin-top:12px; padding:11px 13px; border:1px solid var(--hg-line); border-radius:14px; background:var(--hg-soft-2)}
+.hg-auto-publish-room h4{margin:0 0 9px; font-size:14px}
+.hg-auto-publish-room label{display:grid; gap:4px; margin-bottom:8px; color:var(--hg-muted); font-size:12px; font-weight:600}
+.hg-auto-publish-room select{min-width:170px; padding:8px 10px; border:1px solid var(--hg-line); border-radius:10px; background:#fff; color:var(--hg-text); font:inherit}
+.hg-auto-publish-room .hg-auto-actions{display:flex; flex-wrap:wrap; gap:7px; margin-bottom:8px}
+.hg-room-auto-gap{color:var(--hg-red); font-size:13px; font-weight:700}
+.hg-room-auto-gap strong{color:var(--hg-text)}
+@media(max-width:540px){.hg-auto-publish-room .hg-auto-actions .hg-btn{flex:1 1 46%}}
 @media(max-width:540px){.hg-auto-actions .hg-btn{flex:1 1 46%}}
 .hg-control-question-list{display:grid; gap:7px; margin:8px 0; padding:0; list-style:none}
 .hg-control-question-list li{display:flex; align-items:center; gap:10px; padding:9px 11px; border:1px solid var(--hg-line); border-radius:12px; background:#fff}

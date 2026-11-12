@@ -11,13 +11,12 @@ window.HangoutQuizAdmin = (() => {
     modal.className = "hg-modal";
     modal.innerHTML = `<section class="hg-sheet hg-admin-sheet" role="dialog" aria-modal="true" aria-label="Quiz Admin Panel">
       <h3>Quiz Admin Panel <button type="button" class="hg-icon-btn" data-act="close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></h3>
-      <div class="hg-tabs"><button type="button" class="is-active" data-tab="rooms">Quiz Rooms</button><button type="button" data-tab="control">Quiz Control</button><button type="button" data-tab="evaluation">Evaluation</button><button type="button" data-tab="scores">Scores</button></div>
-      <div data-tabpanel="rooms"></div><div data-tabpanel="control" hidden></div><div data-tabpanel="evaluation" hidden></div><div data-tabpanel="scores" hidden></div>
+      <div class="hg-tabs"><button type="button" class="is-active" data-tab="rooms">Quiz Rooms</button><button type="button" data-tab="evaluation">Evaluation</button><button type="button" data-tab="scores">Scores</button></div>
+      <div data-tabpanel="rooms"></div><div data-tabpanel="evaluation" hidden></div><div data-tabpanel="scores" hidden></div>
     </section>`;
     document.body.appendChild(modal);
     const state = { roomId: "", controlRoomId: "", evaluationTab: "pending", controlTimer: 0, revealingFor: "", serverTimeOffset: 0, stopServerTime: null, autoPublish: { active: false, paused: false, currentIndex: 0, startFrom: 1, gapSeconds: 10, gapTimerId: 0, gapEndTime: 0, lastRevealedQuestionId: "" } };
     const close = () => {
-      clearInterval(state.controlTimer);
       clearInterval(state.autoPublish.gapTimerId);
       state.stopServerTime?.();
       panels.scores._stopRoomScores?.();
@@ -32,7 +31,6 @@ window.HangoutQuizAdmin = (() => {
         modal.querySelectorAll("[data-tab]").forEach(button => button.classList.toggle("is-active", button === tab));
         Object.values(panels).forEach(panel => { panel.hidden = panel.dataset.tabpanel !== tab.dataset.tab; });
         if (tab.dataset.tab === "rooms") renderRooms(panels.rooms, state);
-        if (tab.dataset.tab === "control") renderQuizControl(panels.control, state, source);
         if (tab.dataset.tab === "evaluation") renderEvaluations(panels.evaluation, state);
         if (tab.dataset.tab === "scores") buildScoresTab(panels.scores, source);
       }
@@ -47,7 +45,7 @@ window.HangoutQuizAdmin = (() => {
       if (!host.isConnected) return;
       state.rooms = rooms;
       if (state.roomId && rooms[state.roomId]) {
-        renderRoomManager(host, state, state.roomId);
+        await renderRoomManager(host, state, state.roomId);
         return;
       }
       state.roomId = "";
@@ -89,9 +87,9 @@ window.HangoutQuizAdmin = (() => {
           showToast(error.message || "Could not create the quiz room.", "error");
         } finally { button.disabled = false; }
       });
-      host.querySelectorAll("[data-manage-room]").forEach(button => button.addEventListener("click", () => {
+      host.querySelectorAll("[data-manage-room]").forEach(button => button.addEventListener("click", async () => {
         state.roomId = button.dataset.manageRoom;
-        renderRoomManager(host, state, state.roomId);
+        await renderRoomManager(host, state, state.roomId);
       }));
     } catch (error) {
       console.error("Quiz rooms could not be loaded:", error);
@@ -99,13 +97,26 @@ window.HangoutQuizAdmin = (() => {
     }
   }
 
-  function renderRoomManager(host, state, roomId) {
+  async function renderRoomManager(host, state, roomId) {
     const room = state.rooms[roomId];
     if (!room) { state.roomId = ""; renderRooms(host, state); return; }
+    const activeQuiz = await HangoutAdminRepository.getCurrentQuiz();
+    clearInterval(state.roomAutoTimer);
+    state.roomAutoTimer = 0;
+    // Sync auto-publish state persisted in Firebase (survives closing/reopening the room).
+    const savedAutoPublish = room.autoPublish || null;
+    if (savedAutoPublish) {
+      state.autoPublish.active = Boolean(savedAutoPublish.active);
+      state.autoPublish.paused = Boolean(savedAutoPublish.paused);
+      state.autoPublish.currentIndex = Number(savedAutoPublish.currentIndex) || 0;
+      state.autoPublish.startFrom = Number(savedAutoPublish.startFrom) || 1;
+      state.autoPublish.gapSeconds = Number(savedAutoPublish.gapSeconds) || 10;
+      if (savedAutoPublish.gapEndTime) state.autoPublish.gapEndTime = Number(savedAutoPublish.gapEndTime);
+    }
     const questions = Object.entries(room.questions || {}).filter(([, question]) => !question?.deleted).sort((a, b) => Number(a[1]?.questionNumber) - Number(b[1]?.questionNumber));
     host.innerHTML = `<button type="button" class="hg-back-btn" data-act="back-rooms"><i class="fa-solid fa-arrow-left"></i> All rooms</button>
       <div class="hg-room-heading"><div><h4>${escapeHTML(room.name || "Quiz Room")}</h4><p>${escapeHTML(room.description || room.month || "No description")}</p></div>
-      <label class="hg-form hg-room-status-wrap">Room status<select class="hg-room-status">${room.status === "live" ? '<option value="live" selected disabled>Live</option>' : ""}<option value="draft" ${room.status === "draft" ? "selected" : ""} ${room.status === "live" ? "disabled" : ""}>Draft</option><option value="ready" ${room.status === "ready" ? "selected" : ""} ${room.status === "live" ? "disabled" : ""}>Ready</option><option value="completed" ${room.status === "completed" ? "selected" : ""}>Completed</option></select></label></div>
+      <label class="hg-form hg-room-status-wrap">Room status<select class="hg-room-status">${room.status === "live" ? '<option value="live" selected disabled>Live</option>' : ""}<option value="draft" ${room.status === "draft" ? "selected" : ""} ${room.status === "live" ? "disabled" : ""}>Draft</option><option value="ready" ${room.status === "ready" ? "selected" : ""} ${room.status === "live" ? "disabled" : ""}>Ready</option><option value="completed" ${room.status === "completed" ? "selected" : ""}>Completed</option></select><button type="button" class="hg-btn is-danger hg-room-end-quiz" data-room-act="end-quiz" ${room.status !== "live" ? "disabled" : ""}>End Quiz</button></label></div>
       <form class="hg-form hg-question-create">
         <h4>New Question</h4>
         <label>Enter Question<textarea name="text" maxlength="4000"></textarea></label>
@@ -125,9 +136,156 @@ window.HangoutQuizAdmin = (() => {
       ${questions.length ? `<div class="hg-question-list">${questions.map(([id, question]) => `<article class="hg-question-card">
         <div><strong>Question #${Number(question.questionNumber) || "—"} · ${escapeHTML(TYPE_LABELS[question.type] || question.type || "Question")}</strong><p>${escapeHTML(question.text || "Media question")}</p><small>${Number(question.points) || 0} points · ${Number(question.timeLimit) || 60} sec${question.imageUrl ? " · Image" : ""}${question.audioUrl ? " · Audio" : ""}</small></div>
         <div class="hg-question-actions"><button type="button" class="hg-btn is-light" data-edit-question="${escapeHTML(id)}">Edit</button><button type="button" class="hg-btn is-danger" data-delete-question="${escapeHTML(id)}">Delete</button><button type="button" class="hg-btn" data-publish-question="${escapeHTML(id)}">Publish Question</button></div>
-      </article>`).join("")}</div>` : '<div class="hg-empty">No questions in this room yet.</div>'}`;
+      </article>`).join("")}</div>` : '<div class="hg-empty">No questions in this room yet.</div>'} 
+      ${questions.length ? `<div class="hg-auto-publish-room">
+        <h4>Auto Publish</h4>
+        <label>Start From<select name="roomAutoStartFrom">${questions.map(([, q], i) => `<option value="${i + 1}" ${i + 1 === (room.autoPublish?.startFrom || state.autoPublish.startFrom) ? "selected" : ""}>#${String(q.questionNumber || i + 1).padStart(2, "0")}</option>`).join("")}</select></label>
+        <div class="hg-auto-actions">
+          <button type="button" class="hg-btn" data-room-auto="start" ${!questions.length || (room.autoPublish && room.autoPublish.active) ? "disabled" : ""}>Auto Start</button>
+          <button type="button" class="hg-btn is-light" data-room-auto="pause" ${!(room.autoPublish && room.autoPublish.active) || (room.autoPublish && room.autoPublish.paused) ? "disabled" : ""}>Pause Auto</button>
+          <button type="button" class="hg-btn is-light" data-room-auto="resume" ${!(room.autoPublish && room.autoPublish.active) || !(room.autoPublish && room.autoPublish.paused) ? "disabled" : ""}>Resume Auto</button>
+        </div>
+        <div class="hg-room-auto-gap" data-room-auto-gap>${(room.autoPublish && room.autoPublish.active && !room.autoPublish.paused && room.autoPublish.gapEndTime) ? `Next Question will appear in <strong>${Math.max(0, Math.ceil((room.autoPublish.gapEndTime - Date.now()) / 1000))}</strong> sec` : ""}</div>
+      </div>` : ''}</div>`;
 
     host.querySelector('[data-act="back-rooms"]').addEventListener("click", () => { state.roomId = ""; renderRooms(host, state); });
+
+    host.querySelector('[data-room-act="end-quiz"]').addEventListener("click", async event => {
+      event.currentTarget.disabled = true;
+      try {
+        if (!await showConfirmSheet({ title: "End this quiz?", message: "The active question's correct answer and explanation will be revealed.", confirmLabel: "End Quiz", danger: true })) return;
+        await HangoutAdminRepository.endQuiz(state.roomId);
+        showToast("Quiz ended and the answer was revealed.", "success");
+        await renderRoomManager(host, state, state.roomId);
+      } catch (error) {
+        console.error("End quiz failed:", error);
+        showToast(error.message || "Could not end the quiz.", "error");
+      } finally {
+        event.currentTarget.disabled = false;
+      }
+    });
+
+    host.querySelector('[name="roomAutoStartFrom"]').addEventListener("change", event => {
+      const idx = Number(event.target.value) - 1;
+      state.autoPublish.startFrom = Number(event.target.value) || 1;
+      state.autoPublish.currentIndex = idx < 0 ? 0 : idx;
+      roomStopAutoPublish();
+      renderRoomManager(host, state, roomId);
+    });
+
+    host.querySelectorAll("[data-room-auto]").forEach(button => button.addEventListener("click", async () => {
+      button.disabled = true;
+      try {
+        switch (button.dataset.roomAuto) {
+          case "start":
+            state.autoPublish.active = true;
+            state.autoPublish.paused = false;
+            state.autoPublish.currentIndex = state.autoPublish.startFrom - 1;
+            await HangoutAdminRepository.setAutoPublish(roomId, {
+              active: true, paused: false, currentIndex: state.autoPublish.currentIndex,
+              startFrom: state.autoPublish.startFrom, gapSeconds: state.autoPublish.gapSeconds
+            });
+            if (activeQuiz && activeQuiz.status === "revealed" && activeQuiz.questionId && activeQuiz.roomId === roomId) {
+              state.autoPublish.lastRevealedQuestionId = activeQuiz.questionId;
+              await roomStartAutoGap();
+              await renderRoomManager(host, state, roomId);
+            } else {
+              await roomAutoPublishNext();
+            }
+            break;
+          case "pause":
+            state.autoPublish.paused = true;
+            clearInterval(state.autoPublish.gapTimerId);
+            state.autoPublish.gapTimerId = 0;
+            await HangoutAdminRepository.setAutoPublish(roomId, { ...state.autoPublish, active: true, paused: true });
+            const dbPause = HangoutFirebase.db();
+            if (dbPause) await dbPause.ref("hangout/quiz").child("nextPublishAt").remove();
+            roomAutoGapDisplay();
+            showToast("Auto publish paused.", "success");
+            break;
+          case "resume":
+            state.autoPublish.paused = false;
+            await HangoutAdminRepository.setAutoPublish(roomId, { ...state.autoPublish, active: true, paused: false });
+            if (state.autoPublish.lastRevealedQuestionId && !state.autoPublish.gapTimerId) {
+              await roomStartAutoGap();
+            }
+            showToast("Auto publish resumed.", "success");
+            break;
+        }
+        await renderRoomManager(host, state, roomId);
+      } catch (error) {
+        console.error("Room auto publish failed:", error);
+        showToast(error.message || "Could not update auto publish.", "error");
+      } finally {
+        if (button.isConnected) button.disabled = false;
+      }
+    }));
+
+    // ---- Room-level auto-publish helpers (reuse same publish logic) ----
+    const roomAutoGapDisplay = () => {
+      const el = host.querySelector("[data-room-auto-gap]");
+      if (!el) return;
+      if (!state.autoPublish.active || state.autoPublish.paused) { el.textContent = ""; return; }
+      const remaining = Math.max(0, Math.ceil((state.autoPublish.gapEndTime - Date.now()) / 1000));
+      el.innerHTML = remaining > 0 ? `Next Question will appear in <strong>${remaining}</strong> sec` : "";
+    };
+
+    const roomStopAutoPublish = () => {
+      state.autoPublish.active = false;
+      state.autoPublish.paused = false;
+      state.autoPublish.gapEndTime = 0;
+      clearInterval(state.autoPublish.gapTimerId);
+      state.autoPublish.gapTimerId = 0;
+      roomAutoGapDisplay();
+      HangoutAdminRepository.clearAutoPublish(roomId).catch(() => {});
+      const db = HangoutFirebase.db();
+      if (db) db.ref("hangout/quiz").child("nextPublishAt").remove().catch(() => {});
+    };
+
+    const roomStartAutoGap = async () => {
+      state.autoPublish.gapEndTime = Date.now() + state.autoPublish.gapSeconds * 1000;
+      await HangoutAdminRepository.setAutoPublish(roomId, { ...state.autoPublish, gapEndTime: state.autoPublish.gapEndTime });
+      const db = HangoutFirebase.db();
+      if (db) await db.ref("hangout/quiz").child("nextPublishAt").set(state.autoPublish.gapEndTime);
+      clearInterval(state.autoPublish.gapTimerId);
+      state.autoPublish.gapTimerId = 0;
+      roomAutoGapDisplay();
+    };
+
+    const roomAutoPublishNext = async () => {
+      const idx = state.autoPublish.currentIndex;
+      const [questionId] = questions[idx] || [];
+      if (!questionId) {
+        roomStopAutoPublish();
+        showToast("All questions have been published.", "success");
+        await renderRoomManager(host, state, roomId);
+        return;
+      }
+      try {
+        await HangoutAdminRepository.publishQuestion(roomId, questionId);
+        state.autoPublish.currentIndex = idx + 1;
+        state.autoPublish.lastRevealedQuestionId = "";
+        await HangoutAdminRepository.setAutoPublish(roomId, { ...state.autoPublish, currentIndex: state.autoPublish.currentIndex });
+        await renderRoomManager(host, state, roomId);
+      } catch (error) {
+        console.error("Room auto publish next failed:", error);
+        roomStopAutoPublish();
+        showToast(error.message || "Auto publish stopped.", "error");
+      }
+    };
+
+    // Server-driven loop: publish next question when nextPublishAt is reached.
+    state.roomAutoTimer = setInterval(async () => {
+      if (!state.autoPublish.active || state.autoPublish.paused || !state.autoPublish.gapEndTime) return;
+      const remaining = Math.max(0, Math.ceil((state.autoPublish.gapEndTime - Date.now()) / 1000));
+      roomAutoGapDisplay();
+      if (remaining <= 0) {
+        clearInterval(state.roomAutoTimer);
+        state.roomAutoTimer = 0;
+        await roomAutoPublishNext();
+      }
+    }, 1000);
+
     const questionForm = host.querySelector(".hg-question-create");
     const optionsHost = questionForm.querySelector("[data-options]");
     let optionCount = 4;
