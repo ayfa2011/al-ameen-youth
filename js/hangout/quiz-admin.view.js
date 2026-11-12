@@ -15,7 +15,7 @@ window.HangoutQuizAdmin = (() => {
       <div data-tabpanel="rooms"></div><div data-tabpanel="control" hidden></div><div data-tabpanel="evaluation" hidden></div><div data-tabpanel="scores" hidden></div>
     </section>`;
     document.body.appendChild(modal);
-    const state = { roomId: "", controlRoomId: "", evaluationTab: "pending", controlTimer: 0, revealingFor: "", serverTimeOffset: 0, stopServerTime: null, autoPublish: { active: false, paused: false, currentIndex: 0, startFrom: 1, gapSeconds: 10, gapTimerId: 0 } };
+    const state = { roomId: "", controlRoomId: "", evaluationTab: "pending", controlTimer: 0, revealingFor: "", serverTimeOffset: 0, stopServerTime: null, autoPublish: { active: false, paused: false, currentIndex: 0, startFrom: 1, gapSeconds: 10, gapTimerId: 0, gapEndTime: 0, lastRevealedQuestionId: "" } };
     const close = () => {
       clearInterval(state.controlTimer);
       clearInterval(state.autoPublish.gapTimerId);
@@ -389,6 +389,7 @@ window.HangoutQuizAdmin = (() => {
           await HangoutAdminRepository.revealQuestion(activeQuiz.roomId, activeQuiz.questionId);
         }
         await HangoutAdminRepository.publishQuestion(state.controlRoomId, questionId);
+        state.autoPublish.lastRevealedQuestionId = "";
         showToast(index === 0 && !active ? "Quiz started." : `Question #${questions[index][1].questionNumber} published.`, "success");
         if (state.autoPublish.active && state.autoPublish.paused) {
           state.autoPublish.currentIndex = index + 1;
@@ -416,7 +417,7 @@ window.HangoutQuizAdmin = (() => {
         try {
           await publishAt(idx);
           state.autoPublish.currentIndex = idx + 1;
-          startAutoGap();
+          state.autoPublish.lastRevealedQuestionId = "";
         } catch (error) {
           console.error("Auto publish failed:", error);
           stopAutoPublish();
@@ -495,7 +496,12 @@ window.HangoutQuizAdmin = (() => {
               state.autoPublish.active = true;
               state.autoPublish.paused = false;
               state.autoPublish.currentIndex = state.autoPublish.startFrom - 1;
-              await autoPublishNext();
+              if (active && active.status === "revealed" && active.questionId) {
+                state.autoPublish.lastRevealedQuestionId = active.questionId;
+                startAutoGap();
+              } else {
+                await autoPublishNext();
+              }
               break;
             case "pause":
               state.autoPublish.paused = true;
@@ -506,8 +512,7 @@ window.HangoutQuizAdmin = (() => {
               break;
             case "resume":
               state.autoPublish.paused = false;
-              if (!state.autoPublish.gapTimerId) {
-                state.autoPublish.gapEndTime = Date.now() + state.autoPublish.gapSeconds * 1000;
+              if (state.autoPublish.lastRevealedQuestionId && !state.autoPublish.gapTimerId) {
                 startAutoGap();
               }
               showToast("Auto publish resumed.", "success");
@@ -545,6 +550,16 @@ window.HangoutQuizAdmin = (() => {
               state.revealingFor = "";
             }
           }
+        }
+
+        // Auto-publish: start the 10-second gap only after the current question is revealed.
+        if (latest && latest.roomId === state.controlRoomId
+          && latest.status === "revealed"
+          && state.autoPublish.active && !state.autoPublish.paused
+          && !state.autoPublish.gapTimerId
+          && state.autoPublish.lastRevealedQuestionId !== latest.questionId) {
+          state.autoPublish.lastRevealedQuestionId = latest.questionId;
+          startAutoGap();
         }
       }, 500);
     } catch (error) {
