@@ -15,9 +15,10 @@ window.HangoutQuizAdmin = (() => {
       <div data-tabpanel="rooms"></div><div data-tabpanel="control" hidden></div><div data-tabpanel="evaluation" hidden></div><div data-tabpanel="scores" hidden></div>
     </section>`;
     document.body.appendChild(modal);
-    const state = { roomId: "", controlRoomId: "", evaluationTab: "pending", controlTimer: 0, revealingFor: "", serverTimeOffset: 0, stopServerTime: null };
+    const state = { roomId: "", controlRoomId: "", evaluationTab: "pending", controlTimer: 0, revealingFor: "", serverTimeOffset: 0, stopServerTime: null, autoPublish: { active: false, paused: false, currentIndex: 0, startFrom: 1, gapSeconds: 10, gapTimerId: 0 } };
     const close = () => {
       clearInterval(state.controlTimer);
+      clearInterval(state.autoPublish.gapTimerId);
       state.stopServerTime?.();
       panels.scores._stopRoomScores?.();
       modal.remove();
@@ -341,18 +342,35 @@ window.HangoutQuizAdmin = (() => {
         <div class="hg-control-current">${active ? `<strong>${escapeHTML(active.text || "Media question")}</strong><span>${active.status === "paused" ? "Timer paused" : active.status === "live" ? "Question in progress" : "Answer revealed"}</span>` : '<span>No question is currently active.</span>'}
           <strong class="hg-control-countdown" data-control-countdown>${active && countdown !== null ? formatCountdown(countdown) : ""}</strong></div>
         <div class="hg-control-actions">
-          <button type="button" class="hg-btn" data-control="start" ${!questions.length || (active && ["live", "paused"].includes(active.status)) ? "disabled" : ""}>Start Quiz</button>
+          <button type="button" class="hg-btn" data-control="start" ${!questions.length || (active && ["live", "paused"].includes(active.status)) || (state.autoPublish.active && !state.autoPublish.paused) ? "disabled" : ""}>Start Quiz</button>
           <button type="button" class="hg-btn is-light" data-control="pause" ${!active || active.status !== "live" ? "disabled" : ""}>Pause Quiz</button>
           <button type="button" class="hg-btn is-light" data-control="resume" ${!active || active.status !== "paused" ? "disabled" : ""}>Resume Quiz</button>
-          <button type="button" class="hg-btn is-light" data-control="previous" ${currentIndex <= 0 ? "disabled" : ""}>Previous Question</button>
-          <button type="button" class="hg-btn is-light" data-control="next" ${currentIndex < 0 || currentIndex >= questions.length - 1 ? "disabled" : ""}>Next Question</button>
+          <button type="button" class="hg-btn is-light" data-control="previous" ${currentIndex <= 0 || (state.autoPublish.active && !state.autoPublish.paused) ? "disabled" : ""}>Previous Question</button>
+          <button type="button" class="hg-btn is-light" data-control="next" ${currentIndex < 0 || currentIndex >= questions.length - 1 || (state.autoPublish.active && !state.autoPublish.paused) ? "disabled" : ""}>Next Question</button>
           <button type="button" class="hg-btn is-danger" data-control="end" ${!active || active.status === "completed" ? "disabled" : ""}>End Quiz</button>
+        </div>
+        <div class="hg-auto-publish">
+          <h4>Auto Publish</h4>
+          <label>Question Start From<select name="autoStartFrom">${questions.length ? questions.map(([, q], i) => `<option value="${i + 1}" ${i + 1 === state.autoPublish.startFrom ? "selected" : ""}>#${String(q.questionNumber || i + 1).padStart(2, "0")}</option>`).join("") : '<option value="1">1</option>'}</select></label>
+          <div class="hg-auto-actions">
+            <button type="button" class="hg-btn" data-auto="start" ${!questions.length || state.autoPublish.active ? "disabled" : ""}>Auto Start</button>
+            <button type="button" class="hg-btn is-light" data-auto="pause" ${!state.autoPublish.active || state.autoPublish.paused ? "disabled" : ""}>Pause Auto</button>
+            <button type="button" class="hg-btn is-light" data-auto="resume" ${!state.autoPublish.active || !state.autoPublish.paused ? "disabled" : ""}>Resume Auto</button>
+          </div>
+          <div class="hg-auto-gap" data-auto-gap>${state.autoPublish.active && !state.autoPublish.paused && state.autoPublish.gapEndTime ? `Next Question will appear in <strong>${Math.max(0, Math.ceil((state.autoPublish.gapEndTime - Date.now()) / 1000))}</strong> sec` : ""}</div>
         </div>
       </section>
       <h4 class="hg-section-title">Question Sequence</h4>
       ${questions.length ? `<ol class="hg-control-question-list">${questions.map(([id, question]) => `<li class="${active?.questionId === id ? "is-current" : ""}"><span>#${String(question.questionNumber || 0).padStart(2, "0")}</span><div><strong>${escapeHTML(question.text || "Media question")}</strong><small>${escapeHTML(TYPE_LABELS[question.type] || question.type || "Question")} · ${Number(question.timeLimit) || 60} sec · ${Number(question.points) || 0} pts</small></div></li>`).join("")}</ol>` : '<div class="hg-empty">This room has no saved questions yet.</div>'}`;
       host.querySelector('[name="controlRoom"]').addEventListener("change", event => {
         state.controlRoomId = event.target.value;
+        renderQuizControl(host, state, source);
+      });
+
+      host.querySelector('[name="autoStartFrom"]').addEventListener("change", event => {
+        state.autoPublish.startFrom = Number(event.target.value) || 1;
+        state.autoPublish.currentIndex = state.autoPublish.startFrom - 1;
+        stopAutoPublish();
         renderQuizControl(host, state, source);
       });
 
@@ -372,8 +390,64 @@ window.HangoutQuizAdmin = (() => {
         }
         await HangoutAdminRepository.publishQuestion(state.controlRoomId, questionId);
         showToast(index === 0 && !active ? "Quiz started." : `Question #${questions[index][1].questionNumber} published.`, "success");
+        if (state.autoPublish.active && state.autoPublish.paused) {
+          state.autoPublish.currentIndex = index + 1;
+        }
         await renderQuizControl(host, state, source);
       };
+
+      function autoGapDisplay() {
+        const el = host.querySelector("[data-auto-gap]");
+        if (!el) return;
+        if (!state.autoPublish.active || state.autoPublish.paused) { el.textContent = ""; return; }
+        const remaining = Math.max(0, Math.ceil((state.autoPublish.gapEndTime - Date.now()) / 1000));
+        el.innerHTML = remaining > 0 ? `Next Question will appear in <strong>${remaining}</strong> sec` : "";
+      }
+
+      async function autoPublishNext() {
+        const idx = state.autoPublish.currentIndex;
+        const [questionId] = questions[idx] || [];
+        if (!questionId) {
+          stopAutoPublish();
+          showToast("All questions have been published.", "success");
+          await renderQuizControl(host, state, source);
+          return;
+        }
+        try {
+          await publishAt(idx);
+          state.autoPublish.currentIndex = idx + 1;
+          startAutoGap();
+        } catch (error) {
+          console.error("Auto publish failed:", error);
+          stopAutoPublish();
+          showToast(error.message || "Auto publish stopped.", "error");
+        }
+      }
+
+      function startAutoGap() {
+        state.autoPublish.gapEndTime = Date.now() + state.autoPublish.gapSeconds * 1000;
+        clearInterval(state.autoPublish.gapTimerId);
+        state.autoPublish.gapTimerId = setInterval(() => {
+          autoGapDisplay();
+          if (Math.ceil((state.autoPublish.gapEndTime - Date.now()) / 1000) <= 0) {
+            clearInterval(state.autoPublish.gapTimerId);
+            state.autoPublish.gapTimerId = 0;
+            if (state.autoPublish.active && !state.autoPublish.paused) {
+              autoPublishNext();
+            }
+          }
+        }, 1000);
+        autoGapDisplay();
+      }
+
+      function stopAutoPublish() {
+        state.autoPublish.active = false;
+        state.autoPublish.paused = false;
+        clearInterval(state.autoPublish.gapTimerId);
+        state.autoPublish.gapTimerId = 0;
+        autoGapDisplay();
+      }
+
       host.querySelectorAll("[data-control]").forEach(button => button.addEventListener("click", async () => {
         button.disabled = true;
         try {
@@ -408,6 +482,41 @@ window.HangoutQuizAdmin = (() => {
         } catch (error) {
           console.error("Quiz control action failed:", error);
           showToast(error.message || "Could not update the quiz state.", "error");
+        } finally {
+          if (button.isConnected) button.disabled = false;
+        }
+      }));
+
+      host.querySelectorAll("[data-auto]").forEach(button => button.addEventListener("click", async () => {
+        button.disabled = true;
+        try {
+          switch (button.dataset.auto) {
+            case "start":
+              state.autoPublish.active = true;
+              state.autoPublish.paused = false;
+              state.autoPublish.currentIndex = state.autoPublish.startFrom - 1;
+              await autoPublishNext();
+              break;
+            case "pause":
+              state.autoPublish.paused = true;
+              clearInterval(state.autoPublish.gapTimerId);
+              state.autoPublish.gapTimerId = 0;
+              autoGapDisplay();
+              showToast("Auto publish paused.", "success");
+              break;
+            case "resume":
+              state.autoPublish.paused = false;
+              if (!state.autoPublish.gapTimerId) {
+                state.autoPublish.gapEndTime = Date.now() + state.autoPublish.gapSeconds * 1000;
+                startAutoGap();
+              }
+              showToast("Auto publish resumed.", "success");
+              break;
+          }
+          await renderQuizControl(host, state, source);
+        } catch (error) {
+          console.error("Auto publish control failed:", error);
+          showToast(error.message || "Could not update auto publish.", "error");
         } finally {
           if (button.isConnected) button.disabled = false;
         }

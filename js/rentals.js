@@ -14,6 +14,7 @@ const rentalState = {
   tab: "upcoming",
   reportYear: RENTAL_CURRENT_FINANCIAL_YEAR
 };
+const useCompactSpeaker = false;
 
 const RENTAL_CATEGORY = {
   chairTable: { label: "Chair & Table", icon: "fa-chair" },
