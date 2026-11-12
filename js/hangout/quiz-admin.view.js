@@ -16,8 +16,31 @@ window.HangoutQuizAdmin = (() => {
     </section>`;
     document.body.appendChild(modal);
     const state = { roomId: "", controlRoomId: "", evaluationTab: "pending", controlTimer: 0, revealingFor: "", serverTimeOffset: 0, stopServerTime: null, autoPublish: { active: false, paused: false, currentIndex: 0, startFrom: 1, gapSeconds: 10, gapTimerId: 0, gapEndTime: 0, lastRevealedQuestionId: "" } };
+    const autoPublishKey = roomId => `quiz_auto_publish_${roomId}`;
+    const saveAutoPublish = () => {
+      if (!state.roomId) return;
+      try { localStorage.setItem(autoPublishKey(state.roomId), JSON.stringify({ ...state.autoPublish, gapTimerId: 0 })); } catch {}
+    };
+    const loadAutoPublish = () => {
+      if (!state.roomId) return;
+      try {
+        const raw = localStorage.getItem(autoPublishKey(state.roomId));
+        if (raw) {
+          const saved = JSON.parse(raw);
+          state.autoPublish.active = Boolean(saved.active);
+          state.autoPublish.paused = Boolean(saved.paused);
+          state.autoPublish.currentIndex = Number(saved.currentIndex) || 0;
+          state.autoPublish.startFrom = Number(saved.startFrom) || 1;
+          state.autoPublish.gapSeconds = Number(saved.gapSeconds) || 10;
+          state.autoPublish.gapEndTime = Number(saved.gapEndTime) || 0;
+          state.autoPublish.lastRevealedQuestionId = saved.lastRevealedQuestionId || "";
+        }
+      } catch {}
+    };
     const close = () => {
       clearInterval(state.autoPublish.gapTimerId);
+      clearInterval(state.roomAutoTimer);
+      state.roomAutoTimer = 0;
       state.stopServerTime?.();
       panels.scores._stopRoomScores?.();
       modal.remove();
@@ -103,6 +126,7 @@ window.HangoutQuizAdmin = (() => {
     const activeQuiz = await HangoutAdminRepository.getCurrentQuiz();
     clearInterval(state.roomAutoTimer);
     state.roomAutoTimer = 0;
+    loadAutoPublish();
     const questions = Object.entries(room.questions || {}).filter(([, question]) => !question?.deleted).sort((a, b) => Number(a[1]?.questionNumber) - Number(b[1]?.questionNumber));
     host.innerHTML = `<button type="button" class="hg-back-btn" data-act="back-rooms"><i class="fa-solid fa-arrow-left"></i> All rooms</button>
       <div class="hg-room-heading"><div><h4>${escapeHTML(room.name || "Quiz Room")}</h4><p>${escapeHTML(room.description || room.month || "No description")}</p></div>
@@ -184,6 +208,7 @@ window.HangoutQuizAdmin = (() => {
             clearInterval(state.autoPublish.gapTimerId);
             state.autoPublish.gapTimerId = 0;
             roomAutoGapDisplay();
+            saveAutoPublish();
             showToast("Auto publish paused.", "success");
             break;
           case "resume":
@@ -191,6 +216,7 @@ window.HangoutQuizAdmin = (() => {
             if (state.autoPublish.lastRevealedQuestionId && !state.autoPublish.gapTimerId) {
               await roomStartAutoGap();
             }
+            saveAutoPublish();
             showToast("Auto publish resumed.", "success");
             break;
         }
@@ -219,6 +245,9 @@ window.HangoutQuizAdmin = (() => {
       clearInterval(state.autoPublish.gapTimerId);
       state.autoPublish.gapTimerId = 0;
       roomAutoGapDisplay();
+      if (state.roomId) {
+        try { localStorage.removeItem(autoPublishKey(state.roomId)); } catch {}
+      }
     };
 
     const roomStartAutoGap = async () => {
@@ -226,6 +255,7 @@ window.HangoutQuizAdmin = (() => {
       clearInterval(state.autoPublish.gapTimerId);
       state.autoPublish.gapTimerId = 0;
       roomAutoGapDisplay();
+      saveAutoPublish();
     };
 
     const roomAutoPublishNext = async () => {
@@ -241,6 +271,7 @@ window.HangoutQuizAdmin = (() => {
         await HangoutAdminRepository.publishQuestion(roomId, questionId);
         state.autoPublish.currentIndex = idx + 1;
         state.autoPublish.lastRevealedQuestionId = "";
+        saveAutoPublish();
         await renderRoomManager(host, state, roomId);
       } catch (error) {
         console.error("Room auto publish next failed:", error);
@@ -260,6 +291,11 @@ window.HangoutQuizAdmin = (() => {
         await roomAutoPublishNext();
       }
     }, 1000);
+
+    // If admin was away and the gap expired, publish the next question immediately on return.
+    if (state.autoPublish.active && !state.autoPublish.paused && state.autoPublish.gapEndTime && Date.now() >= state.autoPublish.gapEndTime) {
+      await roomAutoPublishNext();
+    }
 
     const questionForm = host.querySelector(".hg-question-create");
     const optionsHost = questionForm.querySelector("[data-options]");
