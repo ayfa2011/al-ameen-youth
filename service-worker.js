@@ -16,7 +16,7 @@ const APP_SHELL = [
   "./js/hangout/hangout.service.js?v=20261109-cumulative-scoreboard-1",
   "./js/hangout/hangout-hub.view.js?v=20261110-native-mobile",
   "./js/hangout/quiz-chat.view.js?v=20261110-swipe-reply",
-  "./js/hangout/quiz-admin.view.js?v=20261109-scheduled-quiz-1",
+  "./js/hangout/quiz-admin.view.js?v=20261112-autopublish-persist",
   "./js/hangout/quiz.view.js?v=20261110-native-mobile"
 ];
 
