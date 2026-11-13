@@ -51,6 +51,14 @@ window.HangoutAdminRepository = (() => {
   };
   const roomRef = async roomId => (await database()).ref(`hangout/rooms/${roomId}`);
   const now = () => new Date().toISOString();
+  // Keeps the underlying Firebase error (code + message) on the wrapper so a
+  // failed sync can be diagnosed instead of showing only the generic text.
+  const scoreSyncError = cause => {
+    const error = new Error("Your answer was saved, but points could not be fully synchronized. Tap Retry to try again.");
+    error.code = "SCORE_SYNC_PENDING";
+    error.cause = cause;
+    return error;
+  };
 
   function getScheduledStartAt(room) {
     const date = String(room.startDate || "").trim();
@@ -271,7 +279,7 @@ window.HangoutAdminRepository = (() => {
               questionId,
               questionNumber: question.questionNumber,
               questionText: question.text || "",
-              questionPoints: Number(answer.questionPoints) || Number(question.points) || 0,
+              questionPoints: Number(question.points) || Number(answer.questionPoints) || 0,
               questionType: question.type || "mcq"
             });
           });
@@ -418,9 +426,16 @@ window.HangoutAdminRepository = (() => {
       const db = HangoutFirebase.db();
       if (!db) throw new Error("Firebase is unavailable.");
       const ref = db.ref(`hangout/roomScores/${roomId}`);
+      let stopped = false;
       const listener = snapshot => callback(snapshot.val() || {});
       ref.on("value", listener, onError);
-      return () => ref.off("value", listener);
+      // Deferred detach: off() inside a value callback re-enters the Firebase
+      // event queue and can overflow the stack.
+      return () => {
+        if (stopped) return;
+        stopped = true;
+        window.setTimeout(() => ref.off("value", listener), 0);
+      };
     },
 
     async adjustRoomScore(roomId, uid, delta, reason) {
@@ -581,7 +596,7 @@ window.HangoutAdminRepository = (() => {
         const awardId = `${roomId}_${questionId}`;
         for (const [uid, answer] of Object.entries(answers)) {
           if (answer?.answer !== correctAnswer) continue;
-          const points = Number(answer.questionPoints) || 0;
+          const points = Number(question.points) || 0;
           const scoreRef = db.ref(`hangout/scores/${uid}`);
           const result = await scoreRef.transaction(current => {
             const score = current || { points: 0, autoAwards: {}, manualAwards: {} };
@@ -671,7 +686,7 @@ window.HangoutAdminRepository = (() => {
             questionNumber: Number(question.questionNumber) || 0,
             questionText: String(question.text || "").slice(0, 4000),
             type: question.type || "mcq",
-            questionPoints: Number(answer?.questionPoints) || Number(question.points) || 0,
+            questionPoints: Number(question.points) || Number(answer?.questionPoints) || 0,
             options: question.options || {},
             answer: String(answer?.answer || ""),
             submittedAt: String(answer?.submittedAt || ""),
@@ -761,8 +776,10 @@ window.HangoutAdminRepository = (() => {
       if (!["correct", "wrong"].includes(result)) throw new Error("Choose Correct or Wrong.");
       const db = await database();
       const answerRef = db.ref(`hangout/answers/${row.roomId}/${row.questionId}/${row.uid}/evaluation`);
+      const questionSnap = await db.ref(`hangout/rooms/${row.roomId}/questions/${row.questionId}`).once("value");
+      const questionPoints = Number(questionSnap.val()?.points) || 0;
       const timestamp = now();
-      const points = result === "correct" ? row.questionPoints : 0;
+      const points = result === "correct" ? questionPoints : 0;
       const historyId = db.ref(`hangout/answers/${row.roomId}/${row.questionId}/${row.uid}/evaluation/history`).push().key;
       const evaluatorUid = window.firebaseAuth?.currentUser?.uid || HangoutFirebase.auth()?.currentUser?.uid || "";
       let previousEvaluation = null;
@@ -951,66 +968,6 @@ window.HangoutAdminRepository = (() => {
         console.error("Player quiz history could not be recorded at submission:", error);
       }
 
-      if (quiz.type !== "short") {
-        const awardId = `${quiz.roomId}_${quiz.questionId}`;
-        const scoreRef = db.ref(`hangout/scores/${user.uid}`);
-        const timestamp = now();
-        let autoPointsAwarded = false;
-        let result;
-        try {
-          result = await scoreRef.transaction(current => {
-            const score = current || { points: 0, autoAwards: {}, manualAwards: {} };
-            if (score.autoAwards?.[awardId]) return;
-            return {
-              ...score,
-              points: (Number(score.points) || 0) + Number(quiz.points || 0),
-              updatedAt: timestamp,
-              autoAwards: {
-                ...(score.autoAwards || {}),
-                [awardId]: {
-                  roomId: quiz.roomId,
-                  questionId: quiz.questionId,
-                  points: Number(quiz.points || 0)
-                }
-              },
-              lastAward: {
-                roomId: quiz.roomId,
-                questionId: quiz.questionId,
-                points: Number(quiz.points || 0)
-              }
-            };
-          });
-        } catch (error) {
-          if (error?.code === "PERMISSION_DENIED") return { ...value, autoPointsAwarded: false };
-          const syncError = new Error("Your answer was saved, but points could not be fully synchronized. Tap Retry to try again.");
-          syncError.code = "SCORE_SYNC_PENDING";
-          throw syncError;
-        }
-        if (result.committed) {
-          autoPointsAwarded = true;
-        } else if (result.snapshot.child(`autoAwards/${awardId}`).exists()) {
-          autoPointsAwarded = true;
-        } else {
-          const syncError = new Error("Your answer was saved, but points could not be fully synchronized. Tap Retry to try again.");
-          syncError.code = "SCORE_SYNC_PENDING";
-          throw syncError;
-        }
-        if (autoPointsAwarded) {
-          try {
-            await this.awardRoomQuestionPoints(user.uid, quiz.roomId, quiz.questionId, Number(quiz.points || 0));
-            await db.ref(`hangout/scoreLog/${user.uid}/${awardId}`).set({
-              points: Number(quiz.points || 0),
-              at: timestamp,
-              note: `Question #${quiz.questionNumber} correct answer`
-            });
-          } catch (error) {
-            const syncError = new Error("Your answer was saved, but points could not be fully synchronized. Tap Retry to try again.");
-            syncError.code = "SCORE_SYNC_PENDING";
-            throw syncError;
-          }
-        }
-        return { ...value, autoPointsAwarded, historySaved };
-      }
       return { ...value, autoPointsAwarded: false, historySaved };
     },
 

@@ -442,25 +442,34 @@ let selectedPreviousRoomId = "";
 
   const answerIdentity = quiz => `${quiz.roomId}/${quiz.questionId}/${ctx.user.uid}`;
 
+  // Single-flight flag: only one repair attempt per saved answer. Without it a
+  // denied write re-enters this function on every answer snapshot and floods the
+  // console. answerSyncKey still blocks the same answer from being retried.
+  let answerSyncInFlight = false;
+
   function reconcileSavedAnswer(quiz, answer, identity) {
     if (quiz.type === "short" || !answer?.answer) return;
     const syncKey = `${identity}/${answer.answer}`;
-    if (syncKey === answerSyncKey) return;
+    if (syncKey === answerSyncKey || answerSyncInFlight) return;
     answerSyncKey = syncKey;
-    HangoutAdminRepository.submitAnswer(quiz, ctx.user, answer.answer).then(() => {
-      if (answerQuestionKey === identity && data.scoreSyncPending) {
-        data.scoreSyncPending = false;
-        lastQuizKey = null;
-        renderQuestion(data.quiz);
-      }
-    }).catch(error => {
-      console.error("Saved quiz answer could not be fully synchronized:", error);
-      if (answerQuestionKey === identity) {
-        data.scoreSyncPending = true;
-        lastQuizKey = null;
-        renderQuestion(data.quiz);
-      }
-    });
+    answerSyncInFlight = true;
+    HangoutAdminRepository.submitAnswer(quiz, ctx.user, answer.answer)
+      .then(() => {
+        if (answerQuestionKey === identity) {
+          data.scoreSyncPending = false;
+          lastQuizKey = null;
+          renderQuestion(data.quiz);
+        }
+      })
+      .catch(error => {
+        console.error("Saved quiz answer could not be fully synchronized:", error);
+        if (answerQuestionKey === identity) {
+          data.scoreSyncPending = true;
+          lastQuizKey = null;
+          renderQuestion(data.quiz);
+        }
+      })
+      .finally(() => { answerSyncInFlight = false; });
   }
 
   function startQuestionTimer(initialQuiz) {
