@@ -10,7 +10,7 @@ const APP_SHELL = [
   "./assets/images/reports/r2022.jpg", "./assets/images/group-photo.png", "./assets/images/online-quiz-icon.png",
   "./css/hangout.css?v=20261113-siren-player-view",
   "./js/hangout/hangout-firebase.js?v=20261109-single-login",
-  "./js/hangout/hangout-auth.js?v=20261109-single-login",
+  "./js/hangout/hangout-auth.js?v=20261113-siren-player-view",
   "./js/hangout/hangout.repository.js?v=20261113-siren-player-view",
   "./js/hangout/hangout-admin.repository.js?v=20261113-siren-player-view",
   "./js/hangout/hangout.service.js?v=20261109-cumulative-scoreboard-1",

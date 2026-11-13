@@ -53,7 +53,12 @@ window.HangoutAuth = (() => {
       if (user) {
         try {
           const token = await user.getIdTokenResult();
-          if (token.claims?.role === "member" && token.claims?.googleAuth === true) {
+          const role = String(token.claims?.role || "").trim().toLowerCase();
+          // The website already verified this member at sign-in. Accept the
+          // shared session so the quiz never asks for a second Google login.
+          // Officials (password accounts) keep using the separate quiz sign-in.
+          const isMemberSession = role === "member" || role === "";
+          if (isMemberSession && user.email) {
             mainProfile = toProfile(user);
             if (hangoutAuth.currentUser) {
               await hangoutAuth.signOut().catch(error => console.error("Old Hangout session cleanup failed:", error));
@@ -99,6 +104,15 @@ window.HangoutAuth = (() => {
     async signIn() {
       start();
       if (mainProfile) return null;
+      const mainAuth = HangoutFirebase.mainAuth();
+      // A website session already exists (for example the claims check has not
+      // finished yet). Adopt it instead of opening a second Google popup.
+      if (mainAuth?.currentUser?.email) {
+        mainProfile = toProfile(mainAuth.currentUser);
+        mainSessionResolved = true;
+        updateResolution();
+        return null;
+      }
       const auth = HangoutFirebase.auth();
       if (!auth) throw new Error(HangoutFirebase.unavailableMessage());
       const provider = new firebase.auth.GoogleAuthProvider();

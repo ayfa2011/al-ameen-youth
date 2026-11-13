@@ -1326,8 +1326,8 @@ window.HangoutQuizAdmin = (() => {
     } catch (error) {
       console.error("Player room score data could not be loaded:", error);
       host.innerHTML = '<div class="hg-empty">Could not load this room’s scoreboard. Check Quiz Admin access and database rules.</div>';
+    }
   }
 
   return Object.freeze({ open });
-}
 })();
