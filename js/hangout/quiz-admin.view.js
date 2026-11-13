@@ -96,6 +96,105 @@ window.HangoutQuizAdmin = (() => {
     }
   }
 
+  // Paste-many-questions importer. Parsing lives in quiz-import.parser.js; this only
+  // handles the form, the preview and saving. Saving is all-or-nothing in the UI:
+  // Submit stays disabled while any pasted question has a problem.
+  function wireBulkImport(host, state, roomId, existing) {
+    const box = host.querySelector(".hg-bulk");
+    if (!box) return;
+    const field = selector => box.querySelector(selector);
+    const textarea = field('[name="bulkText"]');
+    const pointsInput = field('[name="bulkPoints"]');
+    const timeInput = field('[name="bulkTime"]');
+    const summary = field(".hg-bulk-summary");
+    const preview = field(".hg-bulk-preview");
+    const submit = field('[data-bulk="submit"]');
+    const clear = field('[data-bulk="clear"]');
+    const existingTexts = existing.map(([, question]) => question.text).filter(Boolean);
+    let latest = { items: [], ignored: [] };
+    let busy = false;
+
+    const render = () => {
+      const points = Number(pointsInput.value);
+      const timeLimit = Number(timeInput.value);
+      const defaultsOk = Number.isInteger(points) && points >= 1 && points <= 10000 && Number.isInteger(timeLimit) && timeLimit >= 1 && timeLimit <= 3600;
+      latest = HangoutQuizImport.parse(textarea.value, { points, timeLimit, existingTexts });
+      const items = latest.items;
+      const bad = items.filter(item => item.errors.length).length;
+      const skipped = items.filter(item => !item.errors.length && item.duplicate).length;
+      const ready = items.length - bad - skipped;
+      let message = "";
+      if (!textarea.value.trim()) message = "";
+      else if (!items.length) message = '<span class="is-bad">No questions found. Every question must start with <strong>Q:</strong></span>';
+      else {
+        message = [
+          ready ? `<span class="is-ok">${ready} ready</span>` : "",
+          skipped ? `<span class="is-muted">${skipped} skipped (already in this room or pasted twice)</span>` : "",
+          bad ? `<span class="is-bad">${bad} need fixing</span>` : "",
+          !defaultsOk ? '<span class="is-bad">Default points must be 1–10,000 and time 1–3,600 seconds</span>' : "",
+          latest.ignored.length ? `<span class="is-muted">Ignored ${latest.ignored.length} line(s) before the first Q:</span>` : ""
+        ].filter(Boolean).join(" · ");
+      }
+      summary.innerHTML = message;
+      preview.innerHTML = items.map(item => {
+        const status = item.errors.length ? "is-bad" : item.duplicate ? "is-muted" : "is-ok";
+        const icon = item.errors.length ? "fa-triangle-exclamation" : item.duplicate ? "fa-clone" : "fa-circle-check";
+        const typeLabel = TYPE_LABELS[item.question.type] || item.question.type;
+        return `<article class="hg-bulk-item ${status}">
+          <div><i class="fa-solid ${icon}" aria-hidden="true"></i> <strong>#${item.number}</strong> · ${escapeHTML(typeLabel)} · ${item.question.points} pts · ${item.question.timeLimit}s</div>
+          <p>${escapeHTML(item.question.text.slice(0, 160) || "(no text)")}</p>
+          ${item.answerLabel ? `<small>Answer: ${escapeHTML(item.answerLabel.slice(0, 120))}</small>` : ""}
+          ${item.duplicate && !item.errors.length ? "<small>Skipped: this question already exists.</small>" : ""}
+          ${item.errors.map(error => `<small class="is-bad">${escapeHTML(error)}</small>`).join("")}
+          ${item.warnings.map(warning => `<small class="is-muted">${escapeHTML(warning)}</small>`).join("")}
+        </article>`;
+      }).join("");
+      submit.disabled = busy || !defaultsOk || bad > 0 || ready === 0;
+      submit.textContent = ready ? `Submit ${ready} as drafts` : "Submit all as drafts";
+    };
+
+    const setBusy = value => {
+      busy = value;
+      [textarea, pointsInput, timeInput, clear].forEach(element => { element.disabled = value; });
+      render();
+    };
+
+    [textarea, pointsInput, timeInput].forEach(element => element.addEventListener("input", render));
+    clear.addEventListener("click", () => { textarea.value = ""; render(); textarea.focus(); });
+
+    submit.addEventListener("click", async () => {
+      const ready = latest.items.filter(item => !item.errors.length && !item.duplicate);
+      if (!ready.length || busy) return;
+      if (!await showConfirmSheet({
+        title: `Add ${ready.length} question${ready.length === 1 ? "" : "s"}?`,
+        message: "They will be saved as drafts in this room. Nothing is published to players.",
+        confirmLabel: "Add as Drafts"
+      })) return;
+      const snapshot = latest.items; // setBusy() re-parses, so keep the list this submit started from
+      setBusy(true);
+      const savedItems = new Set();
+      try {
+        for (const item of ready) {
+          summary.innerHTML = `<span class="is-muted">Saving ${savedItems.size + 1} of ${ready.length}…</span>`;
+          const questionId = HangoutAdminRepository.newQuestionId(roomId);
+          await HangoutAdminRepository.addQuestion(roomId, questionId, item.question);
+          savedItems.add(item);
+          existingTexts.push(item.question.text);
+        }
+        showToast(`${savedItems.size} question${savedItems.size === 1 ? "" : "s"} saved as drafts.`, "success");
+        await renderRooms(host, state);
+      } catch (error) {
+        console.error("Bulk question import failed:", error);
+        // Keep only what was NOT saved, so pressing Submit again cannot create duplicates.
+        textarea.value = snapshot.filter(item => !savedItems.has(item)).map(item => item.raw).join("\n---\n");
+        showToast(`${error.message || "Could not save the questions."} ${savedItems.size} of ${ready.length} were saved; the rest are still in the box.`, "error");
+        setBusy(false);
+      }
+    });
+
+    render();
+  }
+
   async function renderRoomManager(host, state, roomId) {
     const room = state.rooms[roomId];
     if (!room) { state.roomId = ""; renderRooms(host, state); return; }
@@ -103,6 +202,37 @@ window.HangoutQuizAdmin = (() => {
     host.innerHTML = `<button type="button" class="hg-back-btn" data-act="back-rooms"><i class="fa-solid fa-arrow-left"></i> All rooms</button>
       <div class="hg-room-heading"><div><h4>${escapeHTML(room.name || "Quiz Room")}</h4><p>${escapeHTML(room.description || room.month || "No description")}</p></div>
       <label class="hg-form hg-room-status-wrap">Room status<select class="hg-room-status">${room.status === "live" ? '<option value="live" selected disabled>Live</option>' : ""}<option value="draft" ${room.status === "draft" ? "selected" : ""} ${room.status === "live" ? "disabled" : ""}>Draft</option><option value="ready" ${room.status === "ready" ? "selected" : ""} ${room.status === "live" ? "disabled" : ""}>Ready</option><option value="completed" ${room.status === "completed" ? "selected" : ""}>Completed</option></select><button type="button" class="hg-btn is-danger hg-room-end-quiz" data-room-act="end-quiz" ${room.status !== "live" ? "disabled" : ""}>End Quiz</button></label></div>
+      <details class="hg-bulk">
+        <summary><i class="fa-solid fa-paste"></i> Paste many questions at once</summary>
+        <div class="hg-form hg-bulk-body">
+          <p class="hg-hint">Paste text prepared in the standard format (each question starts with <strong>Q:</strong>). Everything is saved as a draft; nothing is published to players.</p>
+          <pre class="hg-bulk-example">Q: Which planet is the Red Planet?
+A) Venus
+B) Mars
+C) Jupiter
+D) Saturn
+ANSWER: B
+EXPLAIN: Iron oxide gives Mars its colour.
+POINTS: 5
+TIME: 30
+---
+Q: Name the author of Sri Ramayana Darshanam.
+TYPE: SHORT
+ANSWER: Kuvempu
+---
+Q: The Sun is a star.
+TYPE: TF
+ANSWER: TRUE</pre>
+          <div class="hg-bulk-defaults">
+            <label>Default points<input name="bulkPoints" type="number" min="1" max="10000" step="1" value="1"></label>
+            <label>Default time (seconds)<input name="bulkTime" type="number" min="1" max="3600" step="1" value="60"></label>
+          </div>
+          <label>Questions<textarea name="bulkText" class="hg-bulk-text" rows="10" spellcheck="false" placeholder="Paste the questions here"></textarea></label>
+          <div class="hg-bulk-summary" aria-live="polite"></div>
+          <div class="hg-bulk-preview"></div>
+          <div class="hg-form-actions"><button type="button" class="hg-btn is-light" data-bulk="clear">Clear</button><button type="button" class="hg-btn" data-bulk="submit" disabled>Submit all as drafts</button></div>
+        </div>
+      </details>
       <form class="hg-form hg-question-create">
         <h4>New Question</h4>
         <label>Enter Question<textarea name="text" maxlength="4000"></textarea></label>
@@ -142,6 +272,7 @@ window.HangoutQuizAdmin = (() => {
       }
     });
 
+    wireBulkImport(host, state, roomId, questions);
     const questionForm = host.querySelector(".hg-question-create");
     const optionsHost = questionForm.querySelector("[data-options]");
     let optionCount = 4;

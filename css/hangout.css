@@ -462,3 +462,23 @@
   .hg-host-head{cursor:default; touch-action:auto}
 }
 @media (prefers-reduced-motion:reduce){ .hg-host-bar i{transition:none} }
+
+/* Bulk question import (admin panel) */
+.hg-bulk{margin:0 0 14px; border:1px solid var(--hg-line); border-radius:14px; background:var(--hg-soft-2,#f3f8fe)}
+.hg-bulk > summary{cursor:pointer; padding:12px 14px; font-weight:700; list-style:none}
+.hg-bulk > summary::-webkit-details-marker{display:none}
+.hg-bulk > summary i{margin-right:6px; color:var(--hg-blue)}
+.hg-bulk[open] > summary{border-bottom:1px solid var(--hg-line)}
+.hg-bulk-body{padding:12px 14px 14px}
+.hg-bulk-example{margin:0; padding:10px 12px; border-radius:10px; background:#fff; border:1px dashed var(--hg-line); font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; white-space:pre-wrap; overflow-wrap:anywhere; max-height:150px; overflow:auto}
+.hg-bulk-defaults{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+.hg-form .hg-bulk-text{min-height:200px; font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,"Noto Sans Kannada",monospace}
+.hg-bulk-summary{font-size:13px; font-weight:600; min-height:18px}
+.hg-bulk-summary .is-ok,.hg-bulk-item.is-ok > div i{color:#12805c}
+.hg-bulk-summary .is-bad,.hg-bulk-item .is-bad,.hg-bulk-item.is-bad > div i{color:var(--hg-red)}
+.hg-bulk-summary .is-muted,.hg-bulk-item .is-muted,.hg-bulk-item.is-muted > div i{color:var(--hg-muted)}
+.hg-bulk-preview{display:grid; gap:6px; max-height:300px; overflow:auto}
+.hg-bulk-item{padding:8px 10px; border:1px solid var(--hg-line); border-radius:10px; background:#fff; font-size:13px}
+.hg-bulk-item.is-bad{border-color:var(--hg-red)}
+.hg-bulk-item p{margin:3px 0; overflow-wrap:anywhere}
+.hg-bulk-item small{display:block; font-size:12px}
