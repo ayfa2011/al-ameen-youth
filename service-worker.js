@@ -1,23 +1,23 @@
 // Bump this name when deploying asset changes; activation replaces the old shell cache.
 // This is required in addition to ?v= query bumps on index.html: once a same-origin
 // script is cached below, bumping its ?v= alone is not enough to evict it.
-const CACHE_NAME = "alameen-shell-v35-host-dashboard";
+const CACHE_NAME = "alameen-shell-v36-siren-player-view";
 const APP_SHELL = [
   "./", "./index.html", "./manifest.json", "./css/style.css",
   "./assets/icons/icon-192.png", "./assets/icons/icon-512.png", "./assets/icons/apple-touch-icon.png",
   "./assets/icons/favicon-32.png", "./assets/icons/favicon-16.png", "./assets/app-icon.png",
   "./assets/images/reports/r2026.jpg", "./assets/images/reports/r2025.jpg", "./assets/images/reports/r2024.jpg",
   "./assets/images/reports/r2022.jpg", "./assets/images/group-photo.png", "./assets/images/online-quiz-icon.png",
-  "./css/hangout.css?v=20261110-chat-replies",
+  "./css/hangout.css?v=20261113-siren-player-view",
   "./js/hangout/hangout-firebase.js?v=20261109-single-login",
   "./js/hangout/hangout-auth.js?v=20261109-single-login",
-  "./js/hangout/hangout.repository.js?v=20261109-scheduled-quiz-1",
-  "./js/hangout/hangout-admin.repository.js?v=20261111-history-fix-1",
+  "./js/hangout/hangout.repository.js?v=20261113-siren-player-view",
+  "./js/hangout/hangout-admin.repository.js?v=20261113-siren-player-view",
   "./js/hangout/hangout.service.js?v=20261109-cumulative-scoreboard-1",
   "./js/hangout/hangout-hub.view.js?v=20261112-host-dashboard",
   "./js/hangout/quiz-chat.view.js?v=20261110-swipe-reply",
-  "./js/hangout/quiz-admin.view.js?v=20261112-host-dashboard",
-  "./js/hangout/quiz.view.js?v=20261112-host-dashboard"
+  "./js/hangout/quiz-admin.view.js?v=20261113-siren-player-view",
+  "./js/hangout/quiz.view.js?v=20261113-siren-player-view"
 ];
 
 self.addEventListener("install", event => {

@@ -151,9 +151,16 @@ let selectedPreviousRoomId = "";
     window.addEventListener("keydown", guardPrintScreen, true);
     window.addEventListener("resize", onResizeQuiz);
     container.querySelector('[data-act="exit"]').addEventListener("click", () => exitFn());
-    container.querySelector('[data-act="admin"]').addEventListener("click", () => HangoutQuizAdmin.open({
-      users: () => data.users, scores: () => data.scores, quiz: () => data.quiz
-    }));
+    container.querySelector('[data-act="admin"]')?.addEventListener("click", () => {
+      if (typeof window.HangoutQuizAdmin?.open !== "function") {
+        console.error("Quiz admin panel is unavailable: quiz-admin.view.js did not load.");
+        showToast("Admin panel is unavailable. Please reload the page.", "error");
+        return;
+      }
+      window.HangoutQuizAdmin.open({
+        users: () => data.users, scores: () => data.scores, quiz: () => data.quiz
+      });
+    });
     container.querySelector(".hg-nav").addEventListener("click", event => {
       const button = event.target.closest("[data-nav]");
       if (button) setPanel(button.dataset.nav);
