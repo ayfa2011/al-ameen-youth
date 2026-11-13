@@ -387,47 +387,78 @@
   .hg-root .hg-rec-dot,.hg-root .fa-spin{animation:none}
 }
 
-/* ===== HOST DASHBOARD ===== */
-.hg-host-empty{display:flex; flex-direction:column; align-items:center; justify-content:center; height:60vh; color:var(--hg-muted)}
-.hg-host-topbar{display:flex; flex-wrap:wrap; gap:10px; padding:12px 14px; border:1px solid var(--hg-line); border-radius:14px; background:var(--hg-soft); font-size:13px}
-.hg-host-room{flex:1 1 100%; font-weight:700; font-size:15px}
-.hg-host-status-badge{flex:1 1 auto; padding:4px 10px; border-radius:10px; font-size:11px; font-weight:700; color:#fff}
-.hg-host-status-badge.is-live{background:var(--hg-red)}
-.hg-host-status-badge.is-paused{background:var(--hg-amber)}
-.hg-host-status-badge.is-completed{background:var(--hg-green)}
-.hg-host-status-badge.is-draft{background:var(--hg-muted)}
-.hg-host-meta{flex:1 1 auto; color:var(--hg-muted)}
-.hg-host-network{flex:1 1 auto; color:var(--hg-green); font-size:12px; display:flex; align-items:center; gap:6px}
-.hg-network-dot{width:7px; height:7px; border-radius:50%; background:currentColor; box-shadow:0 0 6px currentColor; animation:hg-pulse 2s infinite}
-@keyframes hg-pulse{0%,100%{opacity:1}50%{opacity:0.4}}
-.hg-host-current{margin-top:10px; padding:12px 14px; border:1px solid var(--hg-line); border-radius:14px; background:#fff}
-.hg-host-current-head{display:flex; gap:12px; margin-bottom:8px; font-size:12px; color:var(--hg-muted)}
-.hg-host-q-number{font-weight:700}
-.hg-host-q-text{font-size:15px; margin-bottom:8px}
-.hg-host-timer{display:flex; gap:14px; font-size:12px; color:var(--hg-muted)}
-.hg-host-timer .hg-timer-value{font-size:16px; font-weight:700; color:var(--hg-text)}
-.hg-host-timer-progress{flex:1; height:6px; background:var(--hg-soft-2); border-radius:3px; position:relative; overflow:hidden}
-.hg-host-timer-answered{font-size:11px}
-.hg-host-controls{margin-top:10px; padding:12px 14px; border:1px solid var(--hg-line); border-radius:14px; background:var(--hg-soft)}
-.hg-host-btn-row{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px}
-.hg-host-mode{display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--hg-muted)}
-.hg-host-mode-toggle{display:flex; align-items:center; gap:6px; font-weight:600; color:var(--hg-text); cursor:pointer}
-.hg-host-mode-toggle select{margin-left:6px; padding:4px 8px; border:1px solid var(--hg-line); border-radius:8px; background:#fff; font:inherit}
-.hg-host-gap{font-size:12px; font-weight:700; color:var(--hg-red)}
-.hg-host-sequence{margin-top:10px; padding:10px 14px; border:1px solid var(--hg-line); border-radius:14px; background:#fff}
-.hg-host-seq-chips{display:flex; flex-wrap:wrap; gap:8px}
-.hg-host-chip{flex:0 0 auto; padding:6px 10px; border:1px solid var(--hg-line); border-radius:10px; background:#fff; font-size:11px; cursor:pointer}
-.hg-host-chip.is-current{border-color:var(--hg-blue); background:var(--hg-soft-2); color:var(--hg-blue); font-weight:700}
-.hg-host-chip.is-done{opacity:0.5}
-.hg-host-chip:not(.is-current):hover{border-color:var(--hg-blue)}
-.hg-host-score{margin-top:10px; padding:12px 14px; border:1px solid var(--hg-line); border-radius:14px; background:#fff}
-.hg-host-score-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-size:12px; color:var(--hg-muted)}
-.hg-host-eval-warning{color:var(--hg-amber); font-weight:700; font-size:11px}
-.hg-host-score-list{display:flex; flex-direction:column; gap:6px}
-.hg-host-score-row{display:flex; justify-content:space-between; padding:5px 8px; border-radius:8px; background:var(--hg-soft-2); font-size:12px}
-.hg-host-score-row b{color:var(--hg-text); font-weight:700}
-@media(max-width:540px){
-  .hg-host-btn-row .hg-btn{flex:1 1 48%}
-  .hg-host-mode{flex-direction:column; gap:8px}
-  .hg-host-mode-toggle{width:100%; justify-content:space-between}
+
+/* ============================================================
+   QUIZ HOST — floating admin window (quiz-host.view.js)
+   Sits on top of the player quiz screen; draggable on desktop,
+   docked to the bottom edge on phones.
+   ============================================================ */
+.hg-host{
+  --hg-card:#fff; --hg-blue:#2f7be5; --hg-blue-dark:#1f5fbf; --hg-soft:#e8f1fc; --hg-soft-2:#f3f8fe;
+  --hg-line:#dbe6f4; --hg-text:#1f2d3d; --hg-muted:#6b7a8c; --hg-red:#e04545;
+  position:fixed; z-index:9050; width:360px; max-width:calc(100vw - 16px); max-height:calc(100dvh - 16px);
+  display:flex; flex-direction:column; overflow:hidden;
+  background:var(--hg-card); color:var(--hg-text); border:1px solid var(--hg-line); border-radius:18px;
+  box-shadow:0 18px 50px rgba(20,30,45,.3);
+  font-family:var(--ayfa-font-family,"Noto Sans Kannada",Arial,sans-serif); font-size:14px; line-height:1.45;
 }
+.hg-host *{box-sizing:border-box}
+.hg-host [hidden]{display:none !important}
+.hg-host button,.hg-host input,.hg-host select{font-family:inherit; font-size:inherit}
+.hg-host-head{display:flex; align-items:center; gap:8px; padding:8px 8px 8px 12px; background:var(--hg-soft-2); border-bottom:1px solid var(--hg-line); cursor:grab; touch-action:none; user-select:none; -webkit-user-select:none}
+.hg-host-head:active{cursor:grabbing}
+.hg-host-head strong{font-size:15px}
+.hg-host-grip{color:var(--hg-muted); font-size:13px}
+.hg-host-mini{flex:1; min-width:0; text-align:right; color:var(--hg-muted); font-size:13px; font-variant-numeric:tabular-nums; white-space:nowrap}
+.hg-host-ib{display:grid; place-items:center; flex:0 0 auto; width:30px; height:30px; border:0; border-radius:9px; background:var(--hg-soft); color:var(--hg-blue-dark); font-size:13px; cursor:pointer}
+.hg-host-ib:active{transform:scale(.95)}
+.hg-host .hg-status.is-paused{background:#fff1d6; color:#8a5a00}
+.hg-host .hg-status.is-revealed{background:var(--hg-blue); color:#fff}
+.hg-host .hg-status.is-ready{background:#e8f1fc; color:#1f5fbf}
+.hg-host.is-min .hg-host-body{display:none}
+.hg-host.is-min .hg-host-head{border-bottom:0}
+.hg-host-body{display:flex; flex-direction:column; gap:12px; padding:12px 14px 14px; overflow-y:auto; overscroll-behavior:contain}
+.hg-host-roomrow{display:flex; align-items:flex-end; gap:8px}
+.hg-host-roomrow label{flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--hg-muted)}
+.hg-host-roomrow select{width:100%; padding:8px 10px; border:1px solid var(--hg-line); border-radius:10px; background:#fff; color:var(--hg-text)}
+.hg-host-roomrow .hg-host-ib{width:38px; height:38px}
+.hg-host-empty{padding:14px 12px; border-radius:12px; background:var(--hg-soft-2); color:var(--hg-muted); text-align:center; font-size:13px}
+.hg-host-empty.is-small{padding:8px; font-size:12px}
+.hg-host-empty strong{color:var(--hg-text)}
+.hg-host-now{padding:12px; border:1px solid var(--hg-line); border-radius:14px; background:var(--hg-soft-2)}
+.hg-host-now small{color:var(--hg-muted)}
+.hg-host-qtext{margin:3px 0 8px; font-weight:600; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; overflow-wrap:anywhere}
+.hg-host-timerrow{display:flex; align-items:baseline; justify-content:space-between; gap:8px}
+.hg-host-timerrow strong{font-size:30px; line-height:1.1; font-variant-numeric:tabular-nums}
+.hg-host-timerrow span{font-size:12px; color:#8a5a00}
+.hg-host-bar{height:6px; margin:6px 0; border-radius:99px; background:#dbe6f4; overflow:hidden}
+.hg-host-bar i{display:block; height:100%; width:0; background:var(--hg-blue); transition:width .5s linear}
+.hg-host-answered{font-size:13px; color:var(--hg-muted)}
+.hg-host-ctl{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px}
+.hg-host-ctl .hg-btn{padding:9px 2px; font-size:12px; display:flex; flex-direction:column; align-items:center; gap:3px; line-height:1.2}
+.hg-host-ctl .hg-btn i{font-size:14px}
+.hg-host-auto{display:flex; align-items:center; justify-content:space-between; gap:10px}
+.hg-host-auto label{display:flex; align-items:center; gap:6px; font-size:13px}
+.hg-host-auto input{width:58px; padding:6px 8px; border:1px solid var(--hg-line); border-radius:9px; background:#fff; color:var(--hg-text)}
+.hg-host-seg{display:flex; border:1px solid var(--hg-line); border-radius:11px; overflow:hidden}
+.hg-host-seg button{border:0; background:#fff; color:var(--hg-text); padding:7px 14px; font-weight:600; cursor:pointer}
+.hg-host-seg button.is-on{background:var(--hg-blue); color:#fff}
+.hg-host-note{margin:-4px 0 0; font-size:12px; color:var(--hg-muted)}
+.hg-host-h{margin:0 0 6px; font-size:13px}
+.hg-host-list{display:flex; flex-direction:column; gap:6px}
+.hg-host-q{display:flex; align-items:center; gap:8px; padding:7px 8px; border:1px solid var(--hg-line); border-radius:12px}
+.hg-host-q.is-current{border-color:var(--hg-blue); box-shadow:inset 0 0 0 1px var(--hg-blue)}
+.hg-host-qn{flex:0 0 24px; font-weight:700; color:var(--hg-muted); text-align:center}
+.hg-host-qt{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px}
+.hg-host-qt small{display:block; color:var(--hg-muted); font-size:11px}
+.hg-host-q .hg-btn{padding:6px 12px; font-size:12px}
+.hg-host-top{display:flex; gap:6px}
+.hg-host-top > div{flex:1; min-width:0; display:flex; flex-direction:column; padding:6px 8px; border-radius:10px; background:var(--hg-soft-2); font-size:12px}
+.hg-host-top strong{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.hg-host-top b{font-variant-numeric:tabular-nums}
+.hg-host-body :focus-visible,.hg-host-head :focus-visible{outline:2px solid var(--hg-blue); outline-offset:2px}
+@media (max-width:760px){
+  .hg-host{left:0 !important; right:0; top:auto !important; bottom:0; width:auto; max-width:none; max-height:56dvh; border-radius:18px 18px 0 0; padding-bottom:env(safe-area-inset-bottom,0px)}
+  .hg-host-head{cursor:default; touch-action:auto}
+}
+@media (prefers-reduced-motion:reduce){ .hg-host-bar i{transition:none} }

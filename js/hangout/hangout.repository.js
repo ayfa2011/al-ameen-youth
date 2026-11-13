@@ -9,20 +9,12 @@ window.HangoutRepository = (() => {
   };
   const ref = path => db().ref(`hangout/${path}`);
   // Returns an unsubscribe function.
-  // Detach is deferred on purpose: calling query.off() from inside a "value"
-  // callback makes Firebase re-enter its own event queue (raiseEvents ->
-  // removeEventRegistration -> raiseEvents ...) and blow the call stack.
   const listen = (query, event, handler, onError) => {
-    let stopped = false;
     query.on(event, handler, error => {
       console.error(`Hangout listener failed (${event}):`, error);
       onError?.(error);
     });
-    return () => {
-      if (stopped) return;
-      stopped = true;
-      window.setTimeout(() => { try { query.off(event, handler); } catch (error) { /* already stopped */ } }, 0);
-    };
+    return () => query.off(event, handler);
   };
 
   return Object.freeze({

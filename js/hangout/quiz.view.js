@@ -53,6 +53,7 @@ let selectedPreviousRoomId = "";
     }
     window.removeEventListener("keydown", guardPrintScreen, true);
     window.removeEventListener("resize", onResizeQuiz);
+    window.HangoutQuizHost?.close();
     clearTimeout(screenshotGuardTimer);
     screenshotGuardTimer = 0;
     screenshotGuardRoot?.classList.remove("is-screenshot-guard");
@@ -129,6 +130,7 @@ let selectedPreviousRoomId = "";
         <header class="hg-qheader">
           <strong>Online Quiz</strong>
           <span class="hg-month" id="hgMonth"></span>
+          <button type="button" class="hg-icon-btn hg-admin-btn" data-act="host" aria-label="Quiz host window" title="Quiz host window" hidden><i class="fa-solid fa-tower-broadcast"></i></button>
           <button type="button" class="hg-icon-btn hg-admin-btn" data-act="admin" aria-label="Admin controls" hidden><i class="fa-solid fa-gear"></i></button>
           <button type="button" class="hg-exit" data-act="exit">EXIT</button>
         </header>
@@ -151,16 +153,9 @@ let selectedPreviousRoomId = "";
     window.addEventListener("keydown", guardPrintScreen, true);
     window.addEventListener("resize", onResizeQuiz);
     container.querySelector('[data-act="exit"]').addEventListener("click", () => exitFn());
-    container.querySelector('[data-act="admin"]')?.addEventListener("click", () => {
-      if (typeof window.HangoutQuizAdmin?.open !== "function") {
-        console.error("Quiz admin panel is unavailable: quiz-admin.view.js did not load.");
-        showToast("Admin panel is unavailable. Please reload the page.", "error");
-        return;
-      }
-      window.HangoutQuizAdmin.open({
-        users: () => data.users, scores: () => data.scores, quiz: () => data.quiz
-      });
-    });
+    const adminSource = { users: () => data.users, scores: () => data.scores, quiz: () => data.quiz };
+    container.querySelector('[data-act="admin"]').addEventListener("click", () => HangoutQuizAdmin.open(adminSource));
+    container.querySelector('[data-act="host"]').addEventListener("click", () => HangoutQuizHost.toggle(adminSource));
     container.querySelector(".hg-nav").addEventListener("click", event => {
       const button = event.target.closest("[data-nav]");
       if (button) setPanel(button.dataset.nav);
@@ -372,8 +367,11 @@ let selectedPreviousRoomId = "";
   }
 
   function refreshAdminButton() {
-    const button = $('[data-act="admin"]');
-    if (button) button.hidden = !HangoutAdminRepository.isQuizAdmin();
+    const isAdmin = HangoutAdminRepository.isQuizAdmin();
+    ["admin", "host"].forEach(name => {
+      const button = $(`[data-act="${name}"]`);
+      if (button) button.hidden = !isAdmin;
+    });
   }
 
   function setPanel(name, fromHistory = false) {
@@ -442,34 +440,25 @@ let selectedPreviousRoomId = "";
 
   const answerIdentity = quiz => `${quiz.roomId}/${quiz.questionId}/${ctx.user.uid}`;
 
-  // Single-flight flag: only one repair attempt per saved answer. Without it a
-  // denied write re-enters this function on every answer snapshot and floods the
-  // console. answerSyncKey still blocks the same answer from being retried.
-  let answerSyncInFlight = false;
-
   function reconcileSavedAnswer(quiz, answer, identity) {
     if (quiz.type === "short" || !answer?.answer) return;
     const syncKey = `${identity}/${answer.answer}`;
-    if (syncKey === answerSyncKey || answerSyncInFlight) return;
+    if (syncKey === answerSyncKey) return;
     answerSyncKey = syncKey;
-    answerSyncInFlight = true;
-    HangoutAdminRepository.submitAnswer(quiz, ctx.user, answer.answer)
-      .then(() => {
-        if (answerQuestionKey === identity) {
-          data.scoreSyncPending = false;
-          lastQuizKey = null;
-          renderQuestion(data.quiz);
-        }
-      })
-      .catch(error => {
-        console.error("Saved quiz answer could not be fully synchronized:", error);
-        if (answerQuestionKey === identity) {
-          data.scoreSyncPending = true;
-          lastQuizKey = null;
-          renderQuestion(data.quiz);
-        }
-      })
-      .finally(() => { answerSyncInFlight = false; });
+    HangoutAdminRepository.submitAnswer(quiz, ctx.user, answer.answer).then(() => {
+      if (answerQuestionKey === identity && data.scoreSyncPending) {
+        data.scoreSyncPending = false;
+        lastQuizKey = null;
+        renderQuestion(data.quiz);
+      }
+    }).catch(error => {
+      console.error("Saved quiz answer could not be fully synchronized:", error);
+      if (answerQuestionKey === identity) {
+        data.scoreSyncPending = true;
+        lastQuizKey = null;
+        renderQuestion(data.quiz);
+      }
+    });
   }
 
   function startQuestionTimer(initialQuiz) {
