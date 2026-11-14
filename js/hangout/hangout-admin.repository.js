@@ -523,6 +523,30 @@ window.HangoutAdminRepository = (() => {
           }
       }));
       const finalScores = (await db.ref(`hangout/roomScores/${roomId}`).once("value")).val() || {};
+
+      const roomScoreSync = {};
+      Object.entries(globalScores).forEach(([uid, global]) => {
+        const currentRoomPoints = Number(finalScores[uid]?.points || 0);
+        let roomAutoPoints = 0;
+        Object.entries(global?.autoAwards || {}).forEach(([key, award]) => {
+          if (String(key).startsWith(`${roomId}_`)) {
+            roomAutoPoints += Number(award?.points || 0);
+          }
+        });
+        if (roomAutoPoints > currentRoomPoints) {
+          roomScoreSync[`hangout/roomScores/${roomId}/${uid}/points`] = roomAutoPoints;
+        }
+      });
+      if (Object.keys(roomScoreSync).length) {
+        try {
+          await db.ref().update(roomScoreSync);
+          const updatedSnap = await db.ref(`hangout/roomScores/${roomId}`).once("value");
+          return { room, scores: updatedSnap.val() || {}, publicResult: resultSnap.val() || null };
+        } catch (error) {
+          console.warn("Could not sync room scores from global scores:", error);
+        }
+      }
+
       return { room, scores: finalScores, publicResult: resultSnap.val() || null };
     },
 
