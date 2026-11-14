@@ -517,6 +517,7 @@
         }
       },
       "roomScores": {
+        ".read": "auth != null && ((auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') )",
         "$roomId": {
           ".read": "auth != null && ((auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') )",
           ".write": "auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') ",
