@@ -804,6 +804,12 @@ window.HangoutAdminRepository = (() => {
         };
       }
       await db.ref().update(updates);
+      // Auto-publish results so they appear in the "Previous" tab of the member scoreboard.
+      try {
+        await this.setRoomResultsPublished(roomId, true);
+      } catch (error) {
+        console.error("Auto-publish results on quiz end failed:", error);
+      }
       await this.refreshPlayerQuizHistory(roomId);
       await this.syncNextQuizSchedule();
       await appendQuizAudit("hangout.quiz.end", "hangout/quiz", roomId, timestamp);
