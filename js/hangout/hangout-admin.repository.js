@@ -506,6 +506,20 @@ window.HangoutAdminRepository = (() => {
         }
         throw new Error("Score adjustment could not be saved. Try again.");
       }
+      // Also update the overall/cumulative score so the member scoreboard reflects the change.
+      const scoreRef = db.ref(`hangout/scores/${uid}`);
+      await scoreRef.transaction(current => {
+        const score = current || { points: 0, autoAwards: {}, manualAwards: {} };
+        return {
+          ...score,
+          points: (Number(score.points) || 0) + delta,
+          updatedAt: editedAt,
+          manualAwards: {
+            ...(score.manualAwards || {}),
+            [historyId]: { roomId, adjustedPoints: delta, newTotal: (Number(score.points) || 0) + delta, reason: note, editedBy: editor, editedAt }
+          }
+        };
+      });
       await appendQuizAudit("hangout.score.adjust", `hangout/roomScores/${roomId}/${uid}`, historyId, editedAt);
       await this.refreshPlayerQuizHistory(roomId);
       const published = (await db.ref(`hangout/publicResults/${roomId}/published`).once("value")).val();
