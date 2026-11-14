@@ -52,6 +52,38 @@ window.HangoutAdminRepository = (() => {
   const roomRef = async roomId => (await database()).ref(`hangout/rooms/${roomId}`);
   const now = () => new Date().toISOString();
 
+  async function buildPublicRows(roomId, db) {
+    const [roomSnap, scoresSnap, usersSnap, answersSnap] = await Promise.all([
+      db.ref(`hangout/rooms/${roomId}`).once("value"),
+      db.ref(`hangout/roomScores/${roomId}`).once("value"),
+      db.ref("hangout/users").once("value"),
+      db.ref(`hangout/answers/${roomId}`).once("value")
+    ]);
+    const room = roomSnap.val();
+    if (!room) throw new Error("The quiz room no longer exists.");
+    const scores = scoresSnap.val() || {};
+    const users = usersSnap.val() || {};
+    const answers = answersSnap.val() || {};
+    const participants = new Set([
+      ...Object.keys(scores),
+      ...Object.values(answers).flatMap(questionAnswers => Object.keys(questionAnswers || {}))
+    ]);
+    const rows = [...participants].map(uid => ({
+      uid,
+      name: String(users[uid]?.name || "Player").slice(0, 80),
+      points: Number(scores[uid]?.points) || 0
+    })).sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
+    rows.forEach((row, index) => {
+      row.rank = index > 0 && row.points === rows[index - 1].points ? rows[index - 1].rank : index + 1;
+    });
+    return {
+      roomId,
+      roomName: String(room.name || "Quiz Room").slice(0, 120),
+      updatedAt: now(),
+      rows: Object.fromEntries(rows.map(row => [row.uid, row]))
+    };
+  }
+
   function getScheduledStartAt(room) {
     const date = String(room.startDate || "").trim();
     const time = String(room.startTime || "").trim();
@@ -112,6 +144,12 @@ window.HangoutAdminRepository = (() => {
           console.error("Previously published quiz participants could not be added to the scoreboard:", error);
           showToast("Some published scoreboards could not be refreshed. Check database rules and retry.", "error");
         });
+      }
+
+      const completedRoomsNeedingPublish = Object.entries(rooms)
+        .filter(([roomId, room]) => room?.status === "completed" && !publishedResults[roomId]);
+      if (completedRoomsNeedingPublish.length) {
+        await Promise.all(completedRoomsNeedingPublish.map(([roomId]) => this.setRoomResultsPublished(roomId, true)));
       }
       return rooms;
     },
@@ -334,7 +372,10 @@ window.HangoutAdminRepository = (() => {
         [`hangout/rooms/${roomId}/updatedAt`]: timestamp
       };
       await db.ref().update(updates);
-      if (status === "completed") await this.refreshPlayerQuizHistory(roomId);
+      if (status === "completed") {
+        await this.refreshPlayerQuizHistory(roomId);
+        await this.setRoomResultsPublished(roomId, true);
+      }
       await this.syncNextQuizSchedule();
       await appendQuizAudit("hangout.quiz.room.status", `hangout/rooms/${roomId}`, roomId, timestamp);
     },
@@ -523,62 +564,26 @@ window.HangoutAdminRepository = (() => {
       await appendQuizAudit("hangout.score.adjust", `hangout/roomScores/${roomId}/${uid}`, historyId, editedAt);
       await this.refreshPlayerQuizHistory(roomId);
       const published = (await db.ref(`hangout/publicResults/${roomId}/published`).once("value")).val();
-      if (published) await this.setRoomResultsPublished(roomId, true);
+      await this.setRoomResultsPublished(roomId, !!published);
       return result.snapshot.val();
     },
 
     async setRoomResultsPublished(roomId, published) {
       requireQuizAdmin();
       const db = await database();
-      const [roomSnap, scoresSnap, usersSnap, answersSnap] = await Promise.all([
-        db.ref(`hangout/rooms/${roomId}`).once("value"),
-        db.ref(`hangout/roomScores/${roomId}`).once("value"),
-        db.ref("hangout/users").once("value"),
-        db.ref(`hangout/answers/${roomId}`).once("value")
-      ]);
+      const roomSnap = await db.ref(`hangout/rooms/${roomId}`).once("value");
       const room = roomSnap.val();
       if (!room) throw new Error("The quiz room no longer exists.");
       if (published && room.status !== "completed") {
         throw new Error("End the quiz before publishing its final results.");
       }
-      if (published) {
-        const scores = scoresSnap.val() || {};
-        const answers = answersSnap.val() || {};
-        const participants = new Set([
-          ...Object.keys(scores),
-          ...Object.values(answers).flatMap(questionAnswers => Object.keys(questionAnswers || {}))
-        ]);
-        if (!participants.size) throw new Error("No participants to publish results for.");
+      const publicResult = await buildPublicRows(roomId, db);
+      publicResult.published = published;
+
+      if (published && !Object.keys(publicResult.rows || {}).length) {
+        throw new Error("No participants to publish results for.");
       }
-      const publicResult = published ? (() => {
-        const scores = scoresSnap.val() || {};
-        const users = usersSnap.val() || {};
-        const answers = answersSnap.val() || {};
-        const participants = new Set([
-          ...Object.keys(scores),
-          ...Object.values(answers).flatMap(questionAnswers => Object.keys(questionAnswers || {}))
-        ]);
-        const rows = [...participants].map(uid => ({
-          uid,
-          name: String(users[uid]?.name || "Player").slice(0, 80),
-          points: Number(scores[uid]?.points) || 0
-        })).sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
-        rows.forEach((row, index) => {
-          row.rank = index > 0 && row.points === rows[index - 1].points ? rows[index - 1].rank : index + 1;
-        });
-        return {
-          roomId,
-          roomName: String(room.name || "Quiz Room").slice(0, 120),
-          published: true,
-          updatedAt: now(),
-          rows: Object.fromEntries(rows.map(row => [row.uid, row]))
-        };
-      })() : {
-        roomId,
-        roomName: String(room.name || "Quiz Room").slice(0, 120),
-        published: false,
-        updatedAt: now()
-      };
+
       await db.ref(`hangout/publicResults/${roomId}`).set(publicResult);
       await appendQuizAudit(
         published ? "hangout.results.publish" : "hangout.results.unpublish",
@@ -930,11 +935,7 @@ window.HangoutAdminRepository = (() => {
         });
       }
       const published = (await db.ref(`hangout/publicResults/${roomId}/published`).once("value")).val();
-      if (published) {
-        const roomSnap = await db.ref(`hangout/rooms/${roomId}`).once("value");
-        const room = roomSnap.val();
-        if (room?.status === "completed") await this.setRoomResultsPublished(roomId, true);
-      }
+      await this.setRoomResultsPublished(roomId, !!published);
       await this.refreshPlayerQuizHistory(roomId);
     },
 
@@ -962,7 +963,7 @@ window.HangoutAdminRepository = (() => {
       }
       if (kind === "manual" && isQuizAdmin()) {
         const published = (await db.ref(`hangout/publicResults/${roomId}/published`).once("value")).val();
-        if (published) await this.setRoomResultsPublished(roomId, true);
+        await this.setRoomResultsPublished(roomId, !!published);
       }
       return result.snapshot.val();
     },

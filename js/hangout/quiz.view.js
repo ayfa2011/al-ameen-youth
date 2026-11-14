@@ -1009,7 +1009,7 @@ let selectedPreviousRoomId = "";
       return;
     }
     const published = Object.entries(data.publicResults || {})
-      .filter(([, result]) => result?.published && result.rows && typeof result.rows === "object")
+      .filter(([, result]) => result && result.rows && typeof result.rows === "object")
       .sort((a, b) => String(b[1].updatedAt || "").localeCompare(String(a[1].updatedAt || "")));
     const list = published.map(([roomId, result]) => {
       const rows = Array.isArray(result.rows) ? result.rows : Object.values(result.rows);
