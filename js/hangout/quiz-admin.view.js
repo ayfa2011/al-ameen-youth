@@ -568,6 +568,7 @@ ANSWER: TRUE</pre>
       host.innerHTML = `<div class="hg-result-publish">
         <div><strong>Quiz results</strong><small>${publicResult?.published ? "Published to players" : "Not published"}</small></div>
         <button type="button" class="hg-btn ${publicResult?.published ? "is-danger" : ""}" data-publish-results="${publicResult?.published ? "false" : "true"}">${publicResult?.published ? "Unpublish Results" : "Publish Results"}</button>
+        <button type="button" class="hg-btn is-danger" data-reset-scores>Reset Scores</button>
       </div>
       <div class="hg-room-score-layout">
         <section class="hg-room-score-board"><h4>${escapeHTML(room?.name || "Quiz Room")} · Ranking</h4>
@@ -646,6 +647,25 @@ ANSWER: TRUE</pre>
       }, error => {
         console.error("Room score updates could not be received:", error);
         showToast("Room score updates were interrupted. Use Refresh to reload.", "error");
+      });
+      host.querySelector("[data-reset-scores]").addEventListener("click", async event => {
+        const button = event.currentTarget;
+        if (!await showConfirmSheet({
+          title: `Reset scores for "${escapeHTML(room?.name || "Quiz Room")}"?`,
+          message: "Every player's points, ranking and score history for this room will be deleted from Firebase, and those points will be removed from the overall leaderboard. This cannot be undone.",
+          confirmLabel: "Reset Scores",
+          danger: true
+        })) return;
+        button.disabled = true;
+        try {
+          const result = await HangoutAdminRepository.resetRoomScores(roomId);
+          showToast(`Scores cleared for ${result.players} player${result.players === 1 ? "" : "s"}.`, "success");
+          await renderRoomScores(host, source, roomId, room);
+        } catch (error) {
+          console.error("Quiz room scores could not be reset:", error);
+          showToast(error.message || "Could not reset the room scores.", "error");
+          button.disabled = false;
+        }
       });
       host.querySelector("[data-publish-results]").addEventListener("click", async event => {
         const button = event.currentTarget;

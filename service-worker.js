@@ -12,12 +12,12 @@ const APP_SHELL = [
   "./js/hangout/hangout-firebase.js?v=20261109-single-login",
   "./js/hangout/hangout-auth.js?v=20261109-single-login",
   "./js/hangout/hangout.repository.js?v=20261109-scheduled-quiz-1",
-  "./js/hangout/hangout-admin.repository.js?v=20261114-delete-room-deduct-before-delete",
+  "./js/hangout/hangout-admin.repository.js?v=20261114-reset-room-scores",
   "./js/hangout/hangout.service.js?v=20261109-cumulative-scoreboard-1",
   "./js/hangout/hangout-hub.view.js?v=20261110-native-mobile",
   "./js/hangout/quiz-chat.view.js?v=20261110-swipe-reply",
   "./js/hangout/quiz-import.parser.js?v=20261113-host-window",
-  "./js/hangout/quiz-admin.view.js?v=20261114-delete-room",
+  "./js/hangout/quiz-admin.view.js?v=20261114-reset-room-scores",
   "./js/hangout/quiz-host.view.js?v=20261113-host-window",
   "./js/hangout/quiz.view.js?v=20261113-host-window"
 ];

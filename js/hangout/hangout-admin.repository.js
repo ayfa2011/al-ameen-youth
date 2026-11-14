@@ -425,6 +425,33 @@ window.HangoutAdminRepository = (() => {
       return room;
     },
 
+    // Removes every score of one quiz room from Firebase: the room's scoreboard,
+    // the published ranking, each player's room awards/history, the global
+    // cumulative points that this room contributed. Questions, answers and the
+    // room itself are kept, and the reset is written to the audit log.
+    async resetRoomScores(roomId) {
+      requireQuizAdmin();
+      const db = await database();
+      const roomScoresSnap = await db.ref(`hangout/roomScores/${roomId}`).once("value");
+      const roomScores = roomScoresSnap.val() || {};
+
+      const updates = {};
+      updates[`hangout/roomScores/${roomId}`] = null;
+      updates[`hangout/publicResults/${roomId}`] = null;
+      for (const [uid, record] of Object.entries(roomScores)) {
+        const roomPoints = Number(record?.points || 0);
+        if (roomPoints > 0) {
+          const currentSnap = await db.ref(`hangout/scores/${uid}/points`).once("value");
+          updates[`hangout/scores/${uid}/points`] = Math.max(0, Number(currentSnap.val() || 0) - roomPoints);
+        }
+        updates[`hangout/playerQuizHistory/${uid}/${roomId}`] = null;
+      }
+      await db.ref().update(updates);
+
+      await appendQuizAudit("hangout.score.reset", `hangout/roomScores/${roomId}`, roomId, now());
+      return { roomId, players: Object.keys(roomScores).length };
+    },
+
     async getControlRoomData(roomId) {
       requireQuizAdmin();
       const db = await database();
