@@ -149,7 +149,7 @@ window.HangoutAdminRepository = (() => {
       const completedRoomsNeedingPublish = Object.entries(rooms)
         .filter(([roomId, room]) => room?.status === "completed" && !publishedResults[roomId]);
       if (completedRoomsNeedingPublish.length) {
-        await Promise.all(completedRoomsNeedingPublish.map(([roomId]) => this.setRoomResultsPublished(roomId, true)));
+        await Promise.allSettled(completedRoomsNeedingPublish.map(([roomId]) => this.setRoomResultsPublished(roomId, true)));
       }
       return rooms;
     },
@@ -581,7 +581,7 @@ window.HangoutAdminRepository = (() => {
       publicResult.published = published;
 
       if (published && !Object.keys(publicResult.rows || {}).length) {
-        throw new Error("No participants to publish results for.");
+        console.warn(`No participants to publish results for room ${roomId}; publishing empty scoreboard.`);
       }
 
       await db.ref(`hangout/publicResults/${roomId}`).set(publicResult);
