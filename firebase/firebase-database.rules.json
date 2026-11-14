@@ -394,6 +394,7 @@
       "answers": {
         ".read": "auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') ",
         "$roomId": {
+          ".write": "auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') ",
           "$questionId": {
             "$uid": {
               ".read": "auth != null && auth.uid == $uid",
@@ -518,6 +519,7 @@
       "roomScores": {
         "$roomId": {
           ".read": "auth != null && ((auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') )",
+          ".write": "auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') ",
           "$uid": {
             ".read": "auth != null && (auth.uid == $uid || ((auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') ))",
             ".write": "(auth != null && (auth.token.email == 'kebir.limra@gmail.com' || auth.token.email == 'ayfaramboor@gmail.com') ) || (auth != null && auth.uid == $uid && newData.child('lastAward').hasChildren(['questionId', 'points']) && newData.child('lastAward').child('questionId').isString() && newData.child('lastAward').child('points').isNumber() && !data.child('awards').child(newData.child('lastAward').child('questionId').val()).exists() && newData.child('awards').child(newData.child('lastAward').child('questionId').val()).child('points').val() == newData.child('lastAward').child('points').val() && root.child('hangout/rooms').child($roomId).child('questions').child(newData.child('lastAward').child('questionId').val()).child('type').val() != 'short' && root.child('hangout/answers').child($roomId).child(newData.child('lastAward').child('questionId').val()).child($uid).child('answer').val() == root.child('hangout/answerKeys').child($roomId).child(newData.child('lastAward').child('questionId').val()).child('correctAnswer').val() && root.child('hangout/rooms').child(newData.child('lastAward').child('roomId').val()).child('questions').child(newData.child('lastAward').child('questionId').val()).child('points').val() == newData.child('lastAward').child('points').val() && newData.child('points').val() == (data.child('points').val() == null ? 0 : data.child('points').val()) + newData.child('lastAward').child('points').val())",
