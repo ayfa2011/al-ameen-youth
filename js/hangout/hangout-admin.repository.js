@@ -524,26 +524,28 @@ window.HangoutAdminRepository = (() => {
       }));
       const finalScores = (await db.ref(`hangout/roomScores/${roomId}`).once("value")).val() || {};
 
-      const roomScoreSync = {};
-      Object.entries(globalScores).forEach(([uid, global]) => {
-        const currentRoomPoints = Number(finalScores[uid]?.points || 0);
-        let roomAutoPoints = 0;
-        Object.entries(global?.autoAwards || {}).forEach(([key, award]) => {
-          if (String(key).startsWith(`${roomId}_`)) {
-            roomAutoPoints += Number(award?.points || 0);
-          }
+      const allRoomScoresSnap = await db.ref("hangout/roomScores").once("value");
+      const allRoomScores = allRoomScoresSnap.val() || {};
+      const globalRecalc = {};
+      Object.entries(allRoomScores).forEach(([, roomRecords]) => {
+        Object.entries(roomRecords || {}).forEach(([uid, record]) => {
+          globalRecalc[uid] = (globalRecalc[uid] || 0) + Number(record?.points || 0);
         });
-        if (roomAutoPoints > currentRoomPoints) {
-          roomScoreSync[`hangout/roomScores/${roomId}/${uid}/points`] = roomAutoPoints;
+      });
+      const globalUpdates = {};
+      Object.entries(globalRecalc).forEach(([uid, total]) => {
+        const currentGlobal = Number(globalScores[uid]?.points || 0);
+        if (total !== currentGlobal) {
+          globalUpdates[`hangout/scores/${uid}/points`] = total;
         }
       });
-      if (Object.keys(roomScoreSync).length) {
+      if (Object.keys(globalUpdates).length) {
         try {
-          await db.ref().update(roomScoreSync);
+          await db.ref().update(globalUpdates);
           const updatedSnap = await db.ref(`hangout/roomScores/${roomId}`).once("value");
           return { room, scores: updatedSnap.val() || {}, publicResult: resultSnap.val() || null };
         } catch (error) {
-          console.warn("Could not sync room scores from global scores:", error);
+          console.warn("Could not recalc global scores from room scores:", error);
         }
       }
 
