@@ -401,16 +401,23 @@ window.HangoutAdminRepository = (() => {
 
       try { await db.ref(`hangout/answers/${roomId}`).remove(); } catch (error) { console.warn("Answers for room could not be deleted:", error); }
 
-      const historySnap = await db.ref("hangout/playerQuizHistory").once("value");
-      const allHistory = historySnap.val() || {};
-      const historyUpdates = {};
-      Object.entries(allHistory).forEach(([uid, rooms]) => {
-        if (rooms?.[roomId]) {
-          historyUpdates[`hangout/playerQuizHistory/${uid}/${roomId}`] = null;
+      const roomScoresSnap = await db.ref(`hangout/roomScores/${roomId}`).once("value");
+      const roomScores = roomScoresSnap.val() || {};
+      const scoreUpdates = {};
+      for (const [uid, record] of Object.entries(roomScores)) {
+        const roomPoints = Number(record?.points || 0);
+        if (roomPoints > 0) {
+          const currentSnap = await db.ref(`hangout/scores/${uid}/points`).once("value");
+          const currentPoints = Number(currentSnap.val() || 0);
+          scoreUpdates[`hangout/scores/${uid}/points`] = Math.max(0, currentPoints - roomPoints);
         }
-      });
-      if (Object.keys(historyUpdates).length) {
-        await db.ref().update(historyUpdates);
+      }
+      if (Object.keys(scoreUpdates).length) {
+        try {
+          await db.ref().update(scoreUpdates);
+        } catch (error) {
+          console.warn("Could not deduct room points from global scores:", error);
+        }
       }
 
       await appendQuizAudit("hangout.quiz.room.delete", `hangout/rooms/${roomId}`, roomId, now());
