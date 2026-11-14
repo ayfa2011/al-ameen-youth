@@ -380,6 +380,43 @@ window.HangoutAdminRepository = (() => {
       await appendQuizAudit("hangout.quiz.room.status", `hangout/rooms/${roomId}`, roomId, timestamp);
     },
 
+    async deleteRoom(roomId) {
+      requireQuizAdmin();
+      const db = await database();
+      const roomSnap = await db.ref(`hangout/rooms/${roomId}`).once("value");
+      const room = roomSnap.val();
+      if (!room) throw new Error("The quiz room no longer exists.");
+
+      const updates = {};
+      updates[`hangout/rooms/${roomId}`] = null;
+      updates[`hangout/roomScores/${roomId}`] = null;
+      updates[`hangout/publicResults/${roomId}`] = null;
+      updates[`hangout/answerKeys/${roomId}`] = null;
+
+      const activeQuiz = (await db.ref("hangout/quiz").once("value")).val() || {};
+      if (activeQuiz.roomId === roomId) {
+        updates["hangout/quiz"] = null;
+      }
+      await db.ref().update(updates);
+
+      try { await db.ref(`hangout/answers/${roomId}`).remove(); } catch (error) { console.warn("Answers for room could not be deleted:", error); }
+
+      const historySnap = await db.ref("hangout/playerQuizHistory").once("value");
+      const allHistory = historySnap.val() || {};
+      const historyUpdates = {};
+      Object.entries(allHistory).forEach(([uid, rooms]) => {
+        if (rooms?.[roomId]) {
+          historyUpdates[`hangout/playerQuizHistory/${uid}/${roomId}`] = null;
+        }
+      });
+      if (Object.keys(historyUpdates).length) {
+        await db.ref().update(historyUpdates);
+      }
+
+      await appendQuizAudit("hangout.quiz.room.delete", `hangout/rooms/${roomId}`, roomId, now());
+      return room;
+    },
+
     async getControlRoomData(roomId) {
       requireQuizAdmin();
       const db = await database();

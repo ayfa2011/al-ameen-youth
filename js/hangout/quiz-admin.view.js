@@ -62,7 +62,7 @@ window.HangoutQuizAdmin = (() => {
       ${Object.entries(rooms).length ? `<div class="hg-room-list">${Object.entries(rooms).sort((a, b) => String(b[1]?.createdAt || "").localeCompare(String(a[1]?.createdAt || ""))).map(([id, room]) => {
         const questions = Object.values(room?.questions || {}).filter(question => !question?.deleted).length;
         const scheduled = room.scheduledStartAt ? new Date(Number(room.scheduledStartAt)).toLocaleString([], { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
-        return `<article class="hg-room-card"><div><strong>${escapeHTML(room.name || "Quiz Room")}</strong><small>${escapeHTML(room.month || "No month")} · ${questions} question${questions === 1 ? "" : "s"}${scheduled ? ` · Starts ${escapeHTML(scheduled)}` : ""}</small></div><span class="hg-status is-${escapeHTML(room.status || "draft")}">${escapeHTML(room.status || "Draft")}</span><button type="button" class="hg-btn is-light" data-manage-room="${escapeHTML(id)}">Manage</button></article>`;
+        return `<article class="hg-room-card"><div><strong>${escapeHTML(room.name || "Quiz Room")}</strong><small>${escapeHTML(room.month || "No month")} · ${questions} question${questions === 1 ? "" : "s"}${scheduled ? ` · Starts ${escapeHTML(scheduled)}` : ""}</small></div><span class="hg-status is-${escapeHTML(room.status || "draft")}">${escapeHTML(room.status || "Draft")}</span><button type="button" class="hg-btn is-light" data-manage-room="${escapeHTML(id)}">Manage</button><button type="button" class="hg-btn is-danger" data-delete-room="${escapeHTML(id)}">Delete</button></article>`;
       }).join("")}</div>` : '<div class="hg-empty">No quiz rooms yet. Create your first room above.</div>'}`;
       host.querySelector("form").addEventListener("submit", async event => {
         event.preventDefault();
@@ -89,6 +89,28 @@ window.HangoutQuizAdmin = (() => {
       host.querySelectorAll("[data-manage-room]").forEach(button => button.addEventListener("click", async () => {
         state.roomId = button.dataset.manageRoom;
         await renderRoomManager(host, state, state.roomId);
+      }));
+      host.querySelectorAll("[data-delete-room]").forEach(button => button.addEventListener("click", async () => {
+        const roomId = button.dataset.deleteRoom;
+        const room = state.rooms?.[roomId];
+        if (!room) return;
+        if (!await showConfirmSheet({
+          title: `Delete quiz room "${escapeHTML(room.name)}"?`,
+          message: "This will permanently delete the room, its questions, answers, scores, results and history. This cannot be undone.",
+          confirmLabel: "Delete Room",
+          danger: true
+        })) return;
+        button.disabled = true;
+        try {
+          await HangoutAdminRepository.deleteRoom(roomId);
+          showToast("Quiz room deleted.", "success");
+          state.roomId = "";
+          await renderRooms(host, state);
+        } catch (error) {
+          console.error("Quiz room could not be deleted:", error);
+          showToast(error.message || "Could not delete the quiz room.", "error");
+          button.disabled = false;
+        }
       }));
     } catch (error) {
       console.error("Quiz rooms could not be loaded:", error);
