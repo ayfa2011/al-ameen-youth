@@ -279,8 +279,32 @@ window.HangoutAdminRepository = (() => {
       }
       const timestamp = now();
       await db.ref(`hangout/rooms/${roomId}/questions/${questionId}`).update({ deleted: true, updatedAt: timestamp });
+      await this.renumberQuestions(roomId);
       await this.syncNextQuizSchedule();
       await appendQuizAudit("hangout.quiz.question.delete", `hangout/rooms/${roomId}/questions/${questionId}`, questionId, timestamp);
+    },
+
+    async renumberQuestions(roomId) {
+      const ref = await roomRef(roomId);
+      const snap = await ref.child("questions").once("value");
+      const questions = snap.val() || {};
+      const timestamp = now();
+      const remaining = Object.entries(questions)
+        .filter(([, question]) => !question?.deleted)
+        .sort(([, a], [, b]) => Number(a?.questionNumber) - Number(b?.questionNumber) || 0);
+      const updates = {};
+      let next = 1;
+      remaining.forEach(([id, question]) => {
+        const number = next++;
+        if (Number(question.questionNumber) !== number) {
+          updates[`questions/${id}/questionNumber`] = number;
+          updates[`questions/${id}/updatedAt`] = timestamp;
+        }
+      });
+      if (Object.keys(updates).length) {
+        await ref.update(updates);
+      }
+      await ref.child("questionCounter").set(remaining.length);
     },
 
     async listEvaluations() {
