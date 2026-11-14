@@ -1,7 +1,7 @@
 // Bump this name when deploying asset changes; activation replaces the old shell cache.
 // This is required in addition to ?v= query bumps on index.html: once a same-origin
 // script is cached below, bumping its ?v= alone is not enough to evict it.
-const CACHE_NAME = "alameen-shell-v37-global-score-recalc";
+const CACHE_NAME = "alameen-shell-v38-delete-room-deduct-before-delete";
 const APP_SHELL = [
   "./", "./index.html", "./manifest.json", "./css/style.css",
   "./assets/icons/icon-192.png", "./assets/icons/icon-512.png", "./assets/icons/apple-touch-icon.png",
@@ -12,7 +12,7 @@ const APP_SHELL = [
   "./js/hangout/hangout-firebase.js?v=20261109-single-login",
   "./js/hangout/hangout-auth.js?v=20261109-single-login",
   "./js/hangout/hangout.repository.js?v=20261109-scheduled-quiz-1",
-  "./js/hangout/hangout-admin.repository.js?v=20261114-global-score-recalc",
+  "./js/hangout/hangout-admin.repository.js?v=20261114-delete-room-deduct-before-delete",
   "./js/hangout/hangout.service.js?v=20261109-cumulative-scoreboard-1",
   "./js/hangout/hangout-hub.view.js?v=20261110-native-mobile",
   "./js/hangout/quiz-chat.view.js?v=20261110-swipe-reply",

@@ -387,6 +387,9 @@ window.HangoutAdminRepository = (() => {
       const room = roomSnap.val();
       if (!room) throw new Error("The quiz room no longer exists.");
 
+      const roomScoresSnap = await db.ref(`hangout/roomScores/${roomId}`).once("value");
+      const roomScores = roomScoresSnap.val() || {};
+
       const updates = {};
       updates[`hangout/rooms/${roomId}`] = null;
       updates[`hangout/roomScores/${roomId}`] = null;
@@ -401,8 +404,6 @@ window.HangoutAdminRepository = (() => {
 
       try { await db.ref(`hangout/answers/${roomId}`).remove(); } catch (error) { console.warn("Answers for room could not be deleted:", error); }
 
-      const roomScoresSnap = await db.ref(`hangout/roomScores/${roomId}`).once("value");
-      const roomScores = roomScoresSnap.val() || {};
       const scoreUpdates = {};
       for (const [uid, record] of Object.entries(roomScores)) {
         const roomPoints = Number(record?.points || 0);
