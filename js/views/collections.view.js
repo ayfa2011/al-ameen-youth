@@ -80,7 +80,7 @@ function renderHouseFundProjectDetail() {
   const totals = HouseFundService.totals(houseFundContributions);
   const rows = HouseFundService.sort(houseFundContributions, houseFundFilter);
   const canEdit = houseFundCanEdit();
-  const filters = [["all", "All"], ["paid", "Paid Only"], ["pledged", "Promise Only"], ["top", "Top Donors"], ["recent", "Recent First"], ["members", "Members"], ["supporters", "Non-Members"]];
+  const filters = [["all", "All"], ["paid", "Paid Only"], ["pledged", "Promise Only"], ["top", "Top Donors"], ["recent", "Recent First"]];
   target.innerHTML = `
     <header class="house-fund-detail-heading"><div class="house-fund-detail-title"><button type="button" class="house-fund-back-icon" data-fund-action="back-projects" aria-label="Back to projects" title="Back to projects"><i class="fa-solid fa-arrow-left"></i></button><h2 class="house-fund-detail-title-text">${canEdit ? `<button type="button" class="house-fund-editable house-fund-detail-name" data-fund-action="edit-project-name" data-project-id="${escapeHTML(project.id)}" title="Tap to edit project">${escapeHTML(project.projectName || project.title || "Fund Project")}</button>` : `<strong class="house-fund-detail-name">${escapeHTML(project.projectName || project.title || "Fund Project")}</strong>`}</h2></div>${canEdit ? `<button type="button" class="house-fund-icon-btn house-fund-calendar-btn" data-fund-action="edit-project-date" aria-label="Edit closing date" title="Edit closing date"><i class="fa-regular fa-calendar"></i></button><button type="button" class="house-fund-primary house-fund-add-trigger" data-fund-action="open-contribution-form"><i class="fa-solid fa-plus"></i> Amount</button>` : ""}</header>
     <section class="house-fund-summary" aria-label="Fund summary"><div class="house-fund-summary-grid"><div class="house-fund-summary-col house-fund-summary-col-left"><span>Total Collected</span><strong>${houseFundMoney(totals.collected)}</strong><small>${houseFundContributions.filter(item => item.status === "paid").length} paid</small></div><span class="house-fund-summary-vdiv" aria-hidden="true"></span><div class="house-fund-summary-col house-fund-summary-col-right"><span>Total Promise</span><strong>${houseFundMoney(totals.pledged)}</strong><small>${houseFundContributions.filter(item => item.status === "pledged").length} Promise</small></div></div><span class="house-fund-summary-hdiv" aria-hidden="true"></span><div class="house-fund-summary-total-row"><span class="house-fund-summary-total-label">Total Amount</span><div class="house-fund-summary-total-right"><strong>${houseFundMoney(totals.collected + totals.pledged)}</strong><small>${houseFundContributions.length} entries</small></div></div></section>
@@ -92,7 +92,7 @@ function renderHouseFundProjectDetail() {
 }
 
 function setHouseFundFilter(filter) {
-  const allowed = ["all", "paid", "pledged", "top", "recent", "members", "supporters"];
+  const allowed = ["all", "paid", "pledged", "top", "recent"];
   houseFundFilter = allowed.includes(filter) ? filter : "all";
   renderHouseFundProjectDetail();
 }
@@ -134,7 +134,7 @@ document.addEventListener("keydown", event => {
 function houseFundWhatsAppSummary() {
   const project = houseFundCurrentProject;
   const totals = HouseFundService.totals(houseFundContributions);
-  const donors = HouseFundService.sort(houseFundContributions, "top");
+  const donors = HouseFundService.sort(houseFundContributions, houseFundFilter);
   const donorLines = donors.length ? donors.map((item, index) => `${index + 1}. ${item.name} - ${houseFundMoney(item.amount)}${item.status === "paid" ? " ✅" : ""}`).join("\n") : "ಇನ್ನೂ ಯಾವುದೇ ದೇಣಿಗೆ ದಾಖಲಾಗಿಲ್ಲ.";
   return `*${project?.projectName || "Egu ಮನೆ ನಿರ್ಮಾಣ ಸಹಾಯಧನ ಸಂಗ್ರಹ"}*\n\n*Total Collected:* ${houseFundMoney(totals.collected)}\n*Total Promise:* ${houseFundMoney(totals.pledged)}\n*Total Amount:* ${houseFundMoney(totals.collected + totals.pledged)}\n\nDonors List\n${donorLines}`;
 }
