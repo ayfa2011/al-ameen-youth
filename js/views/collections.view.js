@@ -136,7 +136,7 @@ function houseFundWhatsAppSummary() {
   const totals = HouseFundService.totals(houseFundContributions);
   const donors = HouseFundService.sort(houseFundContributions, "top");
   const donorLines = donors.length ? donors.map((item, index) => `${index + 1}. ${item.name} - ${houseFundMoney(item.amount)}${item.status === "paid" ? " ✅" : ""}`).join("\n") : "ಇನ್ನೂ ಯಾವುದೇ ದೇಣಿಗೆ ದಾಖಲಾಗಿಲ್ಲ.";
-  return `*ಅಲ್-ಅಮೀನ್ ಅರಂಬೂರು*\n*${project?.projectName || "Egu ಮನೆ ನಿರ್ಮಾಣ ಸಹಾಯಧನ ಸಂಗ್ರಹ"}*\n\n*Total Collected:* ${houseFundMoney(totals.collected)}\n*Total Promise:* ${houseFundMoney(totals.pledged)}\n*Total Amount:* ${houseFundMoney(totals.collected + totals.pledged)}\n\nDonors List\n${donorLines}\n\n🌐 ಸಂಪೂರ್ಣ ಪಟ್ಟಿ ಮತ್ತು ವಿವರಗಳಿಗಾಗಿ ಭೇಟಿ ನೀಡಿ:\nhttps://ayfa2011.github.io/al-ameen-youth/`;
+  return `*${project?.projectName || "Egu ಮನೆ ನಿರ್ಮಾಣ ಸಹಾಯಧನ ಸಂಗ್ರಹ"}*\n\n*Total Collected:* ${houseFundMoney(totals.collected)}\n*Total Promise:* ${houseFundMoney(totals.pledged)}\n*Total Amount:* ${houseFundMoney(totals.collected + totals.pledged)}\n\nDonors List\n${donorLines}\n\n🌐 ಸಂಪೂರ್ಣ ಪಟ್ಟಿ ಮತ್ತು ವಿವರಗಳಿಗಾಗಿ ಭೇಟಿ ನೀಡಿ:\nhttps://ayfa2011.github.io/al-ameen-youth/`;
 }
 
 document.addEventListener("click", event => {
