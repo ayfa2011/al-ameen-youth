@@ -706,7 +706,7 @@ function renderBloodFilterPills(members) {
   const groups = BLOOD_GROUP_OPTIONS.filter(group => counts[group]);
   wrap.innerHTML = [`<button type="button" class="blood-filter-pill active" data-filter="ALL">All (${members.length})</button>`, ...groups.map(group => `<button type="button" class="blood-filter-pill" data-filter="${group}">${group} (${counts[group]})</button>`), pending ? `<button type="button" class="blood-filter-pill blood-filter-pending" data-filter="">Pending Blood Details (${pending})</button>` : ""].join("");
   wrap.querySelectorAll(".blood-filter-pill").forEach(pill => {
-    pill.addEventListener("click", () => applyBloodGroupFilter(p.dataset.filter));
+    pill.addEventListener("click", () => applyBloodGroupFilter(pill.dataset.filter));
   });
 }
 
