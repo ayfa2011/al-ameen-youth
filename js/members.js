@@ -706,6 +706,27 @@ function renderBloodFilterPills(members) {
   const groups = BLOOD_GROUP_OPTIONS.filter(group => counts[group]);
   wrap.innerHTML = [`<button type="button" class="blood-filter-pill active" data-filter="ALL">All (${members.length})</button>`, ...groups.map(group => `<button type="button" class="blood-filter-pill" data-filter="${group}">${group} (${counts[group]})</button>`), pending ? `<button type="button" class="blood-filter-pill blood-filter-pending" data-filter="">Pending Blood Details (${pending})</button>` : ""].join("");
   wrap.querySelectorAll(".blood-filter-pill").forEach(pill => {
-    pill.addEventListener("click", () => applyBloodGroupFilter(pill.dataset.filter));
+    pill.addEventListener("click", () => applyBloodGroupFilter(p.dataset.filter));
   });
+}
+
+function membersMoney(value) {
+  return `₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(value) || 0)}`;
+}
+
+function membersWhatsAppSummary() {
+  const members = fullMembersList.filter(m => String(m.contribution || "").trim() !== "");
+  const totalCollected = members.reduce((sum, m) => sum + (Number(m.contribution) || 0), 0);
+  const totalAmount = totalCollected;
+  const donorLines = members.length ? members
+    .sort((a, b) => (Number(b.contribution) || 0) - (Number(a.contribution) || 0))
+    .map((m, i) => `${i + 1}. ${escapeHTML(String(m.name || "").trim())} - ${membersMoney(m.contribution)}`)
+    .join("\n")
+    : "ಇನ್ನೂ ಯಾವುದೇ ದೇಣಿಗೆ ದಾಖಲಾಗಿಲ್ಲ.";
+  return `*ಅಲ್-ಅಮೀನ್ ಅರಂಬೂರು ಸದಸ್ಯ ಪಟ್ಟಿ*\n\n*Total Collected:* ${membersMoney(totalCollected)}\n*Total Promise:* ${membersMoney(0)}\n*Total Amount:* ${membersMoney(totalAmount)}\n\nDonors List\n${donorLines}`;
+}
+
+function membersShareWhatsApp() {
+  const url = `https://wa.me/?text=${encodeURIComponent(membersWhatsAppSummary())}`;
+  window.open(url, "_blank", "noopener,noreferrer");
 }

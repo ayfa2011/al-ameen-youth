@@ -2391,6 +2391,8 @@ body{display:flex;align-items:center;justify-content:center;background:#eef2f1}
 #membersView .member-card-admin-actions .member-card-delete{border-color:#f0dddd;background:#fff8f7;color:#a8433d}
 #membersView .member-add-button{display:flex;width:100%;min-height:42px;align-items:center;justify-content:center;gap:8px;margin:10px 0 14px;border:1px solid #176343;border-radius:10px;background:#eef8f3;color:#176343;font-size:14px;font-weight:600}
 #membersView .member-add-button.hidden{display:none}
+#membersView .member-whatsapp-button{display:flex;width:100%;min-height:42px;align-items:center;justify-content:center;gap:8px;margin:0 0 14px;border:1px solid #25d366;border-radius:10px;background:#e7f7e8;color:#25d366;font-size:14px;font-weight:600}
+#membersView .member-whatsapp-button:hover{background:#d4f7d6}
 .member-edit-overlay{position:fixed;z-index:10000;inset:0;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(18,35,29,.48)}
 .member-edit-card{width:min(620px,100%);max-height:min(90vh,820px);overflow:auto;border:1px solid #dfe8e3;border-radius:18px;background:#fff;box-shadow:0 18px 55px rgba(12,38,27,.22)}
 .member-edit-card>header{position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between;padding:15px 18px;border-bottom:1px solid #e7eee9;background:#fff}
