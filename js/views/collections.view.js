@@ -80,7 +80,7 @@ function renderHouseFundProjectDetail() {
   const totals = HouseFundService.totals(houseFundContributions);
   const rows = HouseFundService.sort(houseFundContributions, houseFundFilter);
   const canEdit = houseFundCanEdit();
-  const filters = [["all", "All"], ["members", "Members"], ["paid", "Paid Only"], ["pledged", "Promise Only"], ["recent", "Recent First"]];
+  const filters = [["all", "All"], ["members", "Members"], ["supporters", "Supporter"], ["paid", "Paid Only"], ["pledged", "Promise Only"], ["recent", "Recent First"]];
   target.innerHTML = `
     <header class="house-fund-detail-heading"><div class="house-fund-detail-title"><button type="button" class="house-fund-back-icon" data-fund-action="back-projects" aria-label="Back to projects" title="Back to projects"><i class="fa-solid fa-arrow-left"></i></button><h2 class="house-fund-detail-title-text">${canEdit ? `<button type="button" class="house-fund-editable house-fund-detail-name" data-fund-action="edit-project-name" data-project-id="${escapeHTML(project.id)}" title="Tap to edit project">${escapeHTML(project.projectName || project.title || "Fund Project")}</button>` : `<strong class="house-fund-detail-name">${escapeHTML(project.projectName || project.title || "Fund Project")}</strong>`}</h2></div>${canEdit ? `<button type="button" class="house-fund-icon-btn house-fund-calendar-btn" data-fund-action="edit-project-date" aria-label="Edit closing date" title="Edit closing date"><i class="fa-regular fa-calendar"></i></button><button type="button" class="house-fund-primary house-fund-add-trigger" data-fund-action="open-contribution-form"><i class="fa-solid fa-plus"></i> Amount</button>` : ""}</header>
     <section class="house-fund-summary" aria-label="Fund summary"><div class="house-fund-summary-grid"><div class="house-fund-summary-col house-fund-summary-col-left"><span>Total Collected</span><strong>${houseFundMoney(totals.collected)}</strong><small>${houseFundContributions.filter(item => item.status === "paid").length} paid</small></div><span class="house-fund-summary-vdiv" aria-hidden="true"></span><div class="house-fund-summary-col house-fund-summary-col-right"><span>Total Promise</span><strong>${houseFundMoney(totals.pledged)}</strong><small>${houseFundContributions.filter(item => item.status === "pledged").length} Promise</small></div></div><span class="house-fund-summary-hdiv" aria-hidden="true"></span><div class="house-fund-summary-total-row"><span class="house-fund-summary-total-label">Total Amount</span><div class="house-fund-summary-total-right"><strong>${houseFundMoney(totals.collected + totals.pledged)}</strong><small>${houseFundContributions.length} entries</small></div></div></section>
@@ -92,7 +92,7 @@ function renderHouseFundProjectDetail() {
 }
 
 function setHouseFundFilter(filter) {
-  const allowed = ["all", "members", "paid", "pledged", "recent"];
+  const allowed = ["all", "members", "supporters", "paid", "pledged", "recent"];
   houseFundFilter = allowed.includes(filter) ? filter : "all";
   renderHouseFundProjectDetail();
 }
