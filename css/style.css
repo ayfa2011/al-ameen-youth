@@ -3607,11 +3607,11 @@ body{display:flex;align-items:center;justify-content:center;background:#eef2f1}
 .house-fund-detail-title{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
 .house-fund-back-icon{display:grid;width:38px;height:38px;min-width:38px;flex:0 0 38px;place-items:center;padding:0;border:1px solid #dce8e0;border-radius:10px;background:#fff;color:#315b43;cursor:pointer;transition:transform .15s,box-shadow .15s;-webkit-tap-highlight-color:transparent}
 .house-fund-back-icon:active{transform:scale(0.97)}
-.house-fund-detail-title-text{flex:1;min-width:0;display:-webkit-box;-webkit-line-clamp:2;overflow:hidden;line-height:1.25;font-size:clamp(18px,4vw,20px);font-weight:700;color:#174c37}
-.house-fund-detail-title-text .house-fund-detail-name{font:inherit;color:inherit;display:-webkit-box;-webkit-line-clamp:2;overflow:hidden;border:none}
+.house-fund-detail-title-text{flex:1;min-width:0;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;line-height:1.25;font-size:clamp(18px,4vw,20px);font-weight:700;color:#174c37}
+.house-fund-detail-title-text .house-fund-detail-name{font:inherit;color:inherit;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;border:none}
 .house-fund-detail-title-text strong{font:inherit;color:inherit}
 @media(max-width:640px){.collections-page-card.house-fund-detail-active{padding:12px}.house-fund-detail-heading{gap:7px}.house-fund-detail-title-text{font-size:clamp(17px,4vw,19px);line-height:1.2}.house-fund-closing-pill{min-height:27px;padding:4px 7px}.house-fund-detail-active .house-fund-donor-card{padding:7px 1px}.house-fund-detail-active .house-fund-donor-identity strong{max-width:55%}.house-fund-detail-active .house-fund-donor-identity span{font-size:10px}.house-fund-detail-active .house-fund-amount{font-size:12px}}
-.house-fund-detail-active .house-fund-summary{padding:14px 16px;margin-top:48px;margin-bottom:10px;overflow:visible}
+.house-fund-detail-active .house-fund-summary{padding:14px 16px;margin-top:0;margin-bottom:10px;overflow:visible}
 .house-fund-summary-grid{display:grid;grid-template-columns:1fr 1px 1fr;align-items:stretch;column-gap:0}
 .house-fund-summary-col{display:flex;flex-direction:column;gap:4px;min-width:0;padding-top:2px}
 .house-fund-summary-col-left{text-align:left}
