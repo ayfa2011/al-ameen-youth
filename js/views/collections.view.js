@@ -115,7 +115,6 @@ function openHouseFundContributionSheet() {
   if (overlay) overlay.style.display = "block";
   if (sheet) sheet.style.display = "block";
   document.body.style.overflow = "hidden";
-  document.documentElement.style.pointerEvents = "none";
 }
 
 function closeHouseFundSheet() {
@@ -124,7 +123,6 @@ function closeHouseFundSheet() {
   if (overlay) overlay.style.display = "none";
   if (sheet) sheet.style.display = "none";
   document.body.style.overflow = "";
-  document.documentElement.style.pointerEvents = "";
 }
 
 document.addEventListener("keydown", event => {
@@ -138,7 +136,7 @@ function houseFundWhatsAppSummary() {
   const totals = HouseFundService.totals(houseFundContributions);
   const donors = HouseFundService.sort(houseFundContributions, "top");
   const donorLines = donors.length ? donors.map((item, index) => `${index + 1}. ${item.name} - ${houseFundMoney(item.amount)}${item.status === "paid" ? " ✅" : ""}`).join("\n") : "ಇನ್ನೂ ಯಾವುದೇ ದೇಣಿಗೆ ದಾಖಲಾಗಿಲ್ಲ.";
-  return `*ಅಲ್-ಅಮೀನ್ ಅರಂಬೂರು*\n*${project?.projectName || "Egu ಮನೆ ನಿರ್ಮಾಣ ಸಹಾಯಧನ ಸಂಗ್ರಹ"}*\n\nಒಟ್ಟು ಸಂಗ್ರಹ: ${houseFundMoney(totals.collected)}\nಒಟ್ಟು ವಾಗ್ದಾನ: ${houseFundMoney(totals.pledged)}\n\nDonors List\n${donorLines}\n\n🌐 ಸಂಪೂರ್ಣ ಪಟ್ಟಿ ಮತ್ತು ವಿವರಗಳಿಗಾಗಿ ಭೇಟಿ ನೀಡಿ:\nhttps://ayfa2011.github.io/al-ameen-youth/`;
+  return `*ಅಲ್-ಅಮೀನ್ ಅರಂಬೂರು*\n*${project?.projectName || "Egu ಮನೆ ನಿರ್ಮಾಣ ಸಹಾಯಧನ ಸಂಗ್ರಹ"}*\n\n*Total Collected:* ${houseFundMoney(totals.collected)}\n*Total Promise:* ${houseFundMoney(totals.pledged)}\n*Total Amount:* ${houseFundMoney(totals.collected + totals.pledged)}\n\nDonors List\n${donorLines}\n\n🌐 ಸಂಪೂರ್ಣ ಪಟ್ಟಿ ಮತ್ತು ವಿವರಗಳಿಗಾಗಿ ಭೇಟಿ ನೀಡಿ:\nhttps://ayfa2011.github.io/al-ameen-youth/`;
 }
 
 document.addEventListener("click", event => {
