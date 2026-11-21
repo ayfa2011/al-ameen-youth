@@ -135,7 +135,7 @@ function houseFundWhatsAppSummary() {
   const project = houseFundCurrentProject;
   const totals = HouseFundService.totals(houseFundContributions);
   const donors = HouseFundService.sort(houseFundContributions, "all");
-  const donorLines = donors.length ? donors.map((item, index) => `${index + 1}. ${item.name} - ${houseFundMoney(item.amount)}${item.status === "paid" ? " ✓" : ""}`).join("\n") : "ಇನ್ನೂ ಯಾವುದೇ ದೇಣಿಗೆ ದಾಖಲಾಗಿಲ್ಲ.";
+  const donorLines = donors.length ? donors.map((item, index) => `${index + 1}. ${item.name} - ${houseFundMoney(item.amount)}${item.status === "paid" ? " ✔️" : ""}`).join("\n") : "ಇನ್ನೂ ಯಾವುದೇ ದೇಣಿಗೆ ದಾಖಲಾಗಿಲ್ಲ.";
   return `*${project?.projectName || "Egu ಮನೆ ನಿರ್ಮಾಣ ಸಹಾಯಧನ ಸಂಗ್ರಹ"}*\n\n*Total Collected:* ${houseFundMoney(totals.collected)}\n*Total Promise:* ${houseFundMoney(totals.pledged)}\n*Total Amount:* ${houseFundMoney(totals.collected + totals.pledged)}\n\nDonors List\n${donorLines}`;
 }
 
