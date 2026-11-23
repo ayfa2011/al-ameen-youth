@@ -48,7 +48,7 @@ window.HouseFundService = Object.freeze({
     if (filter === "members") rows = rows.filter(item => item.contributorType === "member");
     if (filter === "supporters") rows = rows.filter(item => item.contributorType === "supporter");
     if (filter === "recent") rows.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
-    else rows.sort((a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0));
+    else rows.sort((a, b) => String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
     return rows;
   }
 });
