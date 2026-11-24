@@ -7,7 +7,11 @@ let houseFundFilter = "all";
 let houseFundBusy = false;
 
 function houseFundMoney(value) {
-  return `₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(value) || 0)}`;
+  return `₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(value || 0))}`;
+}
+
+function houseFundMoneyPlain(value) {
+  return String(Math.round(Number(value || 0)));
 }
 
 function houseFundDate(value) {
@@ -135,8 +139,8 @@ function houseFundWhatsAppSummary() {
   const project = houseFundCurrentProject;
   const donors = HouseFundService.sort(houseFundContributions, houseFundFilter);
   const totals = HouseFundService.totals(donors);
-  const donorLines = donors.length ? donors.map((item, index) => `${index + 1}. ${item.name} - ${houseFundMoney(item.amount)}${item.status === "paid" ? " \u2705" : ""}`).join("\n") : "ಇನ್ನೂ ಯಾವುದೇ ದೇಣಿಗೆ ದಾಖಲಾಗಿಲ್ಲ.";
-  return `*${project?.projectName || "Egu ಮನೆ ನಿರ್ಮಾಣ ಸಹಾಯಧನ ಸಂಗ್ರಹ"}*\n\n*Total Collected:* ${houseFundMoney(totals.collected)}\n*Total Promise:* ${houseFundMoney(totals.pledged)}\n*Total Amount:* ${houseFundMoney(totals.collected + totals.pledged)}\n\nDonors List\n${donorLines}`;
+  const donorLines = donors.length ? donors.map((item, index) => `${index + 1}. ${item.name} - ${houseFundMoneyPlain(item.amount)}${item.status === "paid" ? " \u2705" : ""}`).join("\n") : "ಇನ್ನೂ ಯಾವುದೇ ದೇಣಿಗೆ ದಾಖಲಾಗಿಲ್ಲ.";
+  return `*${project?.projectName || "Egu ಮನೆ ನಿರ್ಮಾಣ ಸಹಾಯಧನ ಸಂಗ್ರಹ"}*\n\n*Total Collected:* ${houseFundMoneyPlain(totals.collected)}\n*Total Promise:* ${houseFundMoneyPlain(totals.pledged)}\n*Total Amount:* ${houseFundMoneyPlain(totals.collected + totals.pledged)}\n\nDonors List\n${donorLines}`;
 }
 
 document.addEventListener("click", event => {
@@ -262,6 +266,7 @@ document.addEventListener("submit", async event => {
       const existing = houseFundContributions.find(item => item.id === recordId);
       if (!existing) throw new Error("Record not found.");
       const updated = HouseFundService.createContribution({ name: values.name, place: values.place, amount: values.amount, contributorType: values.contributorType, status: values.status });
+      updated.createdAt = existing.createdAt;
       await HouseFundRepository.updateContribution(houseFundCurrentProject.id, recordId, updated, { action: "houseFund.contribution.update", path: `houseConstructionFundContributions/${houseFundCurrentProject.id}` });
       const index = houseFundContributions.findIndex(item => item.id === recordId);
       if (index >= 0) houseFundContributions[index] = { ...updated, id: recordId };
